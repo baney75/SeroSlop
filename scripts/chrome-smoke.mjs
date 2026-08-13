@@ -29,6 +29,7 @@ function svgData(background, accent, label) {
 
 const fixtureA = svgData("#174c3c", "#f5d97b", "fixture A");
 const fixtureB = svgData("#5a284d", "#90d8f4", "fixture B");
+const fixtureRace = svgData("#102c57", "#ff9f43", "in-flight race");
 const fixtureC = `data:image/png;base64,${(
   await sharp({ create: { width: 640, height: 480, channels: 3, background: "#243c70" } })
     .composite([{ input: Buffer.from('<svg width="640" height="480"><circle cx="230" cy="190" r="120" fill="#f49b79"/><path d="M0 430L170 285l130 105 100-90 240 130" fill="#263552"/></svg>') }])
@@ -211,6 +212,114 @@ try {
   if (postCutoffNetworkRequests.length) {
     throw new Error(`Network request occurred after server shutdown/offline cutoff: ${postCutoffNetworkRequests.join(", ")}`);
   }
+
+  const cssBadge = (badges, elementId = "css-background") => badges.find(
+    (badge) => badge.slot === "background:composite" && badge.elementId === elementId,
+  );
+  const originalCssBadge = cssBadge(badges);
+  if (!originalCssBadge || originalCssBadge.acceptedResultCount !== 1) {
+    throw new Error(`CSS badge slot was not observable: ${JSON.stringify(badges)}`);
+  }
+
+  // CSS-background race regression: admit a fresh valid target, wait until its
+  // request is in flight, then change its source to one that cannot be read.
+  // The lifetime acceptance counter proves the old valid response was never
+  // displayed, even transiently, after invalidation.
+  await page.evaluate((source) => {
+    const target = document.createElement("div");
+    target.id = "css-race";
+    target.setAttribute("role", "img");
+    target.setAttribute("aria-label", "CSS stale-response race fixture");
+    target.style.cssText = `position:fixed;inset:8px auto auto 8px;z-index:2;width:640px;height:480px;background-image:url("${source}");background-size:cover`;
+    document.body.append(target);
+  }, fixtureRace);
+  let raceStarted;
+  for (let attempt = 0; attempt < 240; attempt += 1) {
+    raceStarted = cssBadge(await badgeSnapshot(statusPage, tabId), "css-race");
+    if (raceStarted?.state === "analyzing") break;
+    await page.waitForTimeout(10);
+  }
+  if (raceStarted?.state !== "analyzing" || raceStarted.acceptedResultCount !== 0) {
+    throw new Error(`CSS race request did not enter the analyzing state: ${JSON.stringify(raceStarted)}`);
+  }
+  await page.evaluate(() => {
+    const target = document.querySelector("#css-race");
+    if (!target) throw new Error("CSS race fixture missing");
+    target.style.backgroundImage = "url(\"file:///prooflens-race-invalidated.png\")";
+  });
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const current = await badgeSnapshot(statusPage, tabId);
+    const race = cssBadge(current, "css-race");
+    if (race?.acceptedResultCount !== 0 || race?.state === "complete") {
+      throw new Error(`A stale CSS response was accepted after its source changed: ${JSON.stringify(race)}`);
+    }
+    if (race?.state === "unavailable") break;
+    await page.waitForTimeout(50);
+  }
+  const invalidated = await badgeSnapshot(statusPage, tabId);
+  const unavailableRace = cssBadge(invalidated, "css-race");
+  if (unavailableRace?.state !== "unavailable" || unavailableRace.acceptedResultCount !== 0) {
+    throw new Error(`CSS source mutation did not reject the stale result: ${JSON.stringify(invalidated)}`);
+  }
+
+  await page.evaluate((source) => {
+    const target = document.querySelector("#css-race");
+    if (!target) throw new Error("CSS race fixture missing");
+    target.style.backgroundImage = `url("${source}")`;
+  }, fixtureB);
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const current = await badgeSnapshot(statusPage, tabId);
+    if (cssBadge(current, "css-race")?.state === "complete") break;
+    await page.waitForTimeout(50);
+  }
+  const reanalyzedRace = cssBadge(await badgeSnapshot(statusPage, tabId), "css-race");
+  if (reanalyzedRace?.state !== "complete" || reanalyzedRace.acceptedResultCount !== 1) {
+    throw new Error(`CSS replacement source was not freshly analyzed: ${JSON.stringify(reanalyzedRace)}`);
+  }
+  await page.evaluate(() => document.querySelector("#css-race")?.remove());
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    if (!cssBadge(await badgeSnapshot(statusPage, tabId), "css-race")) break;
+    await page.waitForTimeout(25);
+  }
+  if (cssBadge(await badgeSnapshot(statusPage, tabId), "css-race")) {
+    throw new Error("Removed CSS race fixture retained a label");
+  }
+
+  // CSSOM-only mutation regression: no DOM attribute mutation occurs; the
+  // bounded periodic reconciliation must still notice and reanalyze it.
+  await page.evaluate(() => {
+    const style = document.querySelector("style");
+    if (!style?.sheet) throw new Error("CSSOM fixture missing");
+    const rule = [...style.sheet.cssRules].find((candidate) => candidate.selectorText === ".background");
+    if (!rule || !("style" in rule)) throw new Error("CSSOM background rule missing");
+    rule.style.backgroundImage = "url(\"file:///prooflens-cssom-invalidated.png\")";
+  });
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const current = await badgeSnapshot(statusPage, tabId);
+    if (cssBadge(current)?.state === "unavailable") break;
+    await page.waitForTimeout(50);
+  }
+  const cssomInvalidated = await badgeSnapshot(statusPage, tabId);
+  if (cssBadge(cssomInvalidated)?.state !== "unavailable" || cssBadge(cssomInvalidated)?.acceptedResultCount !== 1) {
+    throw new Error(`CSSOM change was not reconciled: ${JSON.stringify(cssomInvalidated)}`);
+  }
+
+  await page.evaluate(({ first, second }) => {
+    const style = document.querySelector("style");
+    if (!style?.sheet) throw new Error("CSSOM fixture missing");
+    const rule = [...style.sheet.cssRules].find((candidate) => candidate.selectorText === ".background");
+    if (!rule || !("style" in rule)) throw new Error("CSSOM background rule missing");
+    rule.style.backgroundImage = `url("${first}"),url("${second}")`;
+  }, { first: fixtureC, second: fixtureA });
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const current = await badgeSnapshot(statusPage, tabId);
+    if (cssBadge(current)?.state === "complete" && cssBadge(current)?.acceptedResultCount === 2) break;
+    await page.waitForTimeout(50);
+  }
+  const reanalyzed = await badgeSnapshot(statusPage, tabId);
+  if (cssBadge(reanalyzed)?.state !== "complete" || cssBadge(reanalyzed)?.acceptedResultCount !== 2) {
+    throw new Error(`CSS replacement source was not analyzed: ${JSON.stringify(reanalyzed)}`);
+  }
   let summary;
   for (let attempt = 0; attempt < 120; attempt += 1) {
     summary = await statusPage.evaluate(
@@ -273,7 +382,8 @@ try {
   const bounded = await contentSnapshot(statusPage, tabId);
   if (bounded.recordCount > bounded.targetLimit || bounded.targetLimit !== 512 || bounded.pendingCount > 32 || bounded.activeAnalyses > 1 ||
     bounded.lastScanVisited > bounded.maxElementsPerScan || bounded.fullScanIntervalMs !== 1_000 ||
-    bounded.pendingMutationRoots > bounded.maxPendingMutationRoots || bounded.maxPendingMutationRoots !== 256) {
+    bounded.pendingMutationRoots > bounded.maxPendingMutationRoots || bounded.maxPendingMutationRoots !== 256 ||
+    bounded.cssReconciliationIntervalMs !== 1_000 || bounded.maxCssReconciliationRecords !== 512) {
     throw new Error(`Hostile-page admission was not bounded: ${JSON.stringify(bounded)}`);
   }
   const scanPassesBeforeChurn = bounded.scanPasses;
@@ -345,6 +455,8 @@ try {
     dynamicImage: true,
     responsivePicture: true,
     cssCompositeBackground: true,
+    cssStaleResponseRejected: unavailableRace.acceptedResultCount === 0 && reanalyzedRace.acceptedResultCount === 1,
+    cssomBackgroundReconciled: cssBadge(cssomInvalidated)?.acceptedResultCount === 1 && cssBadge(reanalyzed)?.acceptedResultCount === 2,
     narrowViewport: { width: 480, height: 720, visibleLabels: visibleNarrowLabels },
     closedShadowRoot,
     overlayRemovalRecovered: true,
@@ -356,6 +468,8 @@ try {
       scanPassesDuringChurn: churned.scanPasses - scanPassesBeforeChurn,
       maxElementsPerScan: churned.maxElementsPerScan,
       maxPendingMutationRoots: churned.maxPendingMutationRoots,
+      cssReconciliationIntervalMs: bounded.cssReconciliationIntervalMs,
+      maxCssReconciliationRecords: bounded.maxCssReconciliationRecords,
       replacementRecords: replaced.recordCount,
     },
   };

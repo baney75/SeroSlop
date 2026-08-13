@@ -24,4 +24,4 @@ The popup shows current complete, flagged, unavailable, analyzing, and queued co
 
 Labels remain inside the viewport at its current zoom. Text truncation may occur on narrow viewports; the complete meaning remains in the accessible label. Motion appears only for the analyzing state and is disabled by `prefers-reduced-motion`. ProofLens does not add a keyboard stop unless an element has an action.
 
-Release evidence must cover setup, popup progress, likely-AI, not-flagged, unavailable, closed-root recovery, dynamic images, responsive images, a CSS composite, reduced-motion behavior, and a narrow viewport. The project-owned Chrome test is the executable source of truth for supported targets and offline behavior.
+Release evidence must cover setup, popup progress, likely-AI, not-flagged, unavailable, closed-root recovery, dynamic images, responsive images, a CSS composite, rejection of an in-flight result after its CSS source changes, CSSOM-only background reconciliation, reduced-motion behavior, and a narrow viewport. The project-owned Chrome test is the executable source of truth for supported targets and offline behavior.

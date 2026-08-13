@@ -18,6 +18,8 @@ const MAX_CONCURRENT_ANALYSES = 1;
 const MAX_MUTATIONS_PER_CALLBACK = 1_000;
 const MAX_PENDING_MUTATION_ROOTS = 256;
 const FULL_SCAN_INTERVAL_MS = 1_000;
+const CSS_RECONCILIATION_INTERVAL_MS = 1_000;
+const MAX_CSS_RECONCILIATION_RECORDS = 512;
 const OVERLAY_REPAIR_DELAY_MS = 250;
 const POSITION_MARGIN = 6;
 
@@ -27,6 +29,7 @@ interface TargetRecord extends TargetDescriptor {
   state: AnalysisState;
   flagged: boolean;
   unavailable: boolean;
+  acceptedResultCount: number;
   requestId?: string;
 }
 
@@ -213,6 +216,7 @@ function syncElement(element: HTMLElement): void {
       state: "queued",
       flagged: false,
       unavailable: false,
+      acceptedResultCount: 0,
     };
     slots.set(descriptor.slot, record);
     records.add(record);
@@ -223,6 +227,17 @@ function syncElement(element: HTMLElement): void {
   }
   schedulePositions();
   reportStats();
+}
+
+function reconcileVisibleCssBackgrounds(): void {
+  if (!enabled) return;
+  let checked = 0;
+  for (const record of records) {
+    if (checked >= MAX_CSS_RECONCILIATION_RECORDS) break;
+    if (record.kind !== "background" || !record.element.isConnected || !nearViewport(record)) continue;
+    checked += 1;
+    syncElement(record.element);
+  }
 }
 
 function scanWithinBudget(root: ParentNode, budget: number): number {
@@ -434,6 +449,7 @@ async function analyze(record: TargetRecord): Promise<void> {
       return;
     }
     record.state = "complete";
+    record.acceptedResultCount += 1;
     const classification = classifyLikelihood(response.result.aiLikelihood);
     record.flagged = classification === "likely-ai";
     record.badge.dataset.classification = classification;
@@ -540,10 +556,19 @@ const mutationObserver = new MutationObserver((mutations) => {
     processedMutations += 1;
     if (mutation.type === "attributes" && mutation.target instanceof HTMLElement) {
       if (mutation.target === overlayHost) scheduleOverlayRepair();
-      else queueMutationRoot(mutation.target);
+      else {
+        // Reconcile admitted targets synchronously. The throttled tree scan is
+        // still needed for newly exposed descendants, but must not leave an
+        // in-flight result valid after style/class/source changes.
+        syncElement(mutation.target);
+        queueMutationRoot(mutation.target);
+      }
       if (mutation.target instanceof HTMLSourceElement) {
         const image = mutation.target.parentElement?.querySelector("img");
-        if (image) queueMutationRoot(image);
+        if (image) {
+          syncElement(image);
+          queueMutationRoot(image);
+        }
       }
     }
     for (const node of mutation.removedNodes) {
@@ -586,6 +611,10 @@ chrome.runtime.onMessage.addListener((
   if (message.type === "PL_GET_CONTENT_SNAPSHOT") {
     sendResponse({
       badges: [...records].map((record) => ({
+        slot: record.slot,
+        kind: record.kind,
+        elementId: record.element.id || undefined,
+        acceptedResultCount: record.acceptedResultCount,
         text: record.badge.textContent,
         title: record.badge.title,
         state: record.badge.dataset.state,
@@ -603,6 +632,8 @@ chrome.runtime.onMessage.addListener((
       pendingMutationRoots: pendingMutationRoots.size,
       maxPendingMutationRoots: MAX_PENDING_MUTATION_ROOTS,
       fullScanIntervalMs: FULL_SCAN_INTERVAL_MS,
+      cssReconciliationIntervalMs: CSS_RECONCILIATION_INTERVAL_MS,
+      maxCssReconciliationRecords: MAX_CSS_RECONCILIATION_RECORDS,
       overlayAttached: overlayHost.isConnected,
       labelsVisible,
       enabled,
@@ -672,6 +703,7 @@ async function start(): Promise<void> {
     scheduleFullScan();
   }, { passive: true });
   scheduleOverlayRepair();
+  window.setInterval(reconcileVisibleCssBackgrounds, CSS_RECONCILIATION_INTERVAL_MS);
 }
 
 void start();

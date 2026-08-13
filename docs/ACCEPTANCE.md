@@ -18,10 +18,10 @@
 | Browser-local inference | Packaged ONNX; WebGPU primary; WASM fallback | `npm run test:chrome:webgpu`, `npm run test:chrome` |
 | Offline after model setup | No model downloader; packaged model copied after SHA check | fresh-profile restart/offline E2E; zero post-cutoff requests |
 | No cloud/API/backend/hash lookup | No detector endpoint, localhost path, or page-controlled runtime fetch | `npm run check:package`, URL policy tests, `SECURITY.md` |
-| Automatic ordinary-page analysis | `<img>`, `currentSrc`, `picture/srcset`, dynamic DOM, CSS composites; local viewport crop when canvas is blocked | Chrome E2E target assertions |
+| Automatic ordinary-page analysis | `<img>`, `currentSrc`, `picture/srcset`, dynamic DOM, CSS composites; local viewport crop when canvas is blocked | Chrome E2E target, CSSOM, and in-flight stale-response assertions |
 | Per-image confidence | Stable one-decimal numeric badge for completed targets | unit format test and Chrome E2E |
 | Fixed 65% threshold | Single inclusive policy and frozen intercept | boundary tests at 0.649999 / 0.65 / 0.650001 |
-| Reproducible build/install | Lockfile, model lock, deterministic zip inputs, documented commands | `npm ci && npm run verify`; repeat archive hash check |
+| Reproducible build/install | Lockfile, model lock, fixed UTC archive timestamps, documented commands | `npm ci && npm run verify`; byte-identical New York/UTC archive check |
 | Hostile-page safety | Closed/recoverable labels; hard target/queue/body/pixel limits; no privileged URL fetch | policy tests and both Chrome E2E paths |
 | ≥75% balanced accuracy | 93.83% original sealed holdout; lower 95% CI 91.83% | committed manifests/predictions, `npm run check:benchmark`, and exact reevaluation commands |
 

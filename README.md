@@ -47,7 +47,7 @@ npm run test:chrome        # fresh profile, restart, forced WASM, offline/no-loc
 npm run test:chrome:webgpu # same contract through WebGPU
 ```
 
-The browser test closes its fixture server and puts the browser offline before analysis. It verifies model persistence across a browser restart, zero post-cutoff network requests, dynamic and responsive images, one result for a rendered CSS composite, numeric labels, an explicit unavailable state, a closed/recoverable label boundary, bounded hostile-page work, cap-replacement recovery, and a narrow viewport.
+The browser test closes its fixture server and puts the browser offline before analysis. It verifies model persistence across a browser restart, zero post-cutoff network requests, dynamic and responsive images, one result for a rendered CSS composite, rejection of an in-flight stale CSS result, CSSOM-only background reconciliation, numeric labels, an explicit unavailable state, a closed/recoverable label boundary, bounded hostile-page work, cap-replacement recovery, and a narrow viewport. Release verification also rebuilds under New York and UTC time zones and requires byte-identical archives.
 
 ## Runtime design
 
