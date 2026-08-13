@@ -87,7 +87,6 @@ The complete machine-readable contract is [model-lock.json](model-lock.json). Tr
 - [SECURITY.md](SECURITY.md): threat model and fail-closed controls
 - [DESIGN.md](DESIGN.md): visible states, controls, accessibility, and responsive contract
 - [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md): bounty criteria mapped to executable proof
-- [docs/COMPETITOR_AUDIT.md](docs/COMPETITOR_AUDIT.md): public claims, strengths, gaps, and resulting design bar
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): licenses and attribution shipped in every archive
 
 ProofLens is MIT licensed. Dataset pixels are not included in this repository.
