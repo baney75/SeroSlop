@@ -13,6 +13,8 @@ import {
 const OFFSCREEN_PATH = "offscreen.html";
 const MAX_INFERENCE_REQUESTS = 8;
 const MAX_LOCAL_IMAGE_CHARACTERS = 8 * 1024 * 1024;
+const OFFSCREEN_READY_ATTEMPTS = 40;
+const OFFSCREEN_READY_RETRY_MS = 50;
 const pageStats = new Map<number, PageStats>();
 let creatingOffscreen: Promise<void> | undefined;
 let inferenceRequests = 0;
@@ -91,9 +93,27 @@ async function ensureOffscreen(): Promise<void> {
   await creatingOffscreen;
 }
 
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 async function offscreenMessage<T>(message: RuntimeMessage): Promise<T> {
   await ensureOffscreen();
-  return chrome.runtime.sendMessage(message) as Promise<T>;
+  let lastError: unknown = new Error("The offscreen document did not respond");
+  for (let attempt = 0; attempt < OFFSCREEN_READY_ATTEMPTS; attempt += 1) {
+    try {
+      // createDocument can resolve before the new document has registered its message
+      // listener. A null response means no listener accepted the message, so retrying is
+      // safe; every accepted offscreen request returns a non-null response.
+      const response = await chrome.runtime.sendMessage(message) as T | null | undefined;
+      if (response !== null && response !== undefined) return response;
+      lastError = new Error("The offscreen document is not ready");
+    } catch (error) {
+      lastError = error;
+    }
+    await delay(OFFSCREEN_READY_RETRY_MS);
+  }
+  throw lastError;
 }
 
 async function disabledOrigins(): Promise<string[]> {

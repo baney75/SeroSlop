@@ -71,9 +71,14 @@ async function initialize(): Promise<void> {
     }
   }
 
-  const model = (await chrome.runtime.sendMessage({ type: "PL_GET_MODEL_STATUS" })) as ModelStatus;
-  statusElement.textContent = describeModel(model);
-  statusElement.dataset.state = model.state;
+  const model = (await chrome.runtime.sendMessage({ type: "PL_GET_MODEL_STATUS" })) as ModelStatus | null;
+  if (model && typeof model.state === "string") {
+    statusElement.textContent = describeModel(model);
+    statusElement.dataset.state = model.state;
+  } else {
+    statusElement.textContent = "Setup status unavailable";
+    statusElement.dataset.state = "error";
+  }
 
   if (activeTab?.id !== undefined) {
     await refreshPageState();
