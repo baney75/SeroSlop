@@ -20,7 +20,7 @@ export interface ViewportCrop {
 /** A local image payload that is safe to pass into the offscreen detector. */
 export interface InferenceSource {
   kind: "rendered-pixels" | "captured-viewport";
-  /** A lossless image data URL created by the content script or captureVisibleTab. */
+  /** A locally created PNG data URL containing bounded rendered pixels or an active-viewport capture. */
   url: string;
   crop?: ViewportCrop;
 }

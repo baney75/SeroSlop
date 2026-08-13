@@ -74,6 +74,7 @@ async function launch() {
     : [];
   return chromium.launchPersistentContext(profilePath, {
     headless: false,
+    reducedMotion: "reduce",
     ignoreDefaultArgs: expectedProvider === "wasm" ? ["--enable-unsafe-swiftshader"] : [],
     args: [
       `--disable-extensions-except=${extensionPath}`,
@@ -103,12 +104,15 @@ async function badgeSnapshot(extensionPage, tabId) {
 let context;
 const diagnostics = [];
 const postCutoffNetworkRequests = [];
+let setupProgressAccessibleName = false;
 try {
   context = await launch();
   let worker = await extensionWorker(context);
   const extensionId = new URL(worker.url()).host;
   const setup = await context.newPage();
   await setup.goto(`chrome-extension://${extensionId}/setup.html`);
+  await setup.getByRole("progressbar", { name: "Model preparation progress" }).waitFor();
+  setupProgressAccessibleName = true;
   await setup.getByRole("heading", { name: "Offline ready" }).waitFor({ timeout: 300_000 });
   await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}.png`), fullPage: true });
   await context.close();
@@ -241,6 +245,9 @@ try {
   }
   if (raceStarted?.state !== "analyzing" || raceStarted.acceptedResultCount !== 0) {
     throw new Error(`CSS race request did not enter the analyzing state: ${JSON.stringify(raceStarted)}`);
+  }
+  if (raceStarted.animationName !== "none") {
+    throw new Error(`Reduced motion did not suppress the analyzing animation: ${JSON.stringify(raceStarted)}`);
   }
   await page.evaluate(() => {
     const target = document.querySelector("#css-race");
@@ -450,6 +457,8 @@ try {
     browserOfflineBeforeAnalysis: true,
     postCutoffNetworkRequests,
     provider: expectedProvider,
+    setupProgressAccessibleName,
+    reducedMotionSuppressed: raceStarted.animationName === "none",
     targets: { total: badges.length, complete: completed.length, unavailable: unavailable.length },
     numericConfidence: true,
     dynamicImage: true,

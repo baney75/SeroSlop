@@ -620,6 +620,7 @@ chrome.runtime.onMessage.addListener((
         state: record.badge.dataset.state,
         classification: record.badge.dataset.classification,
         provider: record.badge.dataset.provider,
+        animationName: getComputedStyle(record.badge).animationName,
         hidden: record.badge.hidden,
       })),
       recordCount: records.size,

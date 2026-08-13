@@ -40,7 +40,8 @@ describe("image preprocessing", () => {
   it("resizes the short edge while preserving aspect ratio", () => {
     expect(resizeShortEdgeGeometry(400, 200)).toEqual({ width: 880, height: 440 });
     expect(resizeShortEdgeGeometry(200, 400)).toEqual({ width: 440, height: 880 });
-    expect(resizeShortEdgeGeometry(100_000, 100)).toEqual({ width: 4096, height: 4 });
+    expect(resizeShortEdgeGeometry(8_192, 512)).toEqual({ width: 7_040, height: 440 });
+    expect(resizeShortEdgeGeometry(512, 8_192)).toEqual({ width: 440, height: 7_040 });
   });
 
   it("produces the same tensor from equivalent RGB and RGBA buffers", () => {

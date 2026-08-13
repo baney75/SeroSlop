@@ -1,15 +1,14 @@
 import {
-  EMPTY_PAGE_STATS,
   type InferenceResponse,
   type InferenceSource,
   type ModelStatus,
-  type PageStats,
   type RuntimeMessage,
   type SiteStateResponse,
   type TabSummaryResponse,
   type ViewportCrop,
 } from "./shared/contracts";
 import { MinimumIntervalGate } from "./shared/minimum-interval-gate";
+import { PageStatsStore } from "./shared/page-stats-store";
 
 const OFFSCREEN_PATH = "offscreen.html";
 const MAX_INFERENCE_REQUESTS = 8;
@@ -17,7 +16,7 @@ const MAX_LOCAL_IMAGE_CHARACTERS = 8 * 1024 * 1024;
 const OFFSCREEN_READY_ATTEMPTS = 40;
 const OFFSCREEN_READY_RETRY_MS = 50;
 const MIN_VIEWPORT_CAPTURE_INTERVAL_MS = 600;
-const pageStats = new Map<number, PageStats>();
+const pageStats = new PageStatsStore();
 const viewportCaptureGate = new MinimumIntervalGate(MIN_VIEWPORT_CAPTURE_INTERVAL_MS);
 let creatingOffscreen: Promise<void> | undefined;
 let inferenceRequests = 0;
@@ -165,12 +164,11 @@ async function handleMessage(message: RuntimeMessage, sender: chrome.runtime.Mes
       }
     }
     case "PL_PAGE_STATS":
-      if (contentSender(sender) && sender.tab?.id !== undefined &&
+      if (contentSender(sender) && sender.tab?.id !== undefined && typeof sender.documentId === "string" &&
         Object.values(message.stats).every((value) => Number.isSafeInteger(value) && value >= 0) &&
         message.stats.complete + message.stats.queued + message.stats.analyzing + message.stats.unavailable === message.stats.total &&
         message.stats.flagged <= message.stats.complete) {
-        const current = pageStats.get(sender.tab.id);
-        if (!current || message.stats.revision >= current.revision) pageStats.set(sender.tab.id, message.stats);
+        pageStats.update(sender.tab.id, sender.documentId, message.stats);
       }
       return { ok: true };
     case "PL_GET_SITE_STATE": {
@@ -192,7 +190,7 @@ async function handleMessage(message: RuntimeMessage, sender: chrome.runtime.Mes
     }
     case "PL_GET_TAB_SUMMARY":
       if (!extensionPageSender(sender)) throw new Error("Tab summary request has an invalid sender");
-      return { stats: pageStats.get(message.tabId) ?? EMPTY_PAGE_STATS } satisfies TabSummaryResponse;
+      return { stats: pageStats.get(message.tabId) } satisfies TabSummaryResponse;
     case "PL_SET_SITE_STATE": {
       if (!extensionPageSender(sender)) throw new Error("Site state mutation has an invalid sender");
       const disabled = new Set(await disabledOrigins());
@@ -230,6 +228,9 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => pageStats.delete(tabId));
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === "loading" || changeInfo.url !== undefined) pageStats.delete(tabId);
+});
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason !== "install") return;

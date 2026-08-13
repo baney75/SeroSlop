@@ -20,7 +20,7 @@ ProofLens processes untrusted webpage pixels and DOM state with broad host acces
 - Full-DOM discovery examines at most 5,000 elements per pass and is throttled to once per second.
 - Content results require the matching request ID and unchanged source; late results are discarded.
 - Badges live in a closed styling boundary, repair host removal/tampering, and use text plus color. Failures never become confidence scores.
-- Page-summary revisions prevent late messages from regressing worker state.
+- Page summaries are partitioned by document navigation; revisions prevent late messages from regressing state within one document, and tab navigation clears retained state.
 - The package audit rejects localhost, common telemetry endpoints, a missing WASM fallback, a model-hash mismatch, and an unsafe CSP.
 
 ## Residual risks

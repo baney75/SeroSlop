@@ -66,7 +66,7 @@ then runs WebGPU or its clean WASM fallback and applies frozen calibration
 content script: accepts only the matching request/source and renders a result
 ```
 
-Page pixels are snapshotted losslessly when canvas access permits. Otherwise, ProofLens captures the already-rendered active viewport locally and crops the target inside the offscreen document. A page-controlled URL is never fetched by extension code, so redirects, DNS rebinding, localhost, and private-network destinations are outside the acquisition path. Oversized sources, excessive decoded dimensions, corrupt model bytes, unsupported protocols, inactive-tab crops, and decode failures fail closed.
+When canvas access permits, ProofLens reduces images above a 1,024-pixel long edge and encodes the bounded pixels locally as lossless PNG. Otherwise, it captures the already-rendered active viewport locally and crops the target inside the offscreen document. A page-controlled URL is never fetched by extension code, so redirects, DNS rebinding, localhost, and private-network destinations are outside the acquisition path. Oversized sources, excessive decoded dimensions, corrupt model bytes, unsupported protocols, inactive-tab crops, and decode failures fail closed.
 
 ## Model lock
 

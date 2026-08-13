@@ -30,7 +30,7 @@
         <p class="privacy"><strong>Images never go to a detector service.</strong> Inference runs in Chrome with a packaged model—no cloud API or local server.</p>
         <h2 id="setup-state">Checking setup…</h2>
         <p id="setup-detail">Looking for the verified local model.</p>
-        <progress id="setup-progress" value="0" max="100"></progress>
+        <progress id="setup-progress" value="0" max="100" aria-label="Model preparation progress"></progress>
         <button id="prepare-model" type="button" disabled>Prepare verified model</button>
         <h2>Model</h2>
         <dl><dt>Name</dt><dd id="model-name"></dd><dt>Packaged size</dt><dd id="model-size"></dd><dt>SHA-256</dt><dd id="model-hash" class="hash"></dd><dt>Decision threshold</dt><dd>65% AI likelihood (inclusive)</dd></dl>

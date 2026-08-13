@@ -18,10 +18,9 @@ export function resizeShortEdgeGeometry(
   width: number,
   height: number,
   shortEdge = 440,
-  maximumLongEdge = 4096,
 ): { width: number; height: number } {
   if (width <= 0 || height <= 0) throw new Error("Image dimensions must be positive");
-  const scale = Math.min(shortEdge / Math.min(width, height), maximumLongEdge / Math.max(width, height));
+  const scale = shortEdge / Math.min(width, height);
   return {
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
