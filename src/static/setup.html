@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Set up ProofLens</title>
+    <style>
+      :root { color-scheme: light dark; font: 16px/1.55 system-ui, sans-serif; }
+      body { margin: 0; background: #f5f7fb; color: #171b2c; }
+      main { box-sizing: border-box; max-width: 720px; min-height: 100vh; margin: auto; padding: 64px 24px; }
+      .card { background: #fff; border: 1px solid #dce1eb; border-radius: 18px; box-shadow: 0 16px 50px #23304a14; padding: 32px; }
+      .eyebrow { color: #5b5ee5; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+      h1 { font-size: clamp(32px, 7vw, 52px); letter-spacing: -.04em; line-height: 1; margin: 8px 0 18px; }
+      h2 { margin-top: 32px; }
+      .privacy { background: #e9fbf4; border-radius: 10px; color: #164d3a; padding: 14px; }
+      dl { display: grid; grid-template-columns: 1fr auto; gap: 8px 20px; }
+      dt { color: #586174; } dd { margin: 0; font-weight: 650; }
+      .hash { font: 12px/1.35 ui-monospace, monospace; max-width: 390px; overflow-wrap: anywhere; }
+      progress { display: block; height: 12px; margin: 18px 0; width: 100%; }
+      button { background: #5b5ee5; border: 0; border-radius: 9px; color: white; cursor: pointer; font: inherit; font-weight: 750; padding: 12px 18px; }
+      button:disabled { cursor: default; opacity: .55; }
+      @media (prefers-color-scheme: dark) { body { background: #11131c; color: #f6f7fb; } .card { background: #1a1e2a; border-color: #343a4a; } .privacy { background: #163c31; color: #c5fae7; } dt { color: #b0b8cb; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="card">
+        <div class="eyebrow">Private by design</div>
+        <h1>Set up ProofLens</h1>
+        <p class="privacy"><strong>Images never go to a detector service.</strong> Inference runs in Chrome with a packaged model—no cloud API or local server.</p>
+        <h2 id="setup-state">Checking setup…</h2>
+        <p id="setup-detail">Looking for the verified local model.</p>
+        <progress id="setup-progress" value="0" max="100"></progress>
+        <button id="prepare-model" type="button" disabled>Prepare verified model</button>
+        <h2>Model</h2>
+        <dl><dt>Name</dt><dd id="model-name"></dd><dt>Packaged size</dt><dd id="model-size"></dd><dt>SHA-256</dt><dd id="model-hash" class="hash"></dd><dt>Decision threshold</dt><dd>65% AI likelihood (inclusive)</dd></dl>
+      </div>
+    </main>
+    <script src="setup.js"></script>
+  </body>
+</html>

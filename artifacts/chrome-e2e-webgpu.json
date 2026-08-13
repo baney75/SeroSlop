@@ -1,0 +1,27 @@
+{
+  "browserVersion": "139.0.7258.5",
+  "extensionId": "elocmpecbaadjhihgeoiodcfpkfnealn",
+  "cleanProfile": true,
+  "persistedModelAfterRestart": true,
+  "serverStoppedBeforeAnalysis": true,
+  "browserOfflineBeforeAnalysis": true,
+  "postCutoffNetworkRequests": [],
+  "provider": "webgpu",
+  "targets": {
+    "total": 6,
+    "complete": 5,
+    "unavailable": 1
+  },
+  "numericConfidence": true,
+  "dynamicImage": true,
+  "responsivePicture": true,
+  "cssBackground": true,
+  "closedShadowRoot": true,
+  "overlayRemovalRecovered": true,
+  "boundedTargetAdmission": {
+    "observedRecords": 512,
+    "targetLimit": 512,
+    "pendingLimitObserved": 0,
+    "activeLimitObserved": 0
+  }
+}

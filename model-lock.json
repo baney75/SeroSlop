@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "artifact": "weights/prooflens-cf384.onnx",
+  "bytes": 87442080,
+  "sha256": "29545a1da0cfe2bf0149448334fd45a21f48074c57296db3b84437dd66f80a43",
+  "format": "ONNX FP32",
+  "input": { "name": "pixel_values", "shape": ["batch", 3, 384, 384], "dtype": "float32" },
+  "output": { "name": "logits", "shape": ["batch", 1], "dtype": "float32" },
+  "upstream": {
+    "repository": "https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT",
+    "revision": "ac6ee457bea904a373065754107451793b56db00",
+    "artifact": "onnx/model.onnx",
+    "artifactSha256": "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1",
+    "license": "MIT"
+  },
+  "trainingRecipe": "prooflens-cf384-rehead-v1-20260813",
+  "calibration": {
+    "slope": 1,
+    "intercept": 0.30374610239790173,
+    "displayThreshold": 0.65,
+    "validationThresholdLogit": 0.3152931060083219
+  }
+}

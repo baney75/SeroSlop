@@ -1,0 +1,280 @@
+/* global clearInterval, document, setInterval, window */
+import { createServer } from "node:http";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { chromium } from "playwright-core";
+import sharp from "sharp";
+
+const extensionPath = path.resolve("dist");
+const expectedProvider = process.env.PROOFLENS_E2E_PROVIDER === "webgpu" ? "webgpu" : "wasm";
+const profilePath = await mkdtemp(path.join(os.tmpdir(), "prooflens-chrome-"));
+const artifactsPath = path.resolve("artifacts");
+await mkdir(artifactsPath, { recursive: true });
+
+function svgData(background, accent, label) {
+  const source = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="${background}"/><circle cx="205" cy="190" r="115" fill="${accent}"/><path d="M0 430L170 285l130 105 100-90 240 130" fill="#263552"/><text x="22" y="42" font-family="sans-serif" font-size="24" fill="white">${label}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(source)}`;
+}
+
+const fixtureA = svgData("#174c3c", "#f5d97b", "fixture A");
+const fixtureB = svgData("#5a284d", "#90d8f4", "fixture B");
+const fixtureC = `data:image/png;base64,${(
+  await sharp({ create: { width: 640, height: 480, channels: 3, background: "#243c70" } })
+    .composite([{ input: Buffer.from('<svg width="640" height="480"><circle cx="230" cy="190" r="120" fill="#f49b79"/><path d="M0 430L170 285l130 105 100-90 240 130" fill="#263552"/></svg>') }])
+    .png()
+    .toBuffer()
+).toString("base64")}`;
+const html = `<!doctype html>
+<html><head><meta charset="utf-8"><style>
+body{font:16px system-ui;margin:24px;background:#f2f3f6;color:#171b2c}main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}figure,.background{margin:0;min-height:260px;background:#fff;border-radius:14px;padding:10px}.background{background-image:url("${fixtureC}");background-size:cover}.unavailable{background-image:url("file:///prooflens-unavailable.png");background-size:cover}img{display:block;width:100%;height:260px;object-fit:cover}</style></head>
+<body><h1>ProofLens offline browser contract</h1><main id="grid">
+<figure><img id="normal" width="640" height="480" alt="normal fixture" src="${fixtureA}"></figure>
+<figure><img id="duplicate" width="640" height="480" alt="duplicate fixture" src="${fixtureA}"></figure>
+<figure><picture><source media="(min-width:1px)" srcset="${fixtureB}"><img id="responsive" width="640" height="480" alt="responsive fixture" src="${fixtureA}"></picture></figure>
+<div id="css-background" class="background" role="img" aria-label="CSS background fixture"></div>
+<div id="unavailable-background" class="background unavailable" role="img" aria-label="Unavailable background fixture"></div>
+</main><script>window.addDynamicFixture=()=>{const figure=document.createElement('figure');const image=document.createElement('img');image.id='dynamic';image.width=640;image.height=480;image.alt='dynamic fixture';image.src=${JSON.stringify(fixtureB)};figure.append(image);document.querySelector('#grid').append(figure);};</script></body></html>`;
+
+const server = createServer((request, response) => {
+  if (request.url === "/") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+    response.end(html);
+    return;
+  }
+  response.writeHead(404).end();
+});
+await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+let serverOpen = true;
+const address = server.address();
+if (!address || typeof address === "string") throw new Error("Smoke server did not start");
+const pageUrl = `http://127.0.0.1:${address.port}/`;
+const pageOrigin = new URL(pageUrl).origin;
+
+async function closeServer() {
+  if (!serverOpen) return;
+  await new Promise((resolve) => server.close(resolve));
+  serverOpen = false;
+}
+
+async function launch() {
+  const providerArgs = expectedProvider === "wasm"
+    ? ["--disable-webgpu", "--disable-gpu", "--disable-software-rasterizer"]
+    : [];
+  return chromium.launchPersistentContext(profilePath, {
+    headless: false,
+    ignoreDefaultArgs: expectedProvider === "wasm" ? ["--enable-unsafe-swiftshader"] : [],
+    args: [
+      `--disable-extensions-except=${extensionPath}`,
+      `--load-extension=${extensionPath}`,
+      ...providerArgs,
+      "--no-first-run",
+      "--no-default-browser-check",
+    ],
+  });
+}
+
+async function extensionWorker(context) {
+  return context.serviceWorkers()[0] ?? context.waitForEvent("serviceworker", { timeout: 30_000 });
+}
+
+async function contentSnapshot(extensionPage, tabId) {
+  return extensionPage.evaluate(
+    (id) => chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" }),
+    tabId,
+  );
+}
+
+async function badgeSnapshot(extensionPage, tabId) {
+  return (await contentSnapshot(extensionPage, tabId)).badges;
+}
+
+let context;
+const diagnostics = [];
+const postCutoffNetworkRequests = [];
+try {
+  context = await launch();
+  let worker = await extensionWorker(context);
+  const extensionId = new URL(worker.url()).host;
+  const setup = await context.newPage();
+  await setup.goto(`chrome-extension://${extensionId}/setup.html`);
+  await setup.getByRole("heading", { name: "Offline ready" }).waitFor({ timeout: 300_000 });
+  await context.close();
+
+  context = await launch();
+  worker = await extensionWorker(context);
+  const statusPage = await context.newPage();
+  await statusPage.goto(`chrome-extension://${extensionId}/popup.html`);
+  await statusPage.locator("#model-status").filter({ hasText: "Offline ready" }).waitFor({ timeout: 60_000 });
+  await worker.evaluate((origin) => chrome.storage.local.set({ disabledOrigins: [origin] }), pageOrigin);
+  const page = await context.newPage();
+  await page.goto(pageUrl);
+  await page.locator("#normal").waitFor();
+  await page.waitForFunction(() => [...document.images].every((image) => image.complete));
+  await closeServer();
+  await context.setOffline(true);
+  context.on("request", (request) => {
+    if (/^https?:/u.test(request.url())) postCutoffNetworkRequests.push(request.url());
+  });
+
+  const tabId = await worker.evaluate(async (url) => {
+    const tabs = await chrome.tabs.query({ url });
+    return tabs[0]?.id;
+  }, pageUrl);
+  if (typeof tabId !== "number") throw new Error("Could not identify offline test tab");
+  await worker.evaluate(
+    async (id) => {
+      await chrome.storage.local.set({ disabledOrigins: [] });
+      await chrome.tabs.sendMessage(id, { type: "PL_SITE_STATE_CHANGED", enabled: true });
+    },
+    tabId,
+  );
+  await page.evaluate(() => window.addDynamicFixture());
+
+  let progressBusy = false;
+  const progressTimer = setInterval(async () => {
+    if (progressBusy) return;
+    progressBusy = true;
+    try {
+      console.log(`E2E progress ${JSON.stringify(await badgeSnapshot(statusPage, tabId))}`);
+    } catch {
+      // The final assertion will report authoritative diagnostics.
+    } finally {
+      progressBusy = false;
+    }
+  }, 10_000);
+  try {
+    const deadline = Date.now() + 600_000;
+    while (Date.now() < deadline) {
+      const current = await badgeSnapshot(statusPage, tabId);
+      if (current.filter((badge) => badge.state === "complete").length === 5 &&
+        current.filter((badge) => badge.state === "unavailable").length === 1) break;
+      await page.waitForTimeout(500);
+    }
+    const settled = await badgeSnapshot(statusPage, tabId);
+    if (settled.filter((badge) => badge.state === "complete").length !== 5 ||
+      settled.filter((badge) => badge.state === "unavailable").length !== 1) {
+      throw new Error("Timed out waiting for bounded content-script results");
+    }
+  } catch (error) {
+    diagnostics.push(`badges: ${JSON.stringify(await badgeSnapshot(statusPage, tabId))}`);
+    diagnostics.push(`storage: ${JSON.stringify(await worker.evaluate(() => chrome.storage.local.get()))}`);
+    throw new Error(`${error instanceof Error ? error.message : String(error)}\n${diagnostics.join("\n")}`);
+  } finally {
+    clearInterval(progressTimer);
+  }
+
+  const badges = await badgeSnapshot(statusPage, tabId);
+  const completed = badges.filter((badge) => badge.state === "complete");
+  const unavailable = badges.filter((badge) => badge.state === "unavailable");
+  if (badges.length !== 6 || completed.length !== 5 || unavailable.length !== 1) {
+    throw new Error(`Unexpected target counts: ${JSON.stringify(badges)}`);
+  }
+  for (const badge of completed) {
+    if (!/^AI likelihood · \d{1,3}\.\d%$/u.test(badge.text ?? "")) {
+      throw new Error(`Missing numeric confidence: ${JSON.stringify(badge)}`);
+    }
+    const runtimeLabel = expectedProvider === "webgpu" ? "WebGPU" : "WASM";
+    if (badge.provider !== expectedProvider || !badge.title?.includes(`locally with ${runtimeLabel}`)) {
+      throw new Error(`${runtimeLabel} provider was not observable: ${JSON.stringify(badge)}`);
+    }
+  }
+  if (!unavailable[0]?.text?.includes("unavailable")) throw new Error("Unavailable target fabricated a confidence");
+  if (postCutoffNetworkRequests.length) {
+    throw new Error(`Network request occurred after server shutdown/offline cutoff: ${postCutoffNetworkRequests.join(", ")}`);
+  }
+  let summary;
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    summary = await statusPage.evaluate(
+      (id) => chrome.runtime.sendMessage({ type: "PL_GET_TAB_SUMMARY", tabId: id }),
+      tabId,
+    );
+    const currentBadges = await badgeSnapshot(statusPage, tabId);
+    const final = summary?.stats?.complete === 5 && summary?.stats?.unavailable === 1 &&
+      currentBadges.filter((badge) => badge.state === "complete").length === 5 &&
+      currentBadges.filter((badge) => badge.state === "unavailable").length === 1;
+    if (final) {
+      await page.waitForTimeout(750);
+      const confirmed = await statusPage.evaluate(
+        (id) => chrome.runtime.sendMessage({ type: "PL_GET_TAB_SUMMARY", tabId: id }),
+        tabId,
+      );
+      const confirmedBadges = await badgeSnapshot(statusPage, tabId);
+      if (confirmed?.stats?.complete === 5 && confirmed?.stats?.unavailable === 1 &&
+        confirmedBadges.filter((badge) => badge.state === "complete").length === 5 &&
+        confirmedBadges.filter((badge) => badge.state === "unavailable").length === 1) {
+        summary = confirmed;
+        break;
+      }
+    }
+    await page.waitForTimeout(250);
+  }
+  if (summary?.stats?.complete !== 5 || summary?.stats?.unavailable !== 1) {
+    throw new Error(`Background summary did not settle: ${JSON.stringify(summary)}; badges=${JSON.stringify(await badgeSnapshot(statusPage, tabId))}`);
+  }
+  await page.screenshot({ path: path.join(artifactsPath, `chrome-e2e-${expectedProvider}.png`), fullPage: true });
+
+  const closedShadowRoot = await page.evaluate(() => {
+    const host = document.querySelector("#prooflens-overlay");
+    if (!host) return false;
+    const closed = host.shadowRoot === null;
+    host.remove();
+    return closed;
+  });
+  if (!closedShadowRoot) throw new Error("Page context could access the trusted label shadow root");
+  await page.locator("#prooflens-overlay").waitFor({ state: "attached", timeout: 5_000 });
+  const repairedOverlay = await contentSnapshot(statusPage, tabId);
+  if (!repairedOverlay.overlayAttached || repairedOverlay.badges.length !== 6) {
+    throw new Error(`Overlay removal was not recovered: ${JSON.stringify(repairedOverlay)}`);
+  }
+
+  await worker.evaluate((id) => chrome.tabs.sendMessage(id, { type: "PL_SITE_STATE_CHANGED", enabled: false }), tabId);
+  await page.evaluate((source) => {
+    const holder = document.createElement("div");
+    holder.id = "prooflens-stress-fixture";
+    holder.hidden = true;
+    for (let index = 0; index < 700; index += 1) {
+      const image = document.createElement("img");
+      image.width = 64;
+      image.height = 64;
+      image.src = source;
+      holder.append(image);
+    }
+    document.body.append(holder);
+  }, fixtureA);
+  await page.waitForTimeout(1_500);
+  const bounded = await contentSnapshot(statusPage, tabId);
+  if (bounded.recordCount > bounded.targetLimit || bounded.targetLimit !== 512 || bounded.pendingCount > 32 || bounded.activeAnalyses > 1) {
+    throw new Error(`Hostile-page admission was not bounded: ${JSON.stringify(bounded)}`);
+  }
+  await page.evaluate(() => document.querySelector("#prooflens-stress-fixture")?.remove());
+  const evidence = {
+    browserVersion: await context.browser()?.version(),
+    extensionId,
+    cleanProfile: true,
+    persistedModelAfterRestart: true,
+    serverStoppedBeforeAnalysis: true,
+    browserOfflineBeforeAnalysis: true,
+    postCutoffNetworkRequests,
+    provider: expectedProvider,
+    targets: { total: badges.length, complete: completed.length, unavailable: unavailable.length },
+    numericConfidence: true,
+    dynamicImage: true,
+    responsivePicture: true,
+    cssBackground: true,
+    closedShadowRoot,
+    overlayRemovalRecovered: true,
+    boundedTargetAdmission: {
+      observedRecords: bounded.recordCount,
+      targetLimit: bounded.targetLimit,
+      pendingLimitObserved: bounded.pendingCount,
+      activeLimitObserved: bounded.activeAnalyses,
+    },
+  };
+  await writeFile(path.join(artifactsPath, `chrome-e2e-${expectedProvider}.json`), `${JSON.stringify(evidence, null, 2)}\n`);
+  console.log(JSON.stringify(evidence, null, 2));
+} finally {
+  await context?.close().catch(() => undefined);
+  await closeServer().catch(() => undefined);
+  await rm(profilePath, { recursive: true, force: true });
+}

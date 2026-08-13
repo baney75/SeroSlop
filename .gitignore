@@ -1,0 +1,9 @@
+node_modules/
+dist/
+release/
+benchmark/data/
+benchmark/candidates/
+benchmark/**/__pycache__/
+*.partial
+.DS_Store
+artifacts/*.tmp

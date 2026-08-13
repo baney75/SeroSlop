@@ -1,0 +1,2 @@
+weights/*.onnx binary
+*.wasm binary

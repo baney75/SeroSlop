@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "method": "Stratified nonparametric bootstrap over real and synthetic images",
+  "confidenceLevel": 0.95,
+  "seed": 20260813,
+  "replicates": 20000,
+  "rawProbabilityThreshold": 0.5781767196773971,
+  "variants": {
+    "original": {
+      "balancedAccuracy": 0.9383333333333332,
+      "lower95": 0.9183333333333333,
+      "upper95": 0.9566666666666667,
+      "realCount": 300,
+      "syntheticCount": 300,
+      "predictionsSha256": "47a237f2ee70a128b3be2b88641ad3f2bed8bdb6622443c0bd31511914f2a2e2"
+    },
+    "screenshot": {
+      "balancedAccuracy": 0.96,
+      "lower95": 0.9433333333333334,
+      "upper95": 0.975,
+      "realCount": 300,
+      "syntheticCount": 300,
+      "predictionsSha256": "a977b9a0c0d03a37284a28630fa00614e0bd0339068ea66c99a38858e9b4a826"
+    },
+    "social-heavy": {
+      "balancedAccuracy": 0.9216666666666666,
+      "lower95": 0.8999999999999999,
+      "upper95": 0.9416666666666667,
+      "realCount": 300,
+      "syntheticCount": 300,
+      "predictionsSha256": "ce26277babb6343344d188f4c76e892c30a970ca54a281f376407907c6ea07ee"
+    },
+    "social-q75": {
+      "balancedAccuracy": 0.9266666666666666,
+      "lower95": 0.905,
+      "upper95": 0.9466666666666667,
+      "realCount": 300,
+      "syntheticCount": 300,
+      "predictionsSha256": "5383151040a3ba07bcb44196a4a283512e1cee19220d07763a83ff27ed658d07"
+    }
+  }
+}

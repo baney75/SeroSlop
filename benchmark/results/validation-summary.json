@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "seed": 20260813,
+  "upstreamModelSha256": "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1",
+  "trainManifestSha256": "8207d373a6abec32e4a687361199de43568fe982a5ff2e045987d3a029b85626",
+  "validationManifestSha256": "651704a6d3fb86b9324f13bea721c40854535925ce33b49b8749978ee2bed915",
+  "trainImages": 3600,
+  "validationImages": 600,
+  "viewsPerImage": 4,
+  "selectedParameters": {
+    "weightDecay": 0.1,
+    "upstreamBlendAlpha": 1.0
+  },
+  "selectionKey": [
+    0.9283333333333332,
+    0.9391666666666666,
+    0.9133333333333333,
+    0.8
+  ],
+  "thresholdLogit": 0.3152931060083219,
+  "variants": {
+    "original": {
+      "balancedAccuracy": 0.9316666666666666,
+      "realRecall": 0.9133333333333333,
+      "syntheticRecall": 0.95,
+      "syntheticRecallBySource": {
+        "FLUX.2_max": 0.84,
+        "Imagen-4.0-Ultra": 0.96,
+        "Qwen-Image-2.0-pro": 0.96,
+        "Seedream-5.0": 1.0,
+        "gpt-image-2": 0.94,
+        "nano-banana-2.0": 1.0
+      }
+    },
+    "screenshot": {
+      "balancedAccuracy": 0.9666666666666667,
+      "realRecall": 0.9866666666666667,
+      "syntheticRecall": 0.9466666666666667,
+      "syntheticRecallBySource": {
+        "FLUX.2_max": 0.84,
+        "Imagen-4.0-Ultra": 0.98,
+        "Qwen-Image-2.0-pro": 0.94,
+        "Seedream-5.0": 0.98,
+        "gpt-image-2": 0.96,
+        "nano-banana-2.0": 0.98
+      }
+    },
+    "social-q75": {
+      "balancedAccuracy": 0.9283333333333332,
+      "realRecall": 0.94,
+      "syntheticRecall": 0.9166666666666666,
+      "syntheticRecallBySource": {
+        "FLUX.2_max": 0.8,
+        "Imagen-4.0-Ultra": 0.96,
+        "Qwen-Image-2.0-pro": 0.88,
+        "Seedream-5.0": 1.0,
+        "gpt-image-2": 0.86,
+        "nano-banana-2.0": 1.0
+      }
+    },
+    "social-heavy": {
+      "balancedAccuracy": 0.9299999999999999,
+      "realRecall": 0.97,
+      "syntheticRecall": 0.89,
+      "syntheticRecallBySource": {
+        "FLUX.2_max": 0.84,
+        "Imagen-4.0-Ultra": 0.9,
+        "Qwen-Image-2.0-pro": 0.9,
+        "Seedream-5.0": 0.96,
+        "gpt-image-2": 0.82,
+        "nano-banana-2.0": 0.92
+      }
+    }
+  },
+  "model": {
+    "path": "benchmark/candidates/cf384-rehead/model.onnx",
+    "bytes": 87442080,
+    "sha256": "29545a1da0cfe2bf0149448334fd45a21f48074c57296db3b84437dd66f80a43",
+    "maxAbsParityError": 3.814697265625e-06
+  },
+  "candidateCount": 25
+}
