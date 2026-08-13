@@ -1,6 +1,8 @@
 /* global clearInterval, document, setInterval, window */
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright-core";
@@ -11,6 +13,14 @@ const expectedProvider = process.env.PROOFLENS_E2E_PROVIDER === "webgpu" ? "webg
 const profilePath = await mkdtemp(path.join(os.tmpdir(), "prooflens-chrome-"));
 const artifactsPath = path.resolve("artifacts");
 await mkdir(artifactsPath, { recursive: true });
+const modelSha256 = "29545a1da0cfe2bf0149448334fd45a21f48074c57296db3b84437dd66f80a43";
+const testedGitHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+const testedGitTree = execFileSync("git", ["rev-parse", "HEAD^{tree}"], { encoding: "utf8" }).trim();
+const trackedSourceWorktreeDirty = Boolean(execFileSync(
+  "git",
+  ["status", "--porcelain", "--untracked-files=no", "--", ".", ":(exclude)artifacts/**"],
+  { encoding: "utf8" },
+).trim());
 
 function svgData(background, accent, label) {
   const source = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="${background}"/><circle cx="205" cy="190" r="115" fill="${accent}"/><path d="M0 430L170 285l130 105 100-90 240 130" fill="#263552"/><text x="22" y="42" font-family="sans-serif" font-size="24" fill="white">${label}</text></svg>`;
@@ -27,7 +37,7 @@ const fixtureC = `data:image/png;base64,${(
 ).toString("base64")}`;
 const html = `<!doctype html>
 <html><head><meta charset="utf-8"><style>
-body{font:16px system-ui;margin:24px;background:#f2f3f6;color:#171b2c}main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}figure,.background{margin:0;min-height:260px;background:#fff;border-radius:14px;padding:10px}.background{background-image:url("${fixtureC}");background-size:cover}.unavailable{background-image:url("file:///prooflens-unavailable.png");background-size:cover}img{display:block;width:100%;height:260px;object-fit:cover}</style></head>
+  body{font:16px system-ui;margin:24px;background:#f2f3f6;color:#171b2c}main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}figure,.background{margin:0;min-height:260px;background:#fff;border-radius:14px;padding:10px}.background{background-image:url("${fixtureC}"),url("${fixtureA}");background-size:cover}.unavailable{background-image:url("file:///prooflens-unavailable.png");background-size:cover}img{display:block;width:100%;height:260px;object-fit:cover}</style></head>
 <body><h1>ProofLens offline browser contract</h1><main id="grid">
 <figure><img id="normal" width="640" height="480" alt="normal fixture" src="${fixtureA}"></figure>
 <figure><img id="duplicate" width="640" height="480" alt="duplicate fixture" src="${fixtureA}"></figure>
@@ -99,13 +109,31 @@ try {
   const setup = await context.newPage();
   await setup.goto(`chrome-extension://${extensionId}/setup.html`);
   await setup.getByRole("heading", { name: "Offline ready" }).waitFor({ timeout: 300_000 });
+  await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}.png`), fullPage: true });
   await context.close();
 
   context = await launch();
   worker = await extensionWorker(context);
+  const restartedExtensionId = new URL(worker.url()).host;
+  if (restartedExtensionId !== extensionId) {
+    throw new Error(`Extension identity changed across restart: ${extensionId} -> ${restartedExtensionId}`);
+  }
   const statusPage = await context.newPage();
+  const popupDiagnostics = [];
+  statusPage.on("console", (message) => popupDiagnostics.push(`console:${message.type()}:${message.text()}`));
+  statusPage.on("pageerror", (error) => popupDiagnostics.push(`pageerror:${error.message}`));
   await statusPage.goto(`chrome-extension://${extensionId}/popup.html`);
-  await statusPage.locator("#model-status").filter({ hasText: "Offline ready" }).waitFor({ timeout: 60_000 });
+  try {
+    await statusPage.locator("#model-status").filter({ hasText: "Offline ready" }).waitFor({ timeout: 60_000 });
+  } catch (error) {
+    const popupText = await statusPage.locator("body").innerText().catch(() => "<unavailable>");
+    const directStatus = await statusPage.evaluate(async () => Promise.race([
+      chrome.runtime.sendMessage({ type: "PL_GET_MODEL_STATUS" }),
+      new Promise((resolve) => window.setTimeout(() => resolve({ state: "timeout" }), 10_000)),
+    ])).catch((statusError) => ({ state: "probe-error", error: String(statusError) }));
+    throw new Error(`Restarted popup did not report Offline ready: ${JSON.stringify({ popupText, directStatus, popupDiagnostics })}`, { cause: error });
+  }
+  await statusPage.screenshot({ path: path.join(artifactsPath, `popup-${expectedProvider}.png`), fullPage: true });
   await worker.evaluate((origin) => chrome.storage.local.set({ disabledOrigins: [origin] }), pageOrigin);
   const page = await context.newPage();
   await page.goto(pageUrl);
@@ -171,7 +199,7 @@ try {
     throw new Error(`Unexpected target counts: ${JSON.stringify(badges)}`);
   }
   for (const badge of completed) {
-    if (!/^AI likelihood · \d{1,3}\.\d%$/u.test(badge.text ?? "")) {
+    if (!/^(?:Likely AI|Not flagged) · \d{1,3}\.\d%$/u.test(badge.text ?? "")) {
       throw new Error(`Missing numeric confidence: ${JSON.stringify(badge)}`);
     }
     const runtimeLabel = expectedProvider === "webgpu" ? "WebGPU" : "WASM";
@@ -228,11 +256,10 @@ try {
     throw new Error(`Overlay removal was not recovered: ${JSON.stringify(repairedOverlay)}`);
   }
 
-  await worker.evaluate((id) => chrome.tabs.sendMessage(id, { type: "PL_SITE_STATE_CHANGED", enabled: false }), tabId);
   await page.evaluate((source) => {
     const holder = document.createElement("div");
     holder.id = "prooflens-stress-fixture";
-    holder.hidden = true;
+    holder.style.cssText = "position:fixed;inset:0;display:grid;grid-template-columns:repeat(32,64px);overflow:hidden;background:white;z-index:-1";
     for (let index = 0; index < 700; index += 1) {
       const image = document.createElement("img");
       image.width = 64;
@@ -244,11 +271,67 @@ try {
   }, fixtureA);
   await page.waitForTimeout(1_500);
   const bounded = await contentSnapshot(statusPage, tabId);
-  if (bounded.recordCount > bounded.targetLimit || bounded.targetLimit !== 512 || bounded.pendingCount > 32 || bounded.activeAnalyses > 1) {
+  if (bounded.recordCount > bounded.targetLimit || bounded.targetLimit !== 512 || bounded.pendingCount > 32 || bounded.activeAnalyses > 1 ||
+    bounded.lastScanVisited > bounded.maxElementsPerScan || bounded.fullScanIntervalMs !== 1_000 ||
+    bounded.pendingMutationRoots > bounded.maxPendingMutationRoots || bounded.maxPendingMutationRoots !== 256) {
     throw new Error(`Hostile-page admission was not bounded: ${JSON.stringify(bounded)}`);
   }
-  await page.evaluate(() => document.querySelector("#prooflens-stress-fixture")?.remove());
+  const scanPassesBeforeChurn = bounded.scanPasses;
+  await page.evaluate(() => {
+    const target = document.querySelector("#normal");
+    for (let index = 0; index < 500; index += 1) target?.setAttribute("data-prooflens-churn", String(index));
+    for (let rootIndex = 0; rootIndex < 20; rootIndex += 1) {
+      const root = document.createElement("section");
+      root.dataset.prooflensHostileRoot = "true";
+      for (let childIndex = 0; childIndex < 500; childIndex += 1) root.append(document.createElement("span"));
+      document.body.append(root);
+    }
+  });
+  await page.waitForTimeout(1_250);
+  const churned = await contentSnapshot(statusPage, tabId);
+  if (churned.scanPasses - scanPassesBeforeChurn > 2 || churned.lastScanVisited > churned.maxElementsPerScan ||
+    churned.pendingMutationRoots > churned.maxPendingMutationRoots) {
+    throw new Error(`Hostile mutation traversal exceeded its aggregate budget: ${JSON.stringify(churned)}`);
+  }
+  await page.evaluate(() => document.querySelectorAll("[data-prooflens-hostile-root]").forEach((root) => root.remove()));
+  await worker.evaluate((id) => chrome.tabs.sendMessage(id, { type: "PL_SITE_STATE_CHANGED", enabled: false }), tabId);
+  const replacementSource = fixtureB;
+  await page.evaluate((source) => {
+    const old = document.querySelector("#prooflens-stress-fixture");
+    const replacement = document.createElement("div");
+    replacement.id = "prooflens-replacement-fixture";
+    replacement.style.cssText = "position:fixed;inset:0;display:grid;grid-template-columns:repeat(32,64px);overflow:hidden;background:white;z-index:-1";
+    for (let index = 0; index < 20; index += 1) {
+      const image = document.createElement("img");
+      image.width = 64;
+      image.height = 64;
+      image.src = source;
+      replacement.append(image);
+    }
+    old?.replaceWith(replacement);
+  }, replacementSource);
+  await page.waitForTimeout(1_500);
+  const replaced = await contentSnapshot(statusPage, tabId);
+  if (replaced.recordCount !== 26 || replaced.pendingCount > 32 || replaced.activeAnalyses > 1) {
+    throw new Error(`Target-cap replacement did not recover: ${JSON.stringify(replaced)}`);
+  }
+  await page.evaluate(() => document.querySelector("#prooflens-replacement-fixture")?.remove());
+  await worker.evaluate((id) => chrome.tabs.sendMessage(id, { type: "PL_SITE_STATE_CHANGED", enabled: true }), tabId);
+  await page.setViewportSize({ width: 480, height: 720 });
+  await page.waitForTimeout(500);
+  const narrow = await contentSnapshot(statusPage, tabId);
+  const visibleNarrowLabels = narrow.badges.filter((badge) => !badge.hidden).length;
+  if (visibleNarrowLabels < 1) throw new Error(`Narrow viewport exposed no eligible label: ${JSON.stringify(narrow)}`);
+  await page.screenshot({ path: path.join(artifactsPath, `chrome-e2e-${expectedProvider}-narrow.png`), fullPage: true });
+  const archiveSha256 = createHash("sha256").update(await readFile("release/prooflens.zip")).digest("hex");
   const evidence = {
+    schemaVersion: 2,
+    generatedAt: new Date().toISOString(),
+    testedGitHead,
+    testedGitTree,
+    trackedSourceWorktreeDirty,
+    modelSha256,
+    archiveSha256,
     browserVersion: await context.browser()?.version(),
     extensionId,
     cleanProfile: true,
@@ -261,7 +344,8 @@ try {
     numericConfidence: true,
     dynamicImage: true,
     responsivePicture: true,
-    cssBackground: true,
+    cssCompositeBackground: true,
+    narrowViewport: { width: 480, height: 720, visibleLabels: visibleNarrowLabels },
     closedShadowRoot,
     overlayRemovalRecovered: true,
     boundedTargetAdmission: {
@@ -269,6 +353,10 @@ try {
       targetLimit: bounded.targetLimit,
       pendingLimitObserved: bounded.pendingCount,
       activeLimitObserved: bounded.activeAnalyses,
+      scanPassesDuringChurn: churned.scanPasses - scanPassesBeforeChurn,
+      maxElementsPerScan: churned.maxElementsPerScan,
+      maxPendingMutationRoots: churned.maxPendingMutationRoots,
+      replacementRecords: replaced.recordCount,
     },
   };
   await writeFile(path.join(artifactsPath, `chrome-e2e-${expectedProvider}.json`), `${JSON.stringify(evidence, null, 2)}\n`);

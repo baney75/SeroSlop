@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "frozenAt": "2026-08-13",
+  "seed": 20260813,
+  "qwenImageBench": {
+    "dataset": "Qwen/Qwen-Image-Bench",
+    "revision": "d2493deb153b020cf169c7e3f57d15e4dd697038",
+    "license": "Apache-2.0",
+    "trainPerSource": 100,
+    "validationPerSource": 50,
+    "testPerSource": 50,
+    "trainSources": [
+      "FLUX.2-pro",
+      "GPT-Image-1",
+      "GPT-Image-1.5",
+      "Imagen-4.0",
+      "Qwen-Image",
+      "Qwen-Image-2512",
+      "Seedream-4.0",
+      "Seedream-4.5",
+      "nano-banana-pro",
+      "GLM-Image",
+      "HunyuanImage-3.0",
+      "kling_v2_1"
+    ],
+    "validationSources": [
+      "FLUX.2_max",
+      "gpt-image-2",
+      "Imagen-4.0-Ultra",
+      "nano-banana-2.0",
+      "Qwen-Image-2.0-pro",
+      "Seedream-5.0"
+    ]
+  },
+  "openImages": {
+    "dataset": "Open Images V7",
+    "revision": "v7-validation-cvdf",
+    "license": "CC-BY-2.0",
+    "metadataUrl": "https://storage.googleapis.com/openimages/2018_04/validation/validation-images-with-rotation.csv",
+    "imageBaseUrl": "https://open-images-dataset.s3.amazonaws.com/validation",
+    "trainCount": 1200,
+    "validationCount": 300,
+    "testCount": 300
+  },
+  "outputDirectory": "benchmark/data/modern-head",
+  "strategy": "Lowest SHA-256 priority within each pinned source; validation holds out entire generator families; duplicate bytes across selected splits rejected",
+  "counts": {
+    "train": 3600,
+    "validation": 600,
+    "test": 600,
+    "synthetic": 1800,
+    "real": 3000
+  },
+  "docci": {
+    "dataset": "google/docci",
+    "revision": "a0a43eaf34676ffd008fb6565dd8c2ba00d09100",
+    "split": "train",
+    "license": "CC-BY-4.0",
+    "target": 1200,
+    "strategy": "lowest SHA-256 priorities over official train example IDs",
+    "descriptionsSha256": "c9df4819963883af35ddd2cf257949892fd8c6d88b33a012094352df60719800",
+    "archiveBytes": 7592938768,
+    "archiveMd5": "57493de5075fe508d51e77500748f4da"
+  }
+}

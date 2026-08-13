@@ -41,13 +41,13 @@ The reproducible archive is generated at `release/prooflens.zip`; its digest is 
 
 ```bash
 npm ci
-npm run verify             # lint, strict types, 30 unit/policy tests, model inspection, build, package audit
+npm run verify             # lint, strict types, tests, model/benchmark integrity, build, package audit
 npm run browser:install    # one-time project browser install
 npm run test:chrome        # fresh profile, restart, forced WASM, offline/no-localhost E2E
 npm run test:chrome:webgpu # same contract through WebGPU
 ```
 
-The browser test closes its fixture server and puts the browser offline before analysis. It verifies model persistence across a browser restart, zero post-cutoff network requests, dynamic and responsive images, a CSS background, numeric labels, an explicit unavailable state, a closed/recoverable label boundary, and bounded hostile-page admission.
+The browser test closes its fixture server and puts the browser offline before analysis. It verifies model persistence across a browser restart, zero post-cutoff network requests, dynamic and responsive images, one result for a rendered CSS composite, numeric labels, an explicit unavailable state, a closed/recoverable label boundary, bounded hostile-page work, cap-replacement recovery, and a narrow viewport.
 
 ## Runtime design
 
@@ -85,8 +85,9 @@ The complete machine-readable contract is [model-lock.json](model-lock.json). Tr
 - [MODEL_CARD.md](MODEL_CARD.md): provenance, preprocessing, calibration, and limitations
 - [PRIVACY.md](PRIVACY.md): data flow and permission rationale
 - [SECURITY.md](SECURITY.md): threat model and fail-closed controls
+- [DESIGN.md](DESIGN.md): visible states, controls, accessibility, and responsive contract
 - [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md): bounty criteria mapped to executable proof
 - [docs/COMPETITOR_AUDIT.md](docs/COMPETITOR_AUDIT.md): public claims, strengths, gaps, and resulting design bar
-- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): licenses and attribution
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): licenses and attribution shipped in every archive
 
 ProofLens is MIT licensed. Dataset pixels are not included in this repository.

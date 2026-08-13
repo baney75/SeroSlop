@@ -96,16 +96,7 @@ function value(row: string[], headers: Map<string, number>, name: string): strin
   return row[index] ?? "";
 }
 
-async function readAuditExclusions(): Promise<{ names: Set<string>; hashes: Set<string> }> {
-  const manifest = await readFile(path.resolve(MODERN_HEAD_DATASET.auditExclusionsManifest), "utf8").catch(() => "");
-  const items = manifest.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as BenchmarkItem);
-  return {
-    names: new Set(items.map((item) => path.basename(item.path))),
-    hashes: new Set(items.map((item) => item.imageSha256)),
-  };
-}
-
-async function selectQwen(excludedNames: Set<string>): Promise<Array<Candidate & { source: string; split: DatasetSplit }>> {
+async function selectQwen(): Promise<Array<Candidate & { source: string; split: DatasetSplit }>> {
   const config = MODERN_HEAD_DATASET.qwenImageBench;
   const apiUrl = `https://huggingface.co/api/datasets/${config.dataset}/revision/${config.revision}`;
   const response = await fetchWithRetry(apiUrl);
@@ -122,7 +113,7 @@ async function selectQwen(excludedNames: Set<string>): Promise<Array<Candidate &
       const prefix = `images/${source}/`;
       const candidates = tree.siblings
         .map((entry) => entry.rfilename)
-        .filter((name) => name.startsWith(prefix) && /\.(?:jpe?g|png)$/i.test(name) && !excludedNames.has(path.basename(name)))
+        .filter((name) => name.startsWith(prefix) && /\.(?:jpe?g|png)$/i.test(name))
         .map((name) => ({ name, priority: sha256(`${config.revision}:${name}`) }))
         .sort((left, right) => left.priority.localeCompare(right.priority));
       if (candidates.length < group.offset + group.target) {
@@ -244,15 +235,17 @@ async function downloadOpenImage(
 
 async function main(): Promise<void> {
   await mkdir(outputDirectory, { recursive: true });
-  const exclusions = await readAuditExclusions();
   const [qwen, openImages] = await Promise.all([
-    selectQwen(exclusions.names),
+    selectQwen(),
     selectOpenImages(),
   ]);
   const qwenItems = await mapConcurrent(qwen, (candidate, index) => downloadQwen(candidate, index, qwen.length));
   const openImageItems = await mapConcurrent(openImages, (candidate, index) => downloadOpenImage(candidate, index, openImages.length));
+  const hashOwners = new Map<string, string>();
   for (const item of [...qwenItems, ...openImageItems]) {
-    if (exclusions.hashes.has(item.imageSha256)) throw new Error(`Audit image leaked into training data: ${item.id}`);
+    const owner = hashOwners.get(item.imageSha256);
+    if (owner) throw new Error(`Duplicate image bytes across selected splits: ${owner} and ${item.id}`);
+    hashOwners.set(item.imageSha256, item.id);
   }
   const items = [...qwenItems, ...openImageItems].sort((left, right) => left.id.localeCompare(right.id));
   for (const split of ["train", "validation", "test"] as const) {
@@ -273,7 +266,7 @@ async function main(): Promise<void> {
   await writeFile(path.join(outputDirectory, "open-images-attribution.json"), `${JSON.stringify(attribution, null, 2)}\n`);
   await writeFile(path.join(outputDirectory, "selection.json"), `${JSON.stringify({
     ...MODERN_HEAD_DATASET,
-    strategy: "Lowest SHA-256 priority within each pinned source; validation holds out entire generator families; exposed frontier audit names and hashes excluded",
+    strategy: "Lowest SHA-256 priority within each pinned source; validation holds out entire generator families; duplicate bytes across selected splits rejected",
     counts: {
       train: items.filter((item) => item.split === "train").length,
       validation: items.filter((item) => item.split === "validation").length,

@@ -10,7 +10,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,10 +19,27 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+      - run: ./node_modules/.bin/playwright-core install --with-deps chromium
+      - run: xvfb-run --auto-servernum npm run test:chrome
       - uses: actions/upload-artifact@v4
         with:
           name: prooflens-unpacked
+          path: dist/
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prooflens-release
           path: |
-            dist/
+            release/prooflens.zip
             release/SHA256SUMS.txt
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prooflens-browser-evidence
+          path: |
+            artifacts/chrome-e2e-wasm.json
+            artifacts/chrome-e2e-wasm.png
+            artifacts/chrome-e2e-wasm-narrow.png
+            artifacts/setup-wasm.png
+            artifacts/popup-wasm.png
           retention-days: 7

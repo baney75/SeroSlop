@@ -2,7 +2,7 @@
 
 The official release is a single gzip archive, so this script keeps the archive
 locally but extracts only the selected training members. DOCCI test images are
-not eligible; the frontier regression audit uses that held-out split.
+not eligible.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ DESCRIPTIONS = SOURCE_ROOT / "docci_descriptions.jsonlines"
 ARCHIVE = SOURCE_ROOT / "docci_images.tar.gz"
 TRAIN_MANIFEST = DATA_ROOT / "train-manifest.jsonl"
 SELECTION = DATA_ROOT / "selection.json"
-AUDIT_MANIFEST = Path("benchmark/data/frontier-original/manifest.jsonl")
 REVISION = "a0a43eaf34676ffd008fb6565dd8c2ba00d09100"
 TARGET = 1200
 DESCRIPTIONS_URL = "https://storage.googleapis.com/docci/data/docci_descriptions.jsonlines"
@@ -110,17 +109,19 @@ def main() -> None:
     if missing:
         raise ValueError(f"DOCCI archive is missing {len(missing)} selected images")
 
-    audit_hashes = {str(row["imageSha256"]) for row in json_lines(AUDIT_MANIFEST)} if AUDIT_MANIFEST.exists() else set()
     existing = [row for row in json_lines(TRAIN_MANIFEST) if row["dataset"] != "google/docci"]
+    hash_owners = {str(row["imageSha256"]): str(row["id"]) for row in existing}
     additions: list[dict[str, object]] = []
     for index, row in enumerate(sorted(selected, key=lambda item: str(item["example_id"]))):
         filename = str(row["image_file"])
         relative_path = f"train/real/docci/{filename}"
         image_hash = file_digest(DATA_ROOT / relative_path)
-        if image_hash in audit_hashes:
-            raise ValueError(f"Frontier audit leakage detected for DOCCI {row['example_id']}")
+        identifier = f"docci:{REVISION}:train:{row['example_id']}"
+        if image_hash in hash_owners:
+            raise ValueError(f"Duplicate image bytes: {hash_owners[image_hash]} and {identifier}")
+        hash_owners[image_hash] = identifier
         additions.append({
-            "id": f"docci:{REVISION}:train:{row['example_id']}",
+            "id": identifier,
             "dataset": "google/docci",
             "datasetRevision": REVISION,
             "split": "train",

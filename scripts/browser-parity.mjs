@@ -1,5 +1,6 @@
 /* global clearInterval, crypto, setInterval */
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -15,6 +16,14 @@ const manifestPath = path.join(fixtureRoot, "manifest.json");
 const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes.toString("utf8"));
 if (!Array.isArray(manifest) || !manifest.length) throw new Error("Parity manifest is empty");
+const modelSha256 = "29545a1da0cfe2bf0149448334fd45a21f48074c57296db3b84437dd66f80a43";
+const testedGitHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+const testedGitTree = execFileSync("git", ["rev-parse", "HEAD^{tree}"], { encoding: "utf8" }).trim();
+const trackedSourceWorktreeDirty = Boolean(execFileSync(
+  "git",
+  ["status", "--porcelain", "--untracked-files=no", "--", ".", ":(exclude)artifacts/**"],
+  { encoding: "utf8" },
+).trim());
 const RAW_THRESHOLD = 0.5781767196773971;
 const CALIBRATION_INTERCEPT = 0.30374610239790173;
 
@@ -67,6 +76,8 @@ try {
     for (const row of manifest) {
       const file = path.join(fixtureRoot, row.path);
       const bytes = await readFile(file);
+      const actualImageHash = createHash("sha256").update(bytes).digest("hex");
+      if (actualImageHash !== row.imageSha256) throw new Error(`Parity image integrity mismatch for ${row.id}`);
       const dataUrl = `data:${mimeFor(file)};base64,${bytes.toString("base64")}`;
       const requestId = crypto.randomUUID();
       const response = await page.evaluate(
@@ -103,8 +114,13 @@ try {
   const differences = predictions.map((row) => row.absoluteDifference);
   const agreement = predictions.filter((row) => row.referenceClassification === row.browserClassification).length / predictions.length;
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
+    testedGitHead,
+    testedGitTree,
+    trackedSourceWorktreeDirty,
+    modelSha256,
+    archiveSha256: createHash("sha256").update(await readFile("release/prooflens.zip")).digest("hex"),
     browserVersion: await context.browser()?.version(),
     cleanProfile: true,
     offline: true,

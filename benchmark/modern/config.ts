@@ -42,6 +42,5 @@ export const MODERN_HEAD_DATASET = {
     validationCount: 300,
     testCount: 300,
   },
-  auditExclusionsManifest: "benchmark/data/frontier-original/manifest.jsonl",
   outputDirectory: "benchmark/data/modern-head",
 } as const;

@@ -15,13 +15,15 @@ const MAX_TARGETS_PER_DOCUMENT = 512;
 const MAX_PENDING_ANALYSES = 32;
 const MAX_ELEMENTS_PER_SCAN = 5_000;
 const MAX_CONCURRENT_ANALYSES = 1;
+const MAX_MUTATIONS_PER_CALLBACK = 1_000;
+const MAX_PENDING_MUTATION_ROOTS = 256;
 const FULL_SCAN_INTERVAL_MS = 1_000;
 const OVERLAY_REPAIR_DELAY_MS = 250;
 const POSITION_MARGIN = 6;
 
 interface TargetRecord extends TargetDescriptor {
   element: HTMLElement;
-  badge: HTMLButtonElement;
+  badge: HTMLDivElement;
   state: AnalysisState;
   flagged: boolean;
   unavailable: boolean;
@@ -32,6 +34,7 @@ const recordsByElement = new Map<HTMLElement, Map<string, TargetRecord>>();
 const records = new Set<TargetRecord>();
 const pendingRecords: TargetRecord[] = [];
 const pendingRecordSet = new Set<TargetRecord>();
+const pendingMutationRoots = new Set<HTMLElement>();
 let enabled = true;
 let labelsVisible = true;
 let activeAnalyses = 0;
@@ -41,6 +44,9 @@ let fullScanTimer: number | undefined;
 let lastFullScanAt = -FULL_SCAN_INTERVAL_MS;
 let overlayRepairTimer: number | undefined;
 let captureHidingOverlay = false;
+let scanPasses = 0;
+let lastScanVisited = 0;
+let fullDocumentScanRequired = false;
 
 const overlayHost = document.createElement("div");
 const overlayStyles = {
@@ -78,21 +84,20 @@ ensureOverlayIntegrity();
 const shadow = overlayHost.attachShadow({ mode: "closed" });
 const style = document.createElement("style");
 style.textContent = `
-  button {
+  [role="status"] {
     all: initial; align-items: center; background: #283049; border: 1px solid #ffffff66;
     border-radius: 999px; box-shadow: 0 3px 12px #0006; box-sizing: border-box;
-    color: #fff; cursor: help; display: block; font: 700 12px/1.2 system-ui, sans-serif;
+    color: #fff; cursor: default; display: block; font: 700 12px/1.2 system-ui, sans-serif;
     left: 0; letter-spacing: .01em; max-width: min(230px, calc(100vw - 12px));
-    overflow: hidden; padding: 7px 10px; pointer-events: auto; position: fixed; top: 0;
+    overflow: hidden; padding: 7px 10px; pointer-events: none; position: fixed; top: 0;
     text-overflow: ellipsis; white-space: nowrap;
   }
-  button[data-state="analyzing"] { background: #3e4778; }
-  button[data-state="complete"][data-classification="likely-ai"] { background: #7a2e24; }
-  button[data-state="complete"][data-classification="not-flagged"] { background: #176044; }
-  button[data-state="unavailable"] { background: #5e3440; }
-  button:focus-visible { outline: 3px solid #67b7ff; outline-offset: 2px; }
+  [role="status"][data-state="analyzing"] { background: #3e4778; }
+  [role="status"][data-state="complete"][data-classification="likely-ai"] { background: #7a2e24; }
+  [role="status"][data-state="complete"][data-classification="not-flagged"] { background: #176044; }
+  [role="status"][data-state="unavailable"] { background: #5e3440; }
   @media (prefers-reduced-motion: no-preference) {
-    button[data-state="analyzing"] { animation: prooflens-pulse 1.2s ease-in-out infinite alternate; }
+    [role="status"][data-state="analyzing"] { animation: prooflens-pulse 1.2s ease-in-out infinite alternate; }
   }
   @keyframes prooflens-pulse { to { opacity: .72; } }
 `;
@@ -109,11 +114,13 @@ function descriptorsFor(element: HTMLElement): TargetDescriptor[] {
   }
   if (element !== overlayHost) {
     const background = getComputedStyle(element).backgroundImage;
-    extractCssImageUrls(background, document.baseURI).forEach((source, index) => {
-      if (source.length <= MAX_LOCAL_IMAGE_CHARACTERS) {
-        descriptors.push({ slot: `background:${index}`, kind: "background", source });
-      }
-    });
+    const sources = extractCssImageUrls(background, document.baseURI)
+      .filter((source) => source.length <= MAX_LOCAL_IMAGE_CHARACTERS);
+    if (sources.length) {
+      // The viewport crop contains the rendered composite, so expose one result rather than
+      // implying that individual CSS layers were classified separately.
+      descriptors.push({ slot: "background:composite", kind: "background", source: `composite:${JSON.stringify(sources)}` });
+    }
   }
   return descriptors;
 }
@@ -131,9 +138,10 @@ function eligible(record: TargetRecord): boolean {
   return true;
 }
 
-function makeBadge(): HTMLButtonElement {
-  const badge = document.createElement("button");
-  badge.type = "button";
+function makeBadge(): HTMLDivElement {
+  const badge = document.createElement("div");
+  badge.setAttribute("role", "status");
+  badge.setAttribute("aria-live", "off");
   badge.textContent = "ProofLens · queued";
   badge.setAttribute("aria-label", "ProofLens image analysis queued");
   badge.dataset.state = "queued";
@@ -217,19 +225,50 @@ function syncElement(element: HTMLElement): void {
   reportStats();
 }
 
-function scan(root: ParentNode = document): void {
-  if (root instanceof HTMLElement) syncElement(root);
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+function scanWithinBudget(root: ParentNode, budget: number): number {
   let visited = 0;
-  while (visited < MAX_ELEMENTS_PER_SCAN && records.size < MAX_TARGETS_PER_DOCUMENT) {
+  if (root instanceof HTMLElement && visited < budget) {
+    syncElement(root);
+    visited += 1;
+  }
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  while (visited < budget) {
     const next = walker.nextNode();
     if (!next) break;
     if (next instanceof HTMLElement) syncElement(next);
     visited += 1;
   }
+  return visited;
+}
+
+function scan(root: ParentNode = document): void {
+  scanPasses += 1;
+  lastFullScanAt = performance.now();
+  const visited = scanWithinBudget(root, MAX_ELEMENTS_PER_SCAN);
+  lastScanVisited = visited;
+}
+
+function queueMutationRoot(root: HTMLElement): void {
+  if (root === overlayHost || overlayHost.contains(root)) return;
+  for (const queued of pendingMutationRoots) {
+    if (queued.contains(root)) return;
+    if (root.contains(queued)) pendingMutationRoots.delete(queued);
+  }
+  if (pendingMutationRoots.size >= MAX_PENDING_MUTATION_ROOTS) {
+    fullDocumentScanRequired = true;
+    scheduleBoundedScan();
+    return;
+  }
+  pendingMutationRoots.add(root);
+  scheduleBoundedScan();
 }
 
 function scheduleFullScan(): void {
+  fullDocumentScanRequired = true;
+  scheduleBoundedScan();
+}
+
+function scheduleBoundedScan(): void {
   if (fullScanFrame !== undefined || fullScanTimer !== undefined) return;
   const delay = Math.max(0, FULL_SCAN_INTERVAL_MS - (performance.now() - lastFullScanAt));
   const scheduleFrame = (): void => {
@@ -237,7 +276,19 @@ function scheduleFullScan(): void {
     fullScanFrame = requestAnimationFrame(() => {
       fullScanFrame = undefined;
       lastFullScanAt = performance.now();
-      scan();
+      scanPasses += 1;
+      let visited = 0;
+      for (const root of pendingMutationRoots) {
+        if (visited >= MAX_ELEMENTS_PER_SCAN) break;
+        pendingMutationRoots.delete(root);
+        if (root.isConnected) visited += scanWithinBudget(root, MAX_ELEMENTS_PER_SCAN - visited);
+      }
+      if (fullDocumentScanRequired && visited < MAX_ELEMENTS_PER_SCAN) {
+        fullDocumentScanRequired = false;
+        visited += scanWithinBudget(document, MAX_ELEMENTS_PER_SCAN - visited);
+      }
+      lastScanVisited = visited;
+      if (pendingMutationRoots.size || fullDocumentScanRequired) scheduleBoundedScan();
     });
   };
   if (delay > 0) fullScanTimer = window.setTimeout(scheduleFrame, delay);
@@ -245,15 +296,28 @@ function scheduleFullScan(): void {
 }
 
 function viewportSource(record: TargetRecord): PageInferenceSource | undefined {
-  let protocol: string;
+  let sources: string[];
   try {
-    protocol = new URL(record.source).protocol;
+    sources = record.kind === "background"
+      ? JSON.parse(record.source.replace(/^composite:/u, "")) as string[]
+      : [record.source];
   } catch {
     return undefined;
   }
-  if (!["data:", "blob:", "http:", "https:"].includes(protocol)) return undefined;
-  if (record.kind === "background" && ["http:", "https:"].includes(protocol) &&
-    performance.getEntriesByName(record.source, "resource").length === 0) return undefined;
+  if (!sources.length || sources.some((source) => {
+    try {
+      return !["data:", "blob:", "http:", "https:"].includes(new URL(source).protocol);
+    } catch {
+      return true;
+    }
+  })) return undefined;
+  if (record.kind === "background") {
+    const unloadedRemoteSource = sources.some((source) => {
+      const protocol = new URL(source).protocol;
+      return ["http:", "https:"].includes(protocol) && performance.getEntriesByName(source, "resource").length === 0;
+    });
+    if (unloadedRemoteSource) return undefined;
+  }
   const rect = record.element.getBoundingClientRect();
   const left = Math.max(0, rect.left);
   const top = Math.max(0, rect.top);
@@ -378,10 +442,10 @@ async function analyze(record: TargetRecord): Promise<void> {
     const runtime = response.result.provider === "webgpu" ? "WebGPU" : "WASM";
     updateBadge(
       record,
-      `AI likelihood · ${percentage}`,
+      record.flagged ? `Likely AI · ${percentage}` : `Not flagged · ${percentage}`,
       record.flagged
-        ? `Likely AI-generated at the inclusive 65% threshold. Processed locally with ${runtime}. This estimate is not proof.`
-        : `Not flagged at the inclusive 65% threshold. Processed locally with ${runtime}. This estimate is not proof of authenticity.`,
+        ? `65.0% and above is flagged. Processed locally with ${runtime}. This estimate is not proof.`
+        : `Below the inclusive 65.0% threshold. Processed locally with ${runtime}. This estimate is not proof of authenticity.`,
     );
   } catch {
     if (record.requestId !== requestId) return;
@@ -466,19 +530,47 @@ function scheduleOverlayRepair(): void {
 
 const mutationObserver = new MutationObserver((mutations) => {
   let fullScanRequired = false;
+  let processedMutations = 0;
+  let processedNodes = 0;
   for (const mutation of mutations) {
+    if (processedMutations >= MAX_MUTATIONS_PER_CALLBACK) {
+      fullScanRequired = true;
+      break;
+    }
+    processedMutations += 1;
     if (mutation.type === "attributes" && mutation.target instanceof HTMLElement) {
       if (mutation.target === overlayHost) scheduleOverlayRepair();
-      else syncElement(mutation.target);
+      else queueMutationRoot(mutation.target);
       if (mutation.target instanceof HTMLSourceElement) {
         const image = mutation.target.parentElement?.querySelector("img");
-        if (image) syncElement(image);
+        if (image) queueMutationRoot(image);
       }
     }
-    mutation.addedNodes.forEach((node) => {
-      if (node instanceof HTMLElement) scan(node);
+    for (const node of mutation.removedNodes) {
+      if (processedNodes >= MAX_MUTATIONS_PER_CALLBACK) {
+        fullScanRequired = true;
+        break;
+      }
+      processedNodes += 1;
+      if (!(node instanceof HTMLElement)) continue;
+      for (const [element, slots] of recordsByElement) {
+        if (element === node || node.contains(element)) {
+          for (const record of slots.values()) removeRecord(record);
+          intersectionObserver.unobserve(element);
+          recordsByElement.delete(element);
+          fullScanRequired = true;
+        }
+      }
+    }
+    for (const node of mutation.addedNodes) {
+      if (processedNodes >= MAX_MUTATIONS_PER_CALLBACK) {
+        fullScanRequired = true;
+        break;
+      }
+      processedNodes += 1;
+      if (node instanceof HTMLElement) queueMutationRoot(node);
       if (node instanceof HTMLStyleElement || node instanceof HTMLLinkElement) fullScanRequired = true;
-    });
+    }
   }
   if (!overlayHost.isConnected) scheduleOverlayRepair();
   if (fullScanRequired) scheduleFullScan();
@@ -505,7 +597,15 @@ chrome.runtime.onMessage.addListener((
       pendingCount: pendingRecords.length,
       activeAnalyses,
       targetLimit: MAX_TARGETS_PER_DOCUMENT,
+      scanPasses,
+      lastScanVisited,
+      maxElementsPerScan: MAX_ELEMENTS_PER_SCAN,
+      pendingMutationRoots: pendingMutationRoots.size,
+      maxPendingMutationRoots: MAX_PENDING_MUTATION_ROOTS,
+      fullScanIntervalMs: FULL_SCAN_INTERVAL_MS,
       overlayAttached: overlayHost.isConnected,
+      labelsVisible,
+      enabled,
     });
     return false;
   }

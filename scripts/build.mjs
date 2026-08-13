@@ -30,6 +30,9 @@ for (const name of ["manifest.json", "offscreen.html", "popup.html", "setup.html
   await cp(path.join(root, "src", "static", name), path.join(outdir, name));
 }
 await cp(path.join(root, "model-lock.json"), path.join(outdir, "model-lock.json"));
+await cp(path.join(root, "LICENSE"), path.join(outdir, "LICENSE"));
+await cp(path.join(root, "THIRD_PARTY_NOTICES.md"), path.join(outdir, "THIRD_PARTY_NOTICES.md"));
+await cp(path.join(root, "LICENSES"), path.join(outdir, "LICENSES"), { recursive: true });
 
 const ortSource = path.join(root, "node_modules", "onnxruntime-web", "dist");
 const ortTarget = path.join(outdir, "ort");

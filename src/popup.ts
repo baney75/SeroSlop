@@ -15,6 +15,8 @@ const setupLink = requireElement<HTMLAnchorElement>("#open-setup");
 
 let activeTab: chrome.tabs.Tab | undefined;
 let origin = "";
+let summaryTimer: number | undefined;
+let refreshPending = false;
 
 function describeModel(status: ModelStatus): string {
   if (status.state === "ready") return "Offline ready";
@@ -23,10 +25,45 @@ function describeModel(status: ModelStatus): string {
   return "Setup required";
 }
 
+function describePage(stats: TabSummaryResponse["stats"]): string {
+  const progress = [
+    stats.analyzing ? `${stats.analyzing} analyzing` : "",
+    stats.queued ? `${stats.queued} queued` : "",
+  ].filter(Boolean).join(" · ");
+  const settled = `${stats.complete} complete · ${stats.flagged} flagged · ${stats.unavailable} unavailable`;
+  return progress ? `${progress} · ${settled}` : settled;
+}
+
+async function refreshPageState(): Promise<void> {
+  if (activeTab?.id === undefined || refreshPending) return;
+  refreshPending = true;
+  try {
+    const summary = (await chrome.runtime.sendMessage({
+      type: "PL_GET_TAB_SUMMARY",
+      tabId: activeTab.id,
+    })) as TabSummaryResponse;
+    pageElement.textContent = describePage(summary.stats);
+    const content = await chrome.tabs.sendMessage(activeTab.id, { type: "PL_GET_CONTENT_SNAPSHOT" }).catch(() => undefined) as
+      | { labelsVisible?: boolean }
+      | undefined;
+    if (typeof content?.labelsVisible === "boolean") {
+      labelToggle.checked = content.labelsVisible;
+      labelToggle.disabled = false;
+    } else {
+      labelToggle.disabled = true;
+    }
+  } catch {
+    pageElement.textContent = "Page state unavailable";
+    labelToggle.disabled = true;
+  } finally {
+    refreshPending = false;
+  }
+}
+
 async function initialize(): Promise<void> {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   activeTab = tabs[0];
-  if (activeTab?.url) {
+  if (activeTab?.url && /^https?:/u.test(activeTab.url)) {
     try {
       origin = new URL(activeTab.url).origin;
     } catch {
@@ -39,11 +76,8 @@ async function initialize(): Promise<void> {
   statusElement.dataset.state = model.state;
 
   if (activeTab?.id !== undefined) {
-    const summary = (await chrome.runtime.sendMessage({
-      type: "PL_GET_TAB_SUMMARY",
-      tabId: activeTab.id,
-    })) as TabSummaryResponse;
-    pageElement.textContent = `${summary.stats.complete} analyzed · ${summary.stats.flagged} flagged · ${summary.stats.unavailable} unavailable`;
+    await refreshPageState();
+    summaryTimer = window.setInterval(() => void refreshPageState(), 500);
   } else {
     pageElement.textContent = "No supported page is active";
   }
@@ -54,6 +88,7 @@ async function initialize(): Promise<void> {
       origin,
     })) as SiteStateResponse;
     siteToggle.checked = siteState.enabled;
+    siteToggle.disabled = false;
   } else {
     siteToggle.disabled = true;
   }
@@ -68,6 +103,10 @@ siteToggle.addEventListener("change", () => {
 labelToggle.addEventListener("change", () => {
   if (activeTab?.id === undefined) return;
   void chrome.tabs.sendMessage(activeTab.id, { type: "PL_LABEL_VISIBILITY", visible: labelToggle.checked });
+});
+
+window.addEventListener("unload", () => {
+  if (summaryTimer !== undefined) window.clearInterval(summaryTimer);
 });
 
 rescanButton.addEventListener("click", () => {
