@@ -9,13 +9,16 @@ import {
   type TabSummaryResponse,
   type ViewportCrop,
 } from "./shared/contracts";
+import { MinimumIntervalGate } from "./shared/minimum-interval-gate";
 
 const OFFSCREEN_PATH = "offscreen.html";
 const MAX_INFERENCE_REQUESTS = 8;
 const MAX_LOCAL_IMAGE_CHARACTERS = 8 * 1024 * 1024;
 const OFFSCREEN_READY_ATTEMPTS = 40;
 const OFFSCREEN_READY_RETRY_MS = 50;
+const MIN_VIEWPORT_CAPTURE_INTERVAL_MS = 600;
 const pageStats = new Map<number, PageStats>();
+const viewportCaptureGate = new MinimumIntervalGate(MIN_VIEWPORT_CAPTURE_INTERVAL_MS);
 let creatingOffscreen: Promise<void> | undefined;
 let inferenceRequests = 0;
 
@@ -61,15 +64,17 @@ async function captureViewport(sender: chrome.runtime.MessageSender, crop: Infer
   const tabId = sender.tab?.id;
   const windowId = sender.tab?.windowId;
   if (tabId === undefined || windowId === undefined || !crop) throw new Error("Viewport capture requires the sending tab");
-  const before = (await chrome.tabs.query({ active: true, windowId }))[0];
-  if (before?.id !== tabId) throw new Error("Viewport capture is available only for the active tab");
-  const url = await chrome.tabs.captureVisibleTab(windowId, { format: "png" });
-  const after = (await chrome.tabs.query({ active: true, windowId }))[0];
-  if (after?.id !== tabId) throw new Error("The active tab changed during viewport capture");
-  if (url.length > MAX_LOCAL_IMAGE_CHARACTERS || !url.toLowerCase().startsWith("data:image/png")) {
-    throw new Error("Captured viewport exceeds the local image budget");
-  }
-  return { kind: "captured-viewport", url, crop };
+  return viewportCaptureGate.run(async () => {
+    const before = (await chrome.tabs.query({ active: true, windowId }))[0];
+    if (before?.id !== tabId) throw new Error("Viewport capture is available only for the active tab");
+    const url = await chrome.tabs.captureVisibleTab(windowId, { format: "png" });
+    const after = (await chrome.tabs.query({ active: true, windowId }))[0];
+    if (after?.id !== tabId) throw new Error("The active tab changed during viewport capture");
+    if (url.length > MAX_LOCAL_IMAGE_CHARACTERS || !url.toLowerCase().startsWith("data:image/png")) {
+      throw new Error("Captured viewport exceeds the local image budget");
+    }
+    return { kind: "captured-viewport", url, crop };
+  });
 }
 
 async function ensureOffscreen(): Promise<void> {
@@ -134,31 +139,29 @@ async function handleMessage(message: RuntimeMessage, sender: chrome.runtime.Mes
   switch (message.type) {
     case "PL_INFER": {
       if (!validRequestId(message.requestId)) return inferenceFailure("invalid-request", "Inference request ID is invalid");
-      let source: InferenceSource;
+      const renderedPixels = validRenderedPixels(message.source);
+      const viewportCrop = isObject(message.source) && message.source.kind === "viewport-crop" &&
+        validViewportCrop(message.source.crop) && contentSender(sender);
+      if (!renderedPixels && !viewportCrop) {
+        return inferenceFailure(message.requestId, "Inference accepts only local rendered pixels or an active-tab viewport crop");
+      }
+      if (inferenceRequests >= MAX_INFERENCE_REQUESTS) {
+        return inferenceFailure(message.requestId, "The bounded inference queue is full; rescan after current work finishes");
+      }
+      inferenceRequests += 1;
       try {
-        if (validRenderedPixels(message.source)) {
-          source = message.source;
-        } else if (isObject(message.source) && message.source.kind === "viewport-crop" &&
-          validViewportCrop(message.source.crop) && contentSender(sender)) {
-          source = await captureViewport(sender, message.source.crop);
-        } else {
-          return inferenceFailure(message.requestId, "Inference accepts only local rendered pixels or an active-tab viewport crop");
-        }
-        if (inferenceRequests >= MAX_INFERENCE_REQUESTS) {
-          return inferenceFailure(message.requestId, "The bounded inference queue is full; rescan after current work finishes");
-        }
-        inferenceRequests += 1;
-        try {
-          return await offscreenMessage<InferenceResponse>({
-            type: "PL_OFFSCREEN_INFER",
-            requestId: message.requestId,
-            source,
-          });
-        } finally {
-          inferenceRequests -= 1;
-        }
+        const source = renderedPixels
+          ? message.source as InferenceSource
+          : await captureViewport(sender, (message.source as { crop: ViewportCrop }).crop);
+        return await offscreenMessage<InferenceResponse>({
+          type: "PL_OFFSCREEN_INFER",
+          requestId: message.requestId,
+          source,
+        });
       } catch (error) {
         return inferenceFailure(message.requestId, error instanceof Error ? error.message : String(error));
+      } finally {
+        inferenceRequests -= 1;
       }
     }
     case "PL_PAGE_STATS":

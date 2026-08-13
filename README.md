@@ -55,7 +55,7 @@ The browser test closes its fixture server and puts the browser offline before a
 content script: discovers targets and creates local rendered-pixel or viewport-crop requests
   |
   v
-MV3 service worker: captures the active viewport when canvas pixels are unavailable,
+MV3 service worker: rate-limits active-viewport capture when canvas pixels are unavailable,
 bounds work, and restores the offscreen document
   |
   v
