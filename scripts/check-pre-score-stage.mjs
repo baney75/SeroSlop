@@ -4,6 +4,9 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
   classifyReleaseStage,
+  FAILED_RECOVERY_REPAIR_PATHS,
+  FAILED_RECOVERY_SOURCE_COMMIT,
+  FAILED_RECOVERY_SOURCE_TREE,
   FREEZE_PATH,
   LEGACY_FREEZE_COMMIT,
   LEGACY_FREEZE_PATH,
@@ -45,8 +48,10 @@ requireCondition(JSON.stringify(addedFreezeReceipts) === JSON.stringify(expected
 
 if (stage === "pre-score-recovery-source") {
   requireCondition(git(["rev-parse", `${LEGACY_FREEZE_COMMIT}^`]) === LEGACY_SOURCE_COMMIT &&
-    git(["rev-parse", `${head}^`]) === LEGACY_FREEZE_COMMIT,
-  "Recovery source must be the direct child of the one failed legacy freeze");
+    git(["rev-parse", `${FAILED_RECOVERY_SOURCE_COMMIT}^`]) === LEGACY_FREEZE_COMMIT &&
+    git(["rev-parse", `${FAILED_RECOVERY_SOURCE_COMMIT}^{tree}`]) === FAILED_RECOVERY_SOURCE_TREE &&
+    git(["rev-parse", `${head}^`]) === FAILED_RECOVERY_SOURCE_COMMIT,
+  "Second recovery source lineage changed");
   const legacyFreezePaths = git(["diff-tree", "--no-renames", "--no-commit-id", "--name-only", "-r", LEGACY_FREEZE_COMMIT])
     .split("\n").filter(Boolean);
   requireCondition(JSON.stringify(legacyFreezePaths) === JSON.stringify([LEGACY_FREEZE_PATH]),
@@ -55,7 +60,13 @@ if (stage === "pre-score-recovery-source") {
   requireCondition(hash(readFileSync(LEGACY_FREEZE_PATH)) === LEGACY_FREEZE_SHA256 &&
     hash(execFileSync("git", ["show", `${LEGACY_FREEZE_COMMIT}:${LEGACY_FREEZE_PATH}`])) === LEGACY_FREEZE_SHA256,
   "Legacy freeze receipt bytes changed");
-  const repairPaths = git(["diff", "--no-renames", "--name-only", `${LEGACY_FREEZE_COMMIT}..${head}`])
+  const failedRepairPaths = git([
+    "diff", "--no-renames", "--name-only", `${LEGACY_FREEZE_COMMIT}..${FAILED_RECOVERY_SOURCE_COMMIT}`,
+  ]).split("\n").filter(Boolean).sort();
+  requireCondition(JSON.stringify(failedRepairPaths) ===
+    JSON.stringify([...FAILED_RECOVERY_REPAIR_PATHS].sort()),
+  `Failed first recovery changed outside the exact repair set: ${failedRepairPaths.join(", ")}`);
+  const repairPaths = git(["diff", "--no-renames", "--name-only", `${FAILED_RECOVERY_SOURCE_COMMIT}..${head}`])
     .split("\n").filter(Boolean).sort();
   requireCondition(JSON.stringify(repairPaths) === JSON.stringify([...RECOVERY_REPAIR_PATHS].sort()),
     `Recovery source changed outside the exact repair set: ${repairPaths.join(", ")}`);
@@ -72,5 +83,7 @@ if (stage === "pre-score-freeze") {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-console.log(JSON.stringify({ stage, head, legacyFreezeCommit: legacyRecoverySource ? LEGACY_FREEZE_COMMIT : undefined,
+console.log(JSON.stringify({ stage, head,
+  failedRecoverySourceCommit: legacyRecoverySource ? FAILED_RECOVERY_SOURCE_COMMIT : undefined,
+  legacyFreezeCommit: legacyRecoverySource ? LEGACY_FREEZE_COMMIT : undefined,
   postScoreEvidence: "absent", policy: "pass" }));

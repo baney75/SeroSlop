@@ -23,8 +23,13 @@ LEGACY_FREEZE_PATH = Path("benchmark/evidence/evaluation/pre-score-freeze.json")
 LEGACY_SOURCE_COMMIT = "0771a9422b552e2023e5150fb6c8b4238b811a74"
 LEGACY_FREEZE_COMMIT = "2bd0c4757f6059c57879414a5dba77629d66460e"
 LEGACY_FREEZE_SHA256 = "400fd2b7a7cd84b063f81799eaf3829f770220c41f58dff53e7caebd1a145c34"
-RECOVERY_REASON = "legacy-verifier-resource-exhaustion"
-RECOVERY_REPAIR_PATHS = [
+FAILED_RECOVERY_SOURCE_COMMIT = "99861df575854511c685d7b8f90acdc7ed4e5923"
+FAILED_RECOVERY_SOURCE_TREE = "204594f26118d8c1c3add9dfef3a6050949772e1"
+FAILED_RECOVERY_ACTIONS_RUN_ID = 31846361076
+FAILED_RECOVERY_ACTIONS_RUN_URL = "https://github.com/baney75/prooflens/actions/runs/31846361076"
+FAILED_RECOVERY_REASON = "ci-missing-inference-dependencies-before-v2-guard"
+RECOVERY_REASON = "ci-pre-input-guard-imported-inference-dependencies"
+FAILED_RECOVERY_REPAIR_PATHS = [
     "BENCHMARK.md",
     "README.md",
     "benchmark/evaluate.py",
@@ -41,6 +46,17 @@ RECOVERY_REPAIR_PATHS = [
     "scripts/run-static-verification.mjs",
     "scripts/test-git-object-digest.mjs",
     "scripts/test-release-stage-policy.mjs",
+]
+RECOVERY_REPAIR_PATHS = [
+    "BENCHMARK.md",
+    "README.md",
+    "benchmark/evaluate.py",
+    "benchmark/evaluation_contract.py",
+    "benchmark/test_integrity_contracts.py",
+    "benchmark/write_pre_score_freeze.py",
+    "scripts/check-pre-score-freeze.mjs",
+    "scripts/check-pre-score-stage.mjs",
+    "scripts/release-stage-policy.mjs",
 ]
 EXPECTED_ALLOWED_POST_SCORE_PATHS = [
     "artifacts/**",
@@ -286,6 +302,12 @@ def require_public_pre_score_freeze(
         "legacySourceCommit": LEGACY_SOURCE_COMMIT,
         "legacyFreezeCommit": LEGACY_FREEZE_COMMIT,
         "legacyFreezeSha256": LEGACY_FREEZE_SHA256,
+        "failedRecoverySourceCommit": FAILED_RECOVERY_SOURCE_COMMIT,
+        "failedRecoverySourceTree": FAILED_RECOVERY_SOURCE_TREE,
+        "failedRecoveryActionsRunId": FAILED_RECOVERY_ACTIONS_RUN_ID,
+        "failedRecoveryActionsRunUrl": FAILED_RECOVERY_ACTIONS_RUN_URL,
+        "failedRecoveryReason": FAILED_RECOVERY_REASON,
+        "failedRecoveryRepairPaths": FAILED_RECOVERY_REPAIR_PATHS,
         "reason": RECOVERY_REASON,
         "repairPaths": RECOVERY_REPAIR_PATHS,
         "immutableFiles": EXPECTED_IMMUTABLE_FILES,
@@ -296,6 +318,14 @@ def require_public_pre_score_freeze(
     legacy_source_commit = str(contract["legacySourceCommit"])
     legacy_freeze_commit = str(contract["legacyFreezeCommit"])
     legacy_freeze_sha256 = str(contract["legacyFreezeSha256"])
+    failed_recovery_source_commit = str(contract["failedRecoverySourceCommit"])
+    failed_recovery_source_tree = str(contract["failedRecoverySourceTree"])
+    failed_recovery_actions_run_id = int(contract["failedRecoveryActionsRunId"])
+    failed_recovery_actions_run_url = str(contract["failedRecoveryActionsRunUrl"])
+    failed_recovery_reason = str(contract["failedRecoveryReason"])
+    failed_repair_paths_expected = [
+        str(path) for path in contract["failedRecoveryRepairPaths"]  # type: ignore[union-attr]
+    ]
     recovery_reason = str(contract["reason"])
     repair_paths_expected = [str(path) for path in contract["repairPaths"]]  # type: ignore[union-attr]
     immutable_files_expected = [str(path) for path in contract["immutableFiles"]]  # type: ignore[union-attr]
@@ -307,7 +337,7 @@ def require_public_pre_score_freeze(
         freeze.get("schemaVersion") != 3
         or freeze.get("generation") != 2
         or freeze.get("mode")
-        != "public recovery pre-score source freeze before any confirmatory or web-negative inference"
+        != "public second-recovery pre-score source freeze before any confirmatory or web-negative inference"
         or freeze.get("receiptPath") != str(active_freeze_path)
     ):
         raise ValueError("Only the recovery pre-score freeze can authorize sealed inference")
@@ -318,6 +348,12 @@ def require_public_pre_score_freeze(
         or recovery.get("legacyFreezeCommit") != legacy_freeze_commit
         or recovery.get("legacyReceiptPath") != str(legacy_freeze_path)
         or recovery.get("legacyReceiptSha256") != legacy_freeze_sha256
+        or recovery.get("failedRecoverySourceCommit") != failed_recovery_source_commit
+        or recovery.get("failedRecoverySourceTree") != failed_recovery_source_tree
+        or recovery.get("failedRecoveryActionsRunId") != failed_recovery_actions_run_id
+        or recovery.get("failedRecoveryActionsRunUrl") != failed_recovery_actions_run_url
+        or recovery.get("failedRecoveryReason") != failed_recovery_reason
+        or recovery.get("failedRecoveryRepairPaths") != failed_repair_paths_expected
         or recovery.get("repairPaths") != repair_paths_expected
         or "cannot prove" not in str(recovery.get("repositoryEvidenceLimitation", ""))
     ):
@@ -327,10 +363,13 @@ def require_public_pre_score_freeze(
     if source_tree != git(repository_root, "rev-parse", f"{source_commit}^{{tree}}"):
         raise ValueError("Pre-score freeze source commit/tree changed")
     if (
-        git(repository_root, "rev-parse", f"{source_commit}^") != legacy_freeze_commit
+        git(repository_root, "rev-parse", f"{source_commit}^") != failed_recovery_source_commit
+        or git(repository_root, "rev-parse", f"{failed_recovery_source_commit}^") != legacy_freeze_commit
         or git(repository_root, "rev-parse", f"{legacy_freeze_commit}^") != legacy_source_commit
+        or git(repository_root, "rev-parse", f"{failed_recovery_source_commit}^{{tree}}")
+        != failed_recovery_source_tree
     ):
-        raise ValueError("Recovery source is not the direct child of the failed legacy freeze")
+        raise ValueError("Second recovery source lineage changed")
     legacy_receipt = repository_root / legacy_freeze_path
     if not legacy_receipt.is_file() or digest_file(legacy_receipt) != legacy_freeze_sha256:
         raise ValueError("Legacy freeze receipt changed in the recovery source")
@@ -341,9 +380,22 @@ def require_public_pre_score_freeze(
     ).splitlines()
     if legacy_paths != [str(legacy_freeze_path)]:
         raise ValueError("Legacy freeze commit shape changed")
-    repair_paths = sorted(
-        str(git(repository_root, "diff", "--no-renames", "--name-only", f"{legacy_freeze_commit}..{source_commit}"))
+    failed_repair_paths = sorted(
+        str(git(
+            repository_root,
+            "diff", "--no-renames", "--name-only",
+            f"{legacy_freeze_commit}..{failed_recovery_source_commit}",
+        ))
         .splitlines()
+    )
+    if failed_repair_paths != sorted(failed_repair_paths_expected):
+        raise ValueError("Failed first recovery source changed outside its exact repair set")
+    repair_paths = sorted(
+        str(git(
+            repository_root,
+            "diff", "--no-renames", "--name-only",
+            f"{failed_recovery_source_commit}..{source_commit}",
+        )).splitlines()
     )
     if repair_paths != sorted(repair_paths_expected):
         raise ValueError("Recovery source changed outside its exact repair set")

@@ -52,6 +52,8 @@ class IntegrityContractsTest(unittest.TestCase):
         *,
         receipt_immutable_mode: str = "exact",
         receipt_allowed_paths: list[str] | None = None,
+        declared_failed_repair_paths: list[str] | None = None,
+        declared_repair_paths: list[str] | None = None,
     ) -> dict[str, object]:
         repository = root / "repository"
         remote = root / "remote.git"
@@ -62,10 +64,12 @@ class IntegrityContractsTest(unittest.TestCase):
         subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=repository, check=True)
         source_file = repository / "source.txt"
         source_file.write_text("legacy source\n")
+        second_source_file = repository / "second-source.txt"
+        second_source_file.write_text("second recovery pending\n")
         (repository / "frozen.txt").write_text("frozen behavior\n")
         (repository / "receipt-seed.json").write_text("{}\n")
         subprocess.run(
-            ["git", "add", "source.txt", "frozen.txt", "receipt-seed.json"],
+            ["git", "add", "source.txt", "second-source.txt", "frozen.txt", "receipt-seed.json"],
             cwd=repository,
             check=True,
         )
@@ -85,16 +89,24 @@ class IntegrityContractsTest(unittest.TestCase):
         subprocess.run(["git", "add", "source.txt"], cwd=repository, check=True)
         subprocess.run(["git", "commit", "-m", "Recovery source"], cwd=repository,
                        check=True, capture_output=True)
+        failed_recovery_source = self._git(repository, "rev-parse", "HEAD")
+        failed_recovery_tree = self._git(repository, "rev-parse", "HEAD^{tree}")
+        second_source_file.write_text("dependency-loading repair\n")
+        subprocess.run(["git", "add", "second-source.txt"], cwd=repository, check=True)
+        subprocess.run(["git", "commit", "-m", "Second recovery source"], cwd=repository,
+                       check=True, capture_output=True)
         recovery_source = self._git(repository, "rev-parse", "HEAD")
         recovery_tree = self._git(repository, "rev-parse", "HEAD^{tree}")
-        source_hash = sha256(source_file.read_bytes()).hexdigest()
+        source_hash = sha256(second_source_file.read_bytes()).hexdigest()
         expected_allowed_paths = ["benchmark/evidence/evaluation/**", "README.md"]
+        failed_repair_paths = ["source.txt"] if declared_failed_repair_paths is None else declared_failed_repair_paths
+        repair_paths = ["second-source.txt"] if declared_repair_paths is None else declared_repair_paths
         if receipt_immutable_mode == "exact":
-            receipt_immutable_files = {"source.txt": source_hash}
+            receipt_immutable_files = {"second-source.txt": source_hash}
         elif receipt_immutable_mode == "missing":
             receipt_immutable_files = {}
         elif receipt_immutable_mode == "extra":
-            receipt_immutable_files = {"source.txt": source_hash, "extra.txt": "0" * 64}
+            receipt_immutable_files = {"second-source.txt": source_hash, "extra.txt": "0" * 64}
         else:  # pragma: no cover - test helper misuse
             raise ValueError(f"Unknown immutable test mode: {receipt_immutable_mode}")
         freeze_path = Path("benchmark/evidence/evaluation/pre-score-freeze-v2.json")
@@ -102,7 +114,7 @@ class IntegrityContractsTest(unittest.TestCase):
         freeze_file.write_text(json.dumps({
             "schemaVersion": 3,
             "generation": 2,
-            "mode": "public recovery pre-score source freeze before any confirmatory or web-negative inference",
+            "mode": "public second-recovery pre-score source freeze before any confirmatory or web-negative inference",
             "receiptPath": str(freeze_path),
             "sourceCommit": recovery_source,
             "sourceTree": recovery_tree,
@@ -116,7 +128,13 @@ class IntegrityContractsTest(unittest.TestCase):
                 "legacyFreezeCommit": legacy_freeze,
                 "legacyReceiptPath": str(legacy_path),
                 "legacyReceiptSha256": legacy_hash,
-                "repairPaths": ["source.txt"],
+                "failedRecoverySourceCommit": failed_recovery_source,
+                "failedRecoverySourceTree": failed_recovery_tree,
+                "failedRecoveryActionsRunId": 12345,
+                "failedRecoveryActionsRunUrl": "https://example.invalid/actions/runs/12345",
+                "failedRecoveryReason": "test-missing-dependencies",
+                "failedRecoveryRepairPaths": failed_repair_paths,
+                "repairPaths": repair_paths,
                 "repositoryEvidenceLimitation": "Repository history cannot prove unrecorded pixel access.",
             },
         }, indent=2) + "\n")
@@ -133,9 +151,15 @@ class IntegrityContractsTest(unittest.TestCase):
             "legacySourceCommit": legacy_source,
             "legacyFreezeCommit": legacy_freeze,
             "legacyFreezeSha256": legacy_hash,
+            "failedRecoverySourceCommit": failed_recovery_source,
+            "failedRecoverySourceTree": failed_recovery_tree,
+            "failedRecoveryActionsRunId": 12345,
+            "failedRecoveryActionsRunUrl": "https://example.invalid/actions/runs/12345",
+            "failedRecoveryReason": "test-missing-dependencies",
+            "failedRecoveryRepairPaths": failed_repair_paths,
             "reason": "test-resource-exhaustion",
-            "repairPaths": ["source.txt"],
-            "immutableFiles": ["source.txt"],
+            "repairPaths": repair_paths,
+            "immutableFiles": ["second-source.txt"],
             "allowedPostScorePaths": expected_allowed_paths,
         }
         return {
@@ -144,6 +168,7 @@ class IntegrityContractsTest(unittest.TestCase):
             "freezeFile": freeze_file,
             "freezeBytes": freeze_file.read_bytes(),
             "freezeCommit": freeze_commit,
+            "failedRecoverySource": failed_recovery_source,
             "legacyFreeze": legacy_freeze,
             "contract": contract,
         }
@@ -335,6 +360,23 @@ class IntegrityContractsTest(unittest.TestCase):
                         recovery_contract=chain["contract"],
                     )
 
+    def test_second_recovery_requires_both_exact_repair_surfaces(self) -> None:
+        cases = (
+            ({"declared_failed_repair_paths": ["frozen.txt"]}, "Failed first recovery source"),
+            ({"declared_repair_paths": ["frozen.txt"]}, "Recovery source changed"),
+        )
+        for arguments, message in cases:
+            with self.subTest(arguments=arguments), tempfile.TemporaryDirectory() as temporary:
+                chain = self._build_recovery_freeze_chain(Path(temporary), **arguments)
+                with self.assertRaisesRegex(ValueError, message):
+                    require_public_pre_score_freeze(
+                        repository_root=chain["repository"],
+                        canonical_origin_urls=frozenset({str(chain["remote"])}),
+                        anonymous_head_resolver=lambda: str(chain["freezeCommit"]),
+                        anonymous_byte_fetcher=lambda _url: chain["freezeBytes"],
+                        recovery_contract=chain["contract"],
+                    )
+
     def test_alternate_freeze_receipt_cannot_authorize_a_descendant(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             chain = self._build_recovery_freeze_chain(Path(temporary))
@@ -396,6 +438,15 @@ class IntegrityContractsTest(unittest.TestCase):
                 Path(__file__).parent / "evaluation_contract.py",
                 benchmark / "evaluation_contract.py",
             )
+            dependency_marker = "INFERENCE_DEPENDENCY_IMPORTED_BEFORE_FREEZE"
+            (benchmark / "onnxruntime.py").write_text(
+                f'raise RuntimeError("{dependency_marker}")\n'
+            )
+            pillow = benchmark / "PIL"
+            pillow.mkdir()
+            (pillow / "__init__.py").write_text(
+                f'raise RuntimeError("{dependency_marker}")\n'
+            )
             sentinel = root / "sentinel-input"
             sentinel.mkdir()
             result = subprocess.run(
@@ -421,6 +472,8 @@ class IntegrityContractsTest(unittest.TestCase):
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("pre-score-freeze-v2.json", result.stderr)
+            self.assertNotIn(dependency_marker, result.stderr)
+            self.assertNotIn("ModuleNotFoundError", result.stderr)
             self.assertNotIn("IsADirectoryError", result.stderr)
 
     def test_sealed_inference_rejects_noncanonical_origin(self) -> None:

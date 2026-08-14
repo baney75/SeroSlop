@@ -21,7 +21,12 @@ LEGACY_FREEZE_PATH = Path("benchmark/evidence/evaluation/pre-score-freeze.json")
 LEGACY_SOURCE_COMMIT = "0771a9422b552e2023e5150fb6c8b4238b811a74"
 LEGACY_FREEZE_COMMIT = "2bd0c4757f6059c57879414a5dba77629d66460e"
 LEGACY_FREEZE_SHA256 = "400fd2b7a7cd84b063f81799eaf3829f770220c41f58dff53e7caebd1a145c34"
-RECOVERY_REASON = "legacy-verifier-resource-exhaustion"
+FAILED_RECOVERY_SOURCE_COMMIT = "99861df575854511c685d7b8f90acdc7ed4e5923"
+FAILED_RECOVERY_SOURCE_TREE = "204594f26118d8c1c3add9dfef3a6050949772e1"
+FAILED_RECOVERY_ACTIONS_RUN_ID = 31846361076
+FAILED_RECOVERY_ACTIONS_RUN_URL = "https://github.com/baney75/prooflens/actions/runs/31846361076"
+FAILED_RECOVERY_REASON = "ci-missing-inference-dependencies-before-v2-guard"
+RECOVERY_REASON = "ci-pre-input-guard-imported-inference-dependencies"
 REPOSITORY_URL = "https://github.com/baney75/prooflens"
 CANONICAL_ORIGIN_URLS = {
     REPOSITORY_URL,
@@ -29,7 +34,7 @@ CANONICAL_ORIGIN_URLS = {
     "git@github.com:baney75/prooflens.git",
     "ssh://git@github.com/baney75/prooflens.git",
 }
-RECOVERY_REPAIR_PATHS = [
+FAILED_RECOVERY_REPAIR_PATHS = [
     "BENCHMARK.md",
     "README.md",
     "benchmark/evaluate.py",
@@ -46,6 +51,17 @@ RECOVERY_REPAIR_PATHS = [
     "scripts/run-static-verification.mjs",
     "scripts/test-git-object-digest.mjs",
     "scripts/test-release-stage-policy.mjs",
+]
+RECOVERY_REPAIR_PATHS = [
+    "BENCHMARK.md",
+    "README.md",
+    "benchmark/evaluate.py",
+    "benchmark/evaluation_contract.py",
+    "benchmark/test_integrity_contracts.py",
+    "benchmark/write_pre_score_freeze.py",
+    "scripts/check-pre-score-freeze.mjs",
+    "scripts/check-pre-score-stage.mjs",
+    "scripts/release-stage-policy.mjs",
 ]
 PROHIBITED_PRE_SCORE_PATH_PREFIXES = [
     "artifacts/browser-parity",
@@ -71,8 +87,14 @@ def main() -> None:
     source_commit = command("git", "rev-parse", "HEAD")
     source_tree = command("git", "rev-parse", "HEAD^{tree}")
     source_parent = command("git", "rev-parse", "HEAD^")
-    if source_parent != LEGACY_FREEZE_COMMIT or command("git", "rev-parse", f"{LEGACY_FREEZE_COMMIT}^") != LEGACY_SOURCE_COMMIT:
-        raise ValueError("Recovery source must be the direct child of the known failed legacy freeze")
+    if (
+        source_parent != FAILED_RECOVERY_SOURCE_COMMIT
+        or command("git", "rev-parse", f"{FAILED_RECOVERY_SOURCE_COMMIT}^") != LEGACY_FREEZE_COMMIT
+        or command("git", "rev-parse", f"{LEGACY_FREEZE_COMMIT}^") != LEGACY_SOURCE_COMMIT
+        or command("git", "rev-parse", f"{FAILED_RECOVERY_SOURCE_COMMIT}^{{tree}}")
+        != FAILED_RECOVERY_SOURCE_TREE
+    ):
+        raise ValueError("Second recovery source lineage changed")
     legacy_paths = command(
         "git", "diff-tree", "--no-renames", "--no-commit-id", "--name-only", "-r", LEGACY_FREEZE_COMMIT
     ).splitlines()
@@ -91,8 +113,16 @@ def main() -> None:
     })
     if added_freeze_receipts != [str(LEGACY_FREEZE_PATH)]:
         raise ValueError("Recovery source history contains an alternate pre-score freeze receipt")
+    failed_repair_paths = sorted(command(
+        "git", "diff", "--no-renames", "--name-only",
+        f"{LEGACY_FREEZE_COMMIT}..{FAILED_RECOVERY_SOURCE_COMMIT}"
+    ).splitlines())
+    if failed_repair_paths != sorted(FAILED_RECOVERY_REPAIR_PATHS):
+        raise ValueError(
+            f"Failed first recovery changed outside its exact repair set: {failed_repair_paths}"
+        )
     repair_paths = sorted(command(
-        "git", "diff", "--no-renames", "--name-only", f"{LEGACY_FREEZE_COMMIT}..{source_commit}"
+        "git", "diff", "--no-renames", "--name-only", f"{FAILED_RECOVERY_SOURCE_COMMIT}..{source_commit}"
     ).splitlines())
     if repair_paths != sorted(RECOVERY_REPAIR_PATHS):
         raise ValueError(f"Recovery source changed outside its exact repair set: {repair_paths}")
@@ -131,7 +161,7 @@ def main() -> None:
     payload = {
         "schemaVersion": 3,
         "generation": 2,
-        "mode": "public recovery pre-score source freeze before any confirmatory or web-negative inference",
+        "mode": "public second-recovery pre-score source freeze before any confirmatory or web-negative inference",
         "receiptPath": str(OUTPUT),
         "repository": REPOSITORY_URL,
         "branch": branch,
@@ -147,6 +177,12 @@ def main() -> None:
             "legacyFreezeCommit": LEGACY_FREEZE_COMMIT,
             "legacyReceiptPath": str(LEGACY_FREEZE_PATH),
             "legacyReceiptSha256": LEGACY_FREEZE_SHA256,
+            "failedRecoverySourceCommit": FAILED_RECOVERY_SOURCE_COMMIT,
+            "failedRecoverySourceTree": FAILED_RECOVERY_SOURCE_TREE,
+            "failedRecoveryActionsRunId": FAILED_RECOVERY_ACTIONS_RUN_ID,
+            "failedRecoveryActionsRunUrl": FAILED_RECOVERY_ACTIONS_RUN_URL,
+            "failedRecoveryReason": FAILED_RECOVERY_REASON,
+            "failedRecoveryRepairPaths": FAILED_RECOVERY_REPAIR_PATHS,
             "repairPaths": RECOVERY_REPAIR_PATHS,
             "repositoryEvidenceLimitation": (
                 "Repository history proves no canonical sealed output was committed before this recovery freeze; "

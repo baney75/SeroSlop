@@ -13,7 +13,13 @@ const LEGACY_FREEZE_PATH = "benchmark/evidence/evaluation/pre-score-freeze.json"
 const LEGACY_SOURCE_COMMIT = "0771a9422b552e2023e5150fb6c8b4238b811a74";
 const LEGACY_FREEZE_COMMIT = "2bd0c4757f6059c57879414a5dba77629d66460e";
 const LEGACY_FREEZE_SHA256 = "400fd2b7a7cd84b063f81799eaf3829f770220c41f58dff53e7caebd1a145c34";
-const RECOVERY_REASON = "legacy-verifier-resource-exhaustion";
+const FAILED_RECOVERY_SOURCE_COMMIT = "99861df575854511c685d7b8f90acdc7ed4e5923";
+const FAILED_RECOVERY_SOURCE_TREE = "204594f26118d8c1c3add9dfef3a6050949772e1";
+const FAILED_RECOVERY_ACTIONS_RUN_ID = 31846361076;
+const FAILED_RECOVERY_ACTIONS_RUN_URL =
+  "https://github.com/baney75/prooflens/actions/runs/31846361076";
+const FAILED_RECOVERY_REASON = "ci-missing-inference-dependencies-before-v2-guard";
+const RECOVERY_REASON = "ci-pre-input-guard-imported-inference-dependencies";
 const PUBLIC_GIT_URL = "https://github.com/baney75/prooflens.git";
 const PUBLIC_RAW_BASE_URL = "https://raw.githubusercontent.com/baney75/prooflens";
 const PUBLIC_PROOF_METHOD =
@@ -55,7 +61,7 @@ const EXPECTED_IMMUTABLE_FILES = [
   "src/shared/model-spec.ts",
   "weights/prooflens-cf384.onnx",
 ];
-const EXPECTED_RECOVERY_REPAIR_PATHS = [
+const EXPECTED_FAILED_RECOVERY_REPAIR_PATHS = [
   "BENCHMARK.md",
   "README.md",
   "benchmark/evaluate.py",
@@ -72,6 +78,17 @@ const EXPECTED_RECOVERY_REPAIR_PATHS = [
   "scripts/run-static-verification.mjs",
   "scripts/test-git-object-digest.mjs",
   "scripts/test-release-stage-policy.mjs",
+];
+const EXPECTED_RECOVERY_REPAIR_PATHS = [
+  "BENCHMARK.md",
+  "README.md",
+  "benchmark/evaluate.py",
+  "benchmark/evaluation_contract.py",
+  "benchmark/test_integrity_contracts.py",
+  "benchmark/write_pre_score_freeze.py",
+  "scripts/check-pre-score-freeze.mjs",
+  "scripts/check-pre-score-stage.mjs",
+  "scripts/release-stage-policy.mjs",
 ];
 const POST_SCORE_PREFIXES = [
   "artifacts/browser-parity",
@@ -156,7 +173,7 @@ function allowedPostScorePath(path) {
 const freeze = JSON.parse(await readFile(FREEZE_PATH, "utf8"));
 const freezeBytes = await readFile(FREEZE_PATH);
 requireCondition(freeze.schemaVersion === 3 && freeze.generation === 2 && freeze.mode ===
-  "public recovery pre-score source freeze before any confirmatory or web-negative inference" &&
+  "public second-recovery pre-score source freeze before any confirmatory or web-negative inference" &&
   freeze.receiptPath === FREEZE_PATH &&
   freeze.repository === "https://github.com/baney75/prooflens" && freeze.branch === "main" &&
   /^[a-f0-9]{40}$/u.test(freeze.sourceCommit) && /^[a-f0-9]{40}$/u.test(freeze.sourceTree) &&
@@ -170,6 +187,13 @@ requireCondition(freeze.recovery?.reason === RECOVERY_REASON &&
   freeze.recovery.legacyFreezeCommit === LEGACY_FREEZE_COMMIT &&
   freeze.recovery.legacyReceiptPath === LEGACY_FREEZE_PATH &&
   freeze.recovery.legacyReceiptSha256 === LEGACY_FREEZE_SHA256 &&
+  freeze.recovery.failedRecoverySourceCommit === FAILED_RECOVERY_SOURCE_COMMIT &&
+  freeze.recovery.failedRecoverySourceTree === FAILED_RECOVERY_SOURCE_TREE &&
+  freeze.recovery.failedRecoveryActionsRunId === FAILED_RECOVERY_ACTIONS_RUN_ID &&
+  freeze.recovery.failedRecoveryActionsRunUrl === FAILED_RECOVERY_ACTIONS_RUN_URL &&
+  freeze.recovery.failedRecoveryReason === FAILED_RECOVERY_REASON &&
+  JSON.stringify(freeze.recovery.failedRecoveryRepairPaths) ===
+    JSON.stringify(EXPECTED_FAILED_RECOVERY_REPAIR_PATHS) &&
   JSON.stringify(freeze.recovery.repairPaths) === JSON.stringify(EXPECTED_RECOVERY_REPAIR_PATHS) &&
   typeof freeze.recovery.repositoryEvidenceLimitation === "string" &&
   freeze.recovery.repositoryEvidenceLimitation.includes("cannot prove"),
@@ -184,9 +208,11 @@ requireCondition(freeze.anonymousPublicProof?.method === PUBLIC_PROOF_METHOD &&
 "Pre-score anonymous public proof changed");
 requireCondition(git(["rev-parse", `${freeze.sourceCommit}^{tree}`]) === freeze.sourceTree,
   "Pre-score source tree does not match its commit");
-requireCondition(git(["rev-parse", `${freeze.sourceCommit}^`]) === LEGACY_FREEZE_COMMIT &&
+requireCondition(git(["rev-parse", `${freeze.sourceCommit}^`]) === FAILED_RECOVERY_SOURCE_COMMIT &&
+  git(["rev-parse", `${FAILED_RECOVERY_SOURCE_COMMIT}^`]) === LEGACY_FREEZE_COMMIT &&
+  git(["rev-parse", `${FAILED_RECOVERY_SOURCE_COMMIT}^{tree}`]) === FAILED_RECOVERY_SOURCE_TREE &&
   git(["rev-parse", `${LEGACY_FREEZE_COMMIT}^`]) === LEGACY_SOURCE_COMMIT,
-"Recovery source is not the direct child of the failed legacy freeze");
+"Second recovery source lineage changed");
 const legacyFreezePaths = git(["diff-tree", "--no-renames", "--no-commit-id", "--name-only", "-r", LEGACY_FREEZE_COMMIT])
   .split("\n").filter(Boolean);
 requireCondition(JSON.stringify(legacyFreezePaths) === JSON.stringify([LEGACY_FREEZE_PATH]),
@@ -195,7 +221,15 @@ const legacyCurrent = await readFile(LEGACY_FREEZE_PATH);
 requireCondition(digest(legacyCurrent) === LEGACY_FREEZE_SHA256 &&
   digest(gitBytes(["show", `${LEGACY_FREEZE_COMMIT}:${LEGACY_FREEZE_PATH}`])) === LEGACY_FREEZE_SHA256,
 "Legacy freeze receipt bytes changed");
-const recoveryPaths = git(["diff", "--no-renames", "--name-only", `${LEGACY_FREEZE_COMMIT}..${freeze.sourceCommit}`])
+const failedRecoveryPaths = git([
+  "diff", "--no-renames", "--name-only", `${LEGACY_FREEZE_COMMIT}..${FAILED_RECOVERY_SOURCE_COMMIT}`,
+]).split("\n").filter(Boolean).sort();
+requireCondition(JSON.stringify(failedRecoveryPaths) ===
+  JSON.stringify([...EXPECTED_FAILED_RECOVERY_REPAIR_PATHS].sort()),
+"Failed first recovery source changed outside its exact repair set");
+const recoveryPaths = git([
+  "diff", "--no-renames", "--name-only", `${FAILED_RECOVERY_SOURCE_COMMIT}..${freeze.sourceCommit}`,
+])
   .split("\n").filter(Boolean).sort();
 requireCondition(JSON.stringify(recoveryPaths) === JSON.stringify([...EXPECTED_RECOVERY_REPAIR_PATHS].sort()),
   "Recovery source changed outside its exact repair set");
@@ -279,6 +313,7 @@ console.log(JSON.stringify({
   sourceCommit: freeze.sourceCommit,
   sourceTree: freeze.sourceTree,
   freezeCommit,
+  failedRecoverySourceCommit: FAILED_RECOVERY_SOURCE_COMMIT,
   legacyFreezeCommit: LEGACY_FREEZE_COMMIT,
   recoveryReason: RECOVERY_REASON,
   anonymousPublicHead: anonymousHead,

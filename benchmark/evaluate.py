@@ -20,8 +20,6 @@ import random
 import tempfile
 
 import numpy as np
-import onnxruntime as ort
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps, __version__ as PILLOW_VERSION
 
 from evaluation_contract import require_canonical_output_directory, require_public_pre_score_freeze
 
@@ -59,6 +57,28 @@ PROTOCOLS = {
         "negativeOnly": True,
     },
 }
+
+
+def load_inference_runtime() -> None:
+    """Load pixel/model dependencies only after sealed-evaluation authorization."""
+    global ort, Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps, PILLOW_VERSION
+    import onnxruntime as onnx_runtime
+    from PIL import (
+        Image as pillow_image,
+        ImageDraw as pillow_image_draw,
+        ImageEnhance as pillow_image_enhance,
+        ImageFilter as pillow_image_filter,
+        ImageOps as pillow_image_ops,
+        __version__ as pillow_version,
+    )
+
+    ort = onnx_runtime
+    Image = pillow_image
+    ImageDraw = pillow_image_draw
+    ImageEnhance = pillow_image_enhance
+    ImageFilter = pillow_image_filter
+    ImageOps = pillow_image_ops
+    PILLOW_VERSION = pillow_version
 
 
 @dataclass(frozen=True)
@@ -302,6 +322,7 @@ def main() -> None:
             repository_root=repository_root,
             allow_public_descendant=args.verify_existing,
         )
+    load_inference_runtime()
     model_hash = file_digest(args.model)
     if model_hash != args.expected_model_sha256:
         raise ValueError(f"Unexpected model SHA-256: {model_hash}")

@@ -2,10 +2,16 @@ export const LEGACY_SOURCE_COMMIT = "0771a9422b552e2023e5150fb6c8b4238b811a74";
 export const LEGACY_FREEZE_COMMIT = "2bd0c4757f6059c57879414a5dba77629d66460e";
 export const LEGACY_FREEZE_PATH = "benchmark/evidence/evaluation/pre-score-freeze.json";
 export const LEGACY_FREEZE_SHA256 = "400fd2b7a7cd84b063f81799eaf3829f770220c41f58dff53e7caebd1a145c34";
+export const FAILED_RECOVERY_SOURCE_COMMIT = "99861df575854511c685d7b8f90acdc7ed4e5923";
+export const FAILED_RECOVERY_SOURCE_TREE = "204594f26118d8c1c3add9dfef3a6050949772e1";
+export const FAILED_RECOVERY_ACTIONS_RUN_ID = 31846361076;
+export const FAILED_RECOVERY_ACTIONS_RUN_URL =
+  "https://github.com/baney75/prooflens/actions/runs/31846361076";
+export const FAILED_RECOVERY_REASON = "ci-missing-inference-dependencies-before-v2-guard";
 export const FREEZE_PATH = "benchmark/evidence/evaluation/pre-score-freeze-v2.json";
 export const FREEZE_PATH_PREFIX = "benchmark/evidence/evaluation/pre-score-freeze";
 
-export const RECOVERY_REPAIR_PATHS = [
+export const FAILED_RECOVERY_REPAIR_PATHS = [
   "BENCHMARK.md",
   "README.md",
   "benchmark/evaluate.py",
@@ -22,6 +28,18 @@ export const RECOVERY_REPAIR_PATHS = [
   "scripts/run-static-verification.mjs",
   "scripts/test-git-object-digest.mjs",
   "scripts/test-release-stage-policy.mjs",
+];
+
+export const RECOVERY_REPAIR_PATHS = [
+  "BENCHMARK.md",
+  "README.md",
+  "benchmark/evaluate.py",
+  "benchmark/evaluation_contract.py",
+  "benchmark/test_integrity_contracts.py",
+  "benchmark/write_pre_score_freeze.py",
+  "scripts/check-pre-score-freeze.mjs",
+  "scripts/check-pre-score-stage.mjs",
+  "scripts/release-stage-policy.mjs",
 ];
 
 export const PROHIBITED_PRE_SCORE_PREFIXES = [
