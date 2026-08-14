@@ -297,6 +297,11 @@ def main() -> None:
         raise ValueError("batch-size must be positive")
     if args.expected_manifest_sha256 != protocol["manifestSha256"]:
         raise ValueError(f"{args.protocol} requires its predeclared manifest SHA-256")
+    if args.protocol in {"confirmatory", "web-negative"}:
+        require_public_pre_score_freeze(
+            repository_root=repository_root,
+            allow_public_descendant=args.verify_existing,
+        )
     model_hash = file_digest(args.model)
     if model_hash != args.expected_model_sha256:
         raise ValueError(f"Unexpected model SHA-256: {model_hash}")
@@ -318,12 +323,6 @@ def main() -> None:
         raise ValueError("Calibration raw threshold must be finite and strictly between zero and one")
     if not math.isfinite(float(calibration.get("intercept", math.nan))):
         raise ValueError("Calibration intercept is not finite")
-    if args.protocol in {"confirmatory", "web-negative"}:
-        require_public_pre_score_freeze(
-            repository_root=repository_root,
-            allow_public_descendant=args.verify_existing,
-        )
-
     items = load_manifest(args.manifest, args.data_root)
     if len(items) != protocol["items"] or counts([item.label for item in items]) != protocol["labels"]:
         raise ValueError(f"{args.protocol} manifest class allocation changed")

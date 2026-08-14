@@ -8,6 +8,7 @@ import math
 import numpy as np
 from pathlib import Path
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -44,6 +45,108 @@ class IntegrityContractsTest(unittest.TestCase):
         return subprocess.check_output(
             ["git", *arguments], cwd=repository, text=True
         ).strip()
+
+    def _build_recovery_freeze_chain(
+        self,
+        root: Path,
+        *,
+        receipt_immutable_mode: str = "exact",
+        receipt_allowed_paths: list[str] | None = None,
+    ) -> dict[str, object]:
+        repository = root / "repository"
+        remote = root / "remote.git"
+        repository.mkdir()
+        subprocess.run(["git", "init", "--bare", remote], check=True, capture_output=True)
+        subprocess.run(["git", "init", "-b", "main"], cwd=repository, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "ProofLens test"], cwd=repository, check=True)
+        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=repository, check=True)
+        source_file = repository / "source.txt"
+        source_file.write_text("legacy source\n")
+        (repository / "frozen.txt").write_text("frozen behavior\n")
+        (repository / "receipt-seed.json").write_text("{}\n")
+        subprocess.run(
+            ["git", "add", "source.txt", "frozen.txt", "receipt-seed.json"],
+            cwd=repository,
+            check=True,
+        )
+        subprocess.run(["git", "commit", "-m", "Legacy source"], cwd=repository,
+                       check=True, capture_output=True)
+        legacy_source = self._git(repository, "rev-parse", "HEAD")
+        legacy_path = Path("benchmark/evidence/evaluation/pre-score-freeze.json")
+        legacy_receipt = repository / legacy_path
+        legacy_receipt.parent.mkdir(parents=True)
+        legacy_receipt.write_text(json.dumps({"schemaVersion": 2, "sourceCommit": legacy_source}) + "\n")
+        legacy_hash = sha256(legacy_receipt.read_bytes()).hexdigest()
+        subprocess.run(["git", "add", str(legacy_path)], cwd=repository, check=True)
+        subprocess.run(["git", "commit", "-m", "Failed legacy freeze"], cwd=repository,
+                       check=True, capture_output=True)
+        legacy_freeze = self._git(repository, "rev-parse", "HEAD")
+        source_file.write_text("streaming verifier repair\n")
+        subprocess.run(["git", "add", "source.txt"], cwd=repository, check=True)
+        subprocess.run(["git", "commit", "-m", "Recovery source"], cwd=repository,
+                       check=True, capture_output=True)
+        recovery_source = self._git(repository, "rev-parse", "HEAD")
+        recovery_tree = self._git(repository, "rev-parse", "HEAD^{tree}")
+        source_hash = sha256(source_file.read_bytes()).hexdigest()
+        expected_allowed_paths = ["benchmark/evidence/evaluation/**", "README.md"]
+        if receipt_immutable_mode == "exact":
+            receipt_immutable_files = {"source.txt": source_hash}
+        elif receipt_immutable_mode == "missing":
+            receipt_immutable_files = {}
+        elif receipt_immutable_mode == "extra":
+            receipt_immutable_files = {"source.txt": source_hash, "extra.txt": "0" * 64}
+        else:  # pragma: no cover - test helper misuse
+            raise ValueError(f"Unknown immutable test mode: {receipt_immutable_mode}")
+        freeze_path = Path("benchmark/evidence/evaluation/pre-score-freeze-v2.json")
+        freeze_file = repository / freeze_path
+        freeze_file.write_text(json.dumps({
+            "schemaVersion": 3,
+            "generation": 2,
+            "mode": "public recovery pre-score source freeze before any confirmatory or web-negative inference",
+            "receiptPath": str(freeze_path),
+            "sourceCommit": recovery_source,
+            "sourceTree": recovery_tree,
+            "allowedPostScorePaths": (
+                expected_allowed_paths if receipt_allowed_paths is None else receipt_allowed_paths
+            ),
+            "immutableFilesSha256": receipt_immutable_files,
+            "recovery": {
+                "reason": "test-resource-exhaustion",
+                "legacySourceCommit": legacy_source,
+                "legacyFreezeCommit": legacy_freeze,
+                "legacyReceiptPath": str(legacy_path),
+                "legacyReceiptSha256": legacy_hash,
+                "repairPaths": ["source.txt"],
+                "repositoryEvidenceLimitation": "Repository history cannot prove unrecorded pixel access.",
+            },
+        }, indent=2) + "\n")
+        subprocess.run(["git", "add", str(freeze_path)], cwd=repository, check=True)
+        subprocess.run(["git", "commit", "-m", "Recovery freeze"], cwd=repository,
+                       check=True, capture_output=True)
+        freeze_commit = self._git(repository, "rev-parse", "HEAD")
+        subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=repository, check=True)
+        subprocess.run(["git", "push", "-u", "origin", "main"], cwd=repository,
+                       check=True, capture_output=True)
+        contract = {
+            "freezePath": str(freeze_path),
+            "legacyFreezePath": str(legacy_path),
+            "legacySourceCommit": legacy_source,
+            "legacyFreezeCommit": legacy_freeze,
+            "legacyFreezeSha256": legacy_hash,
+            "reason": "test-resource-exhaustion",
+            "repairPaths": ["source.txt"],
+            "immutableFiles": ["source.txt"],
+            "allowedPostScorePaths": expected_allowed_paths,
+        }
+        return {
+            "repository": repository,
+            "remote": remote,
+            "freezeFile": freeze_file,
+            "freezeBytes": freeze_file.read_bytes(),
+            "freezeCommit": freeze_commit,
+            "legacyFreeze": legacy_freeze,
+            "contract": contract,
+        }
 
     def test_cache_metadata_matches_exact_view_expansion_order(self) -> None:
         labels, variants, sources = expected_view_metadata(
@@ -152,47 +255,18 @@ class IntegrityContractsTest(unittest.TestCase):
 
     def test_sealed_inference_requires_immutable_public_freeze_only_commit(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            repository = root / "repository"
-            remote = root / "remote.git"
-            repository.mkdir()
-            subprocess.run(["git", "init", "--bare", remote], check=True, capture_output=True)
-            subprocess.run(["git", "init", "-b", "main"], cwd=repository, check=True,
-                           capture_output=True)
-            subprocess.run(["git", "config", "user.name", "ProofLens test"], cwd=repository,
-                           check=True)
-            subprocess.run(["git", "config", "user.email", "test@example.invalid"],
-                           cwd=repository, check=True)
-            (repository / "source.txt").write_text("frozen\n")
-            subprocess.run(["git", "add", "source.txt"], cwd=repository, check=True)
-            subprocess.run(["git", "commit", "-m", "Freeze source"], cwd=repository,
-                           check=True, capture_output=True)
-            source_commit = self._git(repository, "rev-parse", "HEAD")
-            source_tree = self._git(repository, "rev-parse", "HEAD^{tree}")
-            source_hash = sha256((repository / "source.txt").read_bytes()).hexdigest()
-            freeze_path = repository / "benchmark/evidence/evaluation/pre-score-freeze.json"
-            freeze_path.parent.mkdir(parents=True)
-            freeze_path.write_text(json.dumps({
-                "sourceCommit": source_commit,
-                "sourceTree": source_tree,
-                "allowedPostScorePaths": ["benchmark/evidence/evaluation/**"],
-                "immutableFilesSha256": {"source.txt": source_hash},
-            }, indent=2) + "\n")
-            subprocess.run(["git", "add", str(freeze_path.relative_to(repository))],
-                           cwd=repository, check=True)
-            subprocess.run(["git", "commit", "-m", "Anchor pre-score freeze"], cwd=repository,
-                           check=True, capture_output=True)
-            freeze_commit = self._git(repository, "rev-parse", "HEAD")
-            subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=repository,
-                           check=True)
-            subprocess.run(["git", "push", "-u", "origin", "main"], cwd=repository,
-                           check=True, capture_output=True)
-            committed_freeze = freeze_path.read_bytes()
+            chain = self._build_recovery_freeze_chain(Path(temporary))
+            repository = chain["repository"]
+            remote = chain["remote"]
+            freeze_path = chain["freezeFile"]
+            freeze_commit = chain["freezeCommit"]
+            committed_freeze = chain["freezeBytes"]
             observed = require_public_pre_score_freeze(
                 repository_root=repository,
                 canonical_origin_urls=frozenset({str(remote)}),
-                anonymous_head_resolver=lambda: freeze_commit,
+                anonymous_head_resolver=lambda: str(freeze_commit),
                 anonymous_byte_fetcher=lambda _url: committed_freeze,
+                recovery_contract=chain["contract"],
             )
             self.assertEqual(observed["freezeCommit"], freeze_commit)
 
@@ -201,6 +275,7 @@ class IntegrityContractsTest(unittest.TestCase):
                 require_public_pre_score_freeze(
                     repository_root=repository,
                     canonical_origin_urls=frozenset({str(remote)}),
+                    recovery_contract=chain["contract"],
                 )
             freeze_path.write_bytes(committed_freeze)
             (repository / "source.txt").write_text("changed after freeze\n")
@@ -211,52 +286,150 @@ class IntegrityContractsTest(unittest.TestCase):
                 require_public_pre_score_freeze(
                     repository_root=repository,
                     canonical_origin_urls=frozenset({str(remote)}),
+                    recovery_contract=chain["contract"],
                 )
             with self.assertRaisesRegex(ValueError, "Public origin/main"):
                 require_public_pre_score_freeze(
                     repository_root=repository,
                     allow_public_descendant=True,
                     canonical_origin_urls=frozenset({str(remote)}),
-                    anonymous_head_resolver=lambda: freeze_commit,
+                    anonymous_head_resolver=lambda: str(freeze_commit),
                     anonymous_byte_fetcher=lambda _url: committed_freeze,
+                    recovery_contract=chain["contract"],
                 )
+
+    def test_legacy_freeze_alone_cannot_authorize_sealed_inference(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            chain = self._build_recovery_freeze_chain(Path(temporary))
+            repository = chain["repository"]
+            freeze_file = chain["freezeFile"]
+            freeze_bytes = chain["freezeBytes"]
+            freeze_file.unlink()
+            with self.assertRaises(FileNotFoundError):
+                require_public_pre_score_freeze(
+                    repository_root=repository,
+                    recovery_contract=chain["contract"],
+                )
+            freeze_file.write_bytes(freeze_bytes)
+
+    def test_sealed_inference_rejects_underbound_recovery_receipts(self) -> None:
+        cases = (
+            ("missing", None, "immutable-file list"),
+            ("extra", None, "immutable-file list"),
+            ("exact", ["README.md", "benchmark/evidence/evaluation/**"], "path policy"),
+            ("exact", ["benchmark/evidence/evaluation/**", "README.md", "MODEL_CARD.md"], "path policy"),
+        )
+        for index, (immutable_mode, allowed_paths, message) in enumerate(cases):
+            with self.subTest(index=index), tempfile.TemporaryDirectory() as temporary:
+                chain = self._build_recovery_freeze_chain(
+                    Path(temporary),
+                    receipt_immutable_mode=immutable_mode,
+                    receipt_allowed_paths=allowed_paths,
+                )
+                with self.assertRaisesRegex(ValueError, message):
+                    require_public_pre_score_freeze(
+                        repository_root=chain["repository"],
+                        canonical_origin_urls=frozenset({str(chain["remote"])}),
+                        anonymous_head_resolver=lambda: str(chain["freezeCommit"]),
+                        anonymous_byte_fetcher=lambda _url: chain["freezeBytes"],
+                        recovery_contract=chain["contract"],
+                    )
+
+    def test_alternate_freeze_receipt_cannot_authorize_a_descendant(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            chain = self._build_recovery_freeze_chain(Path(temporary))
+            repository = chain["repository"]
+            alternate = repository / "benchmark/evidence/evaluation/pre-score-freeze-v3.json"
+            subprocess.run(
+                ["git", "mv", "receipt-seed.json", str(alternate.relative_to(repository))],
+                cwd=repository,
+                check=True,
+            )
+            subprocess.run(["git", "commit", "-m", "Forbidden second freeze"], cwd=repository,
+                           check=True, capture_output=True)
+            alternate.unlink()
+            subprocess.run(["git", "add", "-u"], cwd=repository, check=True)
+            subprocess.run(["git", "commit", "-m", "Hide forbidden second freeze"], cwd=repository,
+                           check=True, capture_output=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=repository,
+                           check=True, capture_output=True)
+            descendant = self._git(repository, "rev-parse", "HEAD")
+            self.assertFalse(alternate.exists())
+            with self.assertRaisesRegex(ValueError, "alternate pre-score freeze receipt"):
+                require_public_pre_score_freeze(
+                    repository_root=repository,
+                    allow_public_descendant=True,
+                    canonical_origin_urls=frozenset({str(chain["remote"])}),
+                    anonymous_head_resolver=lambda: descendant,
+                    anonymous_byte_fetcher=lambda _url: chain["freezeBytes"],
+                    recovery_contract=chain["contract"],
+                )
+
+    def test_forbidden_source_rename_cannot_hide_in_an_allowed_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            chain = self._build_recovery_freeze_chain(Path(temporary))
+            repository = chain["repository"]
+            allowed = "benchmark/evidence/evaluation/renamed-frozen.txt"
+            subprocess.run(["git", "mv", "frozen.txt", allowed], cwd=repository, check=True)
+            subprocess.run(["git", "commit", "-m", "Hide frozen source in evidence"], cwd=repository,
+                           check=True, capture_output=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=repository,
+                           check=True, capture_output=True)
+            descendant = self._git(repository, "rev-parse", "HEAD")
+            with self.assertRaisesRegex(ValueError, "frozen source path"):
+                require_public_pre_score_freeze(
+                    repository_root=repository,
+                    allow_public_descendant=True,
+                    canonical_origin_urls=frozenset({str(chain["remote"])}),
+                    anonymous_head_resolver=lambda: descendant,
+                    anonymous_byte_fetcher=lambda _url: chain["freezeBytes"],
+                    recovery_contract=chain["contract"],
+                )
+
+    def test_evaluator_rejects_missing_recovery_freeze_before_input_reads(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            benchmark = root / "benchmark"
+            benchmark.mkdir()
+            shutil.copy2(Path(__file__).parent / "evaluate.py", benchmark / "evaluate.py")
+            shutil.copy2(
+                Path(__file__).parent / "evaluation_contract.py",
+                benchmark / "evaluation_contract.py",
+            )
+            sentinel = root / "sentinel-input"
+            sentinel.mkdir()
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(benchmark / "evaluate.py"),
+                    "--model", str(sentinel),
+                    "--expected-model-sha256", "0" * 64,
+                    "--data-root", str(sentinel),
+                    "--manifest", str(sentinel),
+                    "--expected-manifest-sha256", "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
+                    "--output-dir", str(benchmark / "evidence/evaluation/confirmatory"),
+                    "--protocol", "confirmatory",
+                    "--execution-provider", "cpu",
+                    "--calibration", str(sentinel),
+                    "--expected-calibration-sha256", "0" * 64,
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("pre-score-freeze-v2.json", result.stderr)
+            self.assertNotIn("IsADirectoryError", result.stderr)
 
     def test_sealed_inference_rejects_noncanonical_origin(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            repository = root / "repository"
-            remote = root / "private.git"
-            repository.mkdir()
-            subprocess.run(["git", "init", "--bare", remote], check=True, capture_output=True)
-            subprocess.run(["git", "init", "-b", "main"], cwd=repository, check=True,
-                           capture_output=True)
-            subprocess.run(["git", "config", "user.name", "ProofLens test"], cwd=repository,
-                           check=True)
-            subprocess.run(["git", "config", "user.email", "test@example.invalid"],
-                           cwd=repository, check=True)
-            (repository / "source.txt").write_text("frozen\n")
-            subprocess.run(["git", "add", "source.txt"], cwd=repository, check=True)
-            subprocess.run(["git", "commit", "-m", "Freeze source"], cwd=repository,
-                           check=True, capture_output=True)
-            source_commit = self._git(repository, "rev-parse", "HEAD")
-            source_tree = self._git(repository, "rev-parse", "HEAD^{tree}")
-            freeze_path = repository / "benchmark/evidence/evaluation/pre-score-freeze.json"
-            freeze_path.parent.mkdir(parents=True)
-            freeze_path.write_text(json.dumps({
-                "sourceCommit": source_commit,
-                "sourceTree": source_tree,
-            }) + "\n")
-            subprocess.run(["git", "add", str(freeze_path.relative_to(repository))],
-                           cwd=repository, check=True)
-            subprocess.run(["git", "commit", "-m", "Anchor pre-score freeze"], cwd=repository,
-                           check=True, capture_output=True)
-            subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=repository,
-                           check=True)
-            subprocess.run(["git", "push", "-u", "origin", "main"], cwd=repository,
-                           check=True, capture_output=True)
+            chain = self._build_recovery_freeze_chain(Path(temporary))
             with self.assertRaisesRegex(ValueError, "canonical"):
                 require_public_pre_score_freeze(
-                    repository_root=repository,
+                    repository_root=chain["repository"],
+                    recovery_contract=chain["contract"],
                 )
 
     def test_multi_file_publication_restores_prior_bytes_on_failure(self) -> None:

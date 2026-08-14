@@ -1,17 +1,27 @@
-"""Create the receipt that must be committed alone and pushed before sealed inference."""
+"""Create the recovery receipt that must be committed alone before sealed inference."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from hashlib import sha256
 import json
 from pathlib import Path
 import subprocess
 
-from evaluation_contract import require_anonymous_public_file
+from evaluation_contract import (
+    EXPECTED_ALLOWED_POST_SCORE_PATHS,
+    EXPECTED_IMMUTABLE_FILES,
+    digest_file,
+    digest_git_blob,
+    require_anonymous_public_file,
+)
 
 
-OUTPUT = Path("benchmark/evidence/evaluation/pre-score-freeze.json")
+OUTPUT = Path("benchmark/evidence/evaluation/pre-score-freeze-v2.json")
+LEGACY_FREEZE_PATH = Path("benchmark/evidence/evaluation/pre-score-freeze.json")
+LEGACY_SOURCE_COMMIT = "0771a9422b552e2023e5150fb6c8b4238b811a74"
+LEGACY_FREEZE_COMMIT = "2bd0c4757f6059c57879414a5dba77629d66460e"
+LEGACY_FREEZE_SHA256 = "400fd2b7a7cd84b063f81799eaf3829f770220c41f58dff53e7caebd1a145c34"
+RECOVERY_REASON = "legacy-verifier-resource-exhaustion"
 REPOSITORY_URL = "https://github.com/baney75/prooflens"
 CANONICAL_ORIGIN_URLS = {
     REPOSITORY_URL,
@@ -19,34 +29,23 @@ CANONICAL_ORIGIN_URLS = {
     "git@github.com:baney75/prooflens.git",
     "ssh://git@github.com/baney75/prooflens.git",
 }
-ALLOWED_POST_SCORE_PATHS = [
-    "artifacts/**",
-    "benchmark/evidence/evaluation/**",
+RECOVERY_REPAIR_PATHS = [
     "BENCHMARK.md",
-    "MODEL_CARD.md",
     "README.md",
-    "docs/ACCEPTANCE.md",
-]
-IMMUTABLE_FILES = [
-    "benchmark/bootstrap_ci.py",
-    "benchmark/bootstrap_fpr.py",
     "benchmark/evaluate.py",
     "benchmark/evaluation_contract.py",
-    "benchmark/large/recipe.json",
-    "benchmark/manifests/test.jsonl",
-    "benchmark/manifests/validation.jsonl",
-    "benchmark/manifests/web-negative.jsonl",
-    "benchmark/prediction_contract.py",
-    "benchmark/run_release_replay.py",
+    "benchmark/test_integrity_contracts.py",
     "benchmark/verify_evaluation_evidence.py",
     "benchmark/write_pre_score_freeze.py",
-    "model-lock.json",
+    "package.json",
     "scripts/check-benchmark-evidence.mjs",
     "scripts/check-pre-score-freeze.mjs",
-    "src/inference/calibration.ts",
-    "src/inference/detector.ts",
-    "src/shared/model-spec.ts",
-    "weights/prooflens-cf384.onnx",
+    "scripts/check-pre-score-stage.mjs",
+    "scripts/git-object-digest.mjs",
+    "scripts/release-stage-policy.mjs",
+    "scripts/run-static-verification.mjs",
+    "scripts/test-git-object-digest.mjs",
+    "scripts/test-release-stage-policy.mjs",
 ]
 PROHIBITED_PRE_SCORE_PATH_PREFIXES = [
     "artifacts/browser-parity",
@@ -54,7 +53,7 @@ PROHIBITED_PRE_SCORE_PATH_PREFIXES = [
     "benchmark/evidence/evaluation/web-negative/",
 ]
 PROHIBITED_PRE_SCORE_FILES = {
-    "benchmark/evidence/evaluation/pre-score-freeze.json",
+    str(OUTPUT),
     "benchmark/evidence/evaluation/replay-verification.json",
 }
 
@@ -63,17 +62,40 @@ def command(*arguments: str) -> str:
     return subprocess.check_output(arguments, text=True).strip()
 
 
-def digest_bytes(value: bytes) -> str:
-    return sha256(value).hexdigest()
-
-
 def main() -> None:
+    repository_root = Path.cwd()
     if OUTPUT.exists():
         raise FileExistsError(f"Refusing to replace pre-score freeze: {OUTPUT}")
     if command("git", "status", "--porcelain"):
         raise ValueError("Pre-score source commit must have a completely clean worktree")
     source_commit = command("git", "rev-parse", "HEAD")
     source_tree = command("git", "rev-parse", "HEAD^{tree}")
+    source_parent = command("git", "rev-parse", "HEAD^")
+    if source_parent != LEGACY_FREEZE_COMMIT or command("git", "rev-parse", f"{LEGACY_FREEZE_COMMIT}^") != LEGACY_SOURCE_COMMIT:
+        raise ValueError("Recovery source must be the direct child of the known failed legacy freeze")
+    legacy_paths = command(
+        "git", "diff-tree", "--no-renames", "--no-commit-id", "--name-only", "-r", LEGACY_FREEZE_COMMIT
+    ).splitlines()
+    if legacy_paths != [str(LEGACY_FREEZE_PATH)]:
+        raise ValueError("Legacy freeze commit shape changed")
+    if not LEGACY_FREEZE_PATH.is_file() or digest_file(LEGACY_FREEZE_PATH) != LEGACY_FREEZE_SHA256:
+        raise ValueError("Legacy freeze receipt changed in the recovery source")
+    if digest_git_blob(repository_root, f"{LEGACY_FREEZE_COMMIT}:{LEGACY_FREEZE_PATH}") != LEGACY_FREEZE_SHA256:
+        raise ValueError("Legacy public freeze receipt bytes changed")
+    added_freeze_receipts = sorted({
+        path
+        for path in command(
+            "git", "log", "--no-renames", "--diff-filter=A", "--format=", "--name-only", "HEAD"
+        ).splitlines()
+        if path.startswith("benchmark/evidence/evaluation/pre-score-freeze")
+    })
+    if added_freeze_receipts != [str(LEGACY_FREEZE_PATH)]:
+        raise ValueError("Recovery source history contains an alternate pre-score freeze receipt")
+    repair_paths = sorted(command(
+        "git", "diff", "--no-renames", "--name-only", f"{LEGACY_FREEZE_COMMIT}..{source_commit}"
+    ).splitlines())
+    if repair_paths != sorted(RECOVERY_REPAIR_PATHS):
+        raise ValueError(f"Recovery source changed outside its exact repair set: {repair_paths}")
     branch = command("git", "rev-parse", "--abbrev-ref", "HEAD")
     if branch != "main":
         raise ValueError("Pre-score freeze must be anchored from main")
@@ -97,16 +119,20 @@ def main() -> None:
         for path in tree_paths
     ):
         raise ValueError("Public source commit already contains post-score evidence")
-    missing = [path for path in IMMUTABLE_FILES if path not in tree_paths]
+    missing = [path for path in EXPECTED_IMMUTABLE_FILES if path not in tree_paths]
     if missing:
         raise ValueError(f"Pre-score source commit lacks immutable files: {missing}")
     immutable_hashes = {
-        path: digest_bytes(subprocess.check_output(["git", "show", f"{source_commit}:{path}"]))
-        for path in IMMUTABLE_FILES
+        path: digest_git_blob(repository_root, f"{source_commit}:{path}")
+        for path in EXPECTED_IMMUTABLE_FILES
     }
+    if any(digest_file(Path(path)) != expected for path, expected in immutable_hashes.items()):
+        raise ValueError("Recovery source worktree differs from its immutable Git blobs")
     payload = {
-        "schemaVersion": 2,
-        "mode": "public pre-score source freeze before any confirmatory or web-negative inference",
+        "schemaVersion": 3,
+        "generation": 2,
+        "mode": "public recovery pre-score source freeze before any confirmatory or web-negative inference",
+        "receiptPath": str(OUTPUT),
         "repository": REPOSITORY_URL,
         "branch": branch,
         "sourceCommit": source_commit,
@@ -115,14 +141,26 @@ def main() -> None:
         "remoteVerifiedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "publicCommitUrl": f"{REPOSITORY_URL}/commit/{source_commit}",
         "anonymousPublicProof": public_proof,
-        "allowedPostScorePaths": ALLOWED_POST_SCORE_PATHS,
+        "recovery": {
+            "reason": RECOVERY_REASON,
+            "legacySourceCommit": LEGACY_SOURCE_COMMIT,
+            "legacyFreezeCommit": LEGACY_FREEZE_COMMIT,
+            "legacyReceiptPath": str(LEGACY_FREEZE_PATH),
+            "legacyReceiptSha256": LEGACY_FREEZE_SHA256,
+            "repairPaths": RECOVERY_REPAIR_PATHS,
+            "repositoryEvidenceLimitation": (
+                "Repository history proves no canonical sealed output was committed before this recovery freeze; "
+                "it cannot prove that no pixels were viewed outside the recorded workflow."
+            ),
+        },
+        "allowedPostScorePaths": EXPECTED_ALLOWED_POST_SCORE_PATHS,
         "immutableFilesSha256": immutable_hashes,
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, indent=2) + "\n")
     print(json.dumps(payload, indent=2))
     print(
-        "Next: commit only benchmark/evidence/evaluation/pre-score-freeze.json, "
+        f"Next: commit only {OUTPUT}, "
         "push that freeze-only child to public main, and do not score until origin/main equals it."
     )
 

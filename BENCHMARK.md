@@ -1,6 +1,6 @@
 # Benchmark protocol and evidence
 
-This file freezes the evaluation design before the confirmatory images are scored. The shipped model, validation-selected threshold, preprocessing, corpus, acceptance gates, runtime, and output paths become immutable before the confirmatory run. Any post-score runtime defect requires a new untouched holdout and a new public freeze before source changes; the observed confirmatory set may never become a tuning set.
+This file freezes the evaluation design before the confirmatory images are scored. The shipped model, validation-selected threshold, preprocessing, corpus, acceptance gates, runtime, and output paths become immutable before the confirmatory run. Any post-score runtime defect requires a new untouched holdout and a new public freeze before source changes; the observed confirmatory set may never become a tuning set. The recovery described below changes only the pre-score verifier and its documentation/tests. It does not change those frozen scientific or runtime inputs.
 
 ## Model-selection boundary
 
@@ -54,14 +54,16 @@ The exact gates and post-score policy are machine-readable in `benchmark/large/r
 1. Complete head training and validation selection.
 2. Run `benchmark/finalize_training_evidence.py`; independently prove that only `classifier.weight` and `classifier.bias` changed.
 3. Evaluate validation and select two high-margin Chrome UI fixtures from validation only.
-4. Commit and push the clean model, calibration, corpus, evaluator, gates, runtime, and validation evidence to public `main` as source commit A. Its stage-aware `npm run verify:static` run must pass with every confirmatory, web-negative, replay, and browser-parity artifact absent.
-5. Run `benchmark/write_pre_score_freeze.py`, commit **only** its receipt as commit B, and push B. Its pre-score CI run must pass before inference. Require public `origin/main` to equal B, require B to be the sole child step from A, and require the receipt bytes to remain identical to the blob first committed in B.
-6. Run the confirmatory protocol once, then its deterministic bootstrap.
-7. Run the web-negative protocol once, then its Wilson intervals.
-8. Run `npm run verify:release` to replay the immutable evaluator and require byte-identical outputs. This is a reproducibility check, never a tuning step.
-9. Run browser parity and clean-profile WebGPU/WASM E2E without changing the frozen model contract.
+4. Commit and push the clean model, calibration, corpus, evaluator, gates, runtime, and validation evidence to public `main` as source commit A. Public A is `0771a9422b552e2023e5150fb6c8b4238b811a74`; its stage-aware pre-score run passed with every confirmatory, web-negative, replay, and browser-parity artifact absent.
+5. Preserve legacy receipt-only commit B, `2bd0c4757f6059c57879414a5dba77629d66460e`. Its legacy verifier stopped with `ENOBUFS` while trying to buffer the 87,442,080-byte model, before the evaluator ran. The legacy receipt remains byte-identical and cannot authorize sealed inference.
+6. Commit the exact allowlisted verifier recovery as A2, the direct child of B. Its diff may contain only the 16 paths hardcoded in `scripts/release-stage-policy.mjs`; model, calibration, manifests, preprocessing, metrics, gates, bootstrap code, and extension runtime remain unchanged. Push A2 and require local, exact-head GitHub Actions, authenticated remote, and anonymous public checks to pass.
+7. Run `benchmark/write_pre_score_freeze.py` from clean public A2. Commit **only** `benchmark/evidence/evaluation/pre-score-freeze-v2.json` as B2, push it, and require the same local, public CI, authenticated, anonymous head, and raw-byte checks to pass. V1 alone always fails closed.
+8. Run the confirmatory protocol once, then its deterministic bootstrap.
+9. Run the web-negative protocol once, then its Wilson intervals.
+10. Run `npm run verify:release` to replay the immutable evaluator and require byte-identical outputs. This is a reproducibility check, never a tuning step.
+11. Run browser parity and clean-profile WebGPU/WASM E2E without changing the frozen model contract.
 
-`benchmark/verify_evaluation_evidence.py` performs the local pixel-and-ONNX replay before corpus cleanup. Its committed receipt records exact commands and file hashes for reproducibility; it is not a cryptographic attestation that those commands ran. `npm run verify:static` is stage-aware: at A and B it requires all post-score outputs to be absent, and on every descendant of B it requires the complete final pixel-free packet. `npm run verify:release` additionally observes the full local replay and fails when the frozen pixels are absent. Public source commit A anchors every model-behavior and protocol file; freeze-only commit B publicly anchors the exact receipt before confirmatory inference. The final checker requires both commits, immutable receipt bytes, a clean worktree, and only evaluation evidence, result documentation, and browser artifacts after A.
+`benchmark/verify_evaluation_evidence.py` performs the local pixel-and-ONNX replay before corpus cleanup. Its committed receipt records exact commands and file hashes for reproducibility; it is not a cryptographic attestation that those commands ran. `npm run verify:static` is stage-aware: at recovery source A2 and freeze-only B2 it requires all post-score outputs to be absent, and on every descendant of B2 it requires the complete final pixel-free packet. `npm run verify:release` additionally observes the full local replay and fails when the frozen pixels are absent. Public A preserves the frozen model/evaluation inputs, failed B preserves the original receipt and failure boundary, A2 contains only the declared verifier repair, and B2 publicly anchors the exact V2 receipt before confirmatory inference. The final checker requires this lineage, both immutable receipt files, a clean worktree, and only evaluation evidence, result documentation, and browser artifacts after A2.
 
 The canonical evaluator shape is:
 
@@ -86,7 +88,7 @@ Validation uses `--protocol validation`, its frozen manifest and `benchmark/data
 
 Head training, finalization, and canonical validation are complete. Validation balanced accuracy is 95.00% on originals, 96.33% on screenshots, and 94.50% on both JPEG stress views. The weakest class recall across those views is 91.67%; the weakest named synthetic-family recall is 84.00%. These are validation-selected results, not the final estimate.
 
-No confirmatory or web-negative score is reported in this pre-score protocol revision. Their canonical output directories are intentionally absent. Results will be added only after public source commit A and freeze-only commit B pass their gates.
+No confirmatory or web-negative score is reported in this pre-score protocol revision. Their canonical output directories are intentionally absent. Public source A passed; legacy receipt-only B failed its verifier before inference and is retained unchanged. Results will be added only after recovery source A2 and receipt-only B2 both pass their local, public CI, and anonymous exact-head gates.
 
 Public results cannot establish the bounty maintainer’s private benchmark score. They establish a reproducible local evidence bar and expose class-specific failure instead of hiding it inside a single average.
 

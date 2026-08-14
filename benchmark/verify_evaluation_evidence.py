@@ -138,7 +138,7 @@ def main() -> None:
         Path("benchmark/bootstrap_fpr.py"),
         Path("benchmark/prediction_contract.py"),
         Path("benchmark/verify_evaluation_evidence.py"),
-        Path("benchmark/evidence/evaluation/pre-score-freeze.json"),
+        Path("benchmark/evidence/evaluation/pre-score-freeze-v2.json"),
     ]
     for config in PROTOCOLS.values():
         root = Path(config["outputDir"])

@@ -500,7 +500,7 @@ const replayBoundFiles = [
   "benchmark/bootstrap_fpr.py",
   "benchmark/prediction_contract.py",
   "benchmark/verify_evaluation_evidence.py",
-  "benchmark/evidence/evaluation/pre-score-freeze.json",
+  "benchmark/evidence/evaluation/pre-score-freeze-v2.json",
   ...Object.values(VALIDATION_PREDICTIONS), VALIDATION_SUMMARY, VALIDATION_COMPLETION,
   ...Object.values(CONFIRMATORY_PREDICTIONS), CONFIRMATORY_SUMMARY, CONFIRMATORY_COMPLETION,
   ...Object.values(WEB_NEGATIVE_PREDICTIONS), WEB_NEGATIVE_SUMMARY, WEB_NEGATIVE_COMPLETION,
@@ -644,7 +644,7 @@ const currentHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8
 if (currentHead !== browserEvidence.wasm.testedGitHead) {
   const evidenceDelta = execFileSync(
     "git",
-    ["diff", "--name-only", `${browserEvidence.wasm.testedGitHead}..${currentHead}`],
+    ["diff", "--no-renames", "--name-only", `${browserEvidence.wasm.testedGitHead}..${currentHead}`],
     { encoding: "utf8" },
   ).trim().split("\n").filter(Boolean);
   requireCondition(evidenceDelta.length > 0 && evidenceDelta.every((file) => file.startsWith("artifacts/")),
