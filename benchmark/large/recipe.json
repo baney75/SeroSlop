@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "seed": 20260813,
+  "minimumShortEdge": 384,
+  "diffusionDb": {
+    "dataset": "poloclub/diffusiondb",
+    "revision": "fb620fbe49fa4420e0734bd9c0df11f51176b61f",
+    "license": "CC0-1.0",
+    "targetCount": 50000,
+    "reserveCount": 5000,
+    "candidatePartCount": 85,
+    "maximumImageNsfw": 0.15,
+    "maximumPromptNsfw": 0.15,
+    "metadataUrl": "https://huggingface.co/datasets/poloclub/diffusiondb/resolve/fb620fbe49fa4420e0734bd9c0df11f51176b61f/metadata.parquet",
+    "metadataSha256": "eecd341187bc91c07f5994ad0660d40228ea025616fd57a509bef8323677c68f"
+  },
+  "openImages": {
+    "dataset": "Open Images V7",
+    "revision": "v7-train-boxable-2018-04",
+    "license": "CC-BY-2.0",
+    "targetCount": 50000,
+    "reserveCount": 5000,
+    "metadataUrl": "https://storage.googleapis.com/openimages/2018_04/train/train-images-boxable-with-rotation.csv",
+    "metadataSha256": "05f3d68dbbb03728d1a37e51479f4f35c062b871e1a6cae8c4cefbe0e0c80ed0",
+    "imageBaseUrl": "https://open-images-dataset.s3.amazonaws.com/train"
+  },
+  "modernTrainingManifest": "benchmark/manifests/train.jsonl",
+  "evaluationManifests": [
+    {
+      "path": "benchmark/manifests/validation.jsonl",
+      "dataRoot": "benchmark/data/modern-head"
+    },
+    {
+      "path": "benchmark/manifests/test.jsonl",
+      "dataRoot": "benchmark/data"
+    }
+  ],
+  "additionalTrainingExclusionManifests": [
+    {
+      "path": "benchmark/manifests/web-negative-chartography.jsonl",
+      "dataRoot": "benchmark/data/web-negative"
+    }
+  ],
+  "perceptualDuplicateHammingThreshold": 8,
+  "perceptualOverlapReview": "benchmark/manifests/perceptual-overlap-review.json",
+  "trainingPerceptualOverlapReview": "benchmark/manifests/training-evaluation-perceptual-review.json",
+  "expectedModernTrainingCount": 3600,
+  "expectedTotalCount": 103600,
+  "singleViewTrainingSources": [
+    "diffusiondb-stable-diffusion",
+    "open-images-train"
+  ],
+  "expectedTrainingFeatureViews": 114400,
+  "validationGates": {
+    "minimumBalancedAccuracyPerVariant": 0.85,
+    "minimumRealRecallPerVariant": 0.85,
+    "minimumSyntheticRecallPerVariant": 0.75,
+    "minimumSyntheticRecallPerFamily": 0.6
+  },
+  "evaluationProtocols": {
+    "validation": {
+      "name": "prooflens-validation",
+      "manifest": "benchmark/manifests/validation.jsonl",
+      "manifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+      "items": 600,
+      "variants": ["original", "screenshot", "social-q75", "social-heavy"]
+    },
+    "confirmatory": {
+      "name": "prooflens-confirmatory-test",
+      "manifest": "benchmark/manifests/test.jsonl",
+      "manifestSha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
+      "items": 600,
+      "variants": ["original", "screenshot", "social-q75", "social-heavy"],
+      "publication": "staged files committed by a completion marker; overwrite forbidden",
+      "postScorePolicy": "No model, threshold, preprocessing, corpus, gate, or runtime changes. Any runtime defect requires a new untouched holdout and a new public freeze before source changes."
+    },
+    "webNegative": {
+      "name": "prooflens-web-negative",
+      "manifest": "benchmark/manifests/web-negative.jsonl",
+      "manifestSha256": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824",
+      "items": 319,
+      "variants": ["original", "screenshot", "social-q75", "social-heavy"],
+      "sharesConfirmatoryRows": 300,
+      "independentEstimate": false
+    }
+  },
+  "testGates": {
+    "method": "Class-stratified one-image-cluster bootstrap with variant-derived deterministic RNG",
+    "confidenceLevel": 0.95,
+    "seed": 20260813,
+    "replicates": 20000,
+    "minimumBalancedAccuracyLower95": 0.75,
+    "minimumRealRecallLower95": 0.75,
+    "minimumSyntheticRecallLower95": 0.75,
+    "minimumSyntheticRecallPerFamily": 0.6
+  },
+  "webNegativeGates": {
+    "method": "Wilson score interval for false-positive proportions",
+    "confidenceLevel": 0.95,
+    "maximumOverallFalsePositiveRateUpper95": 0.1,
+    "maximumPerSourceFalsePositiveRateUpper95": 0.2
+  },
+  "resourceEnvelope": {
+    "minimumFreeBytesBeforeMaterialization": 140000000000,
+    "maximumOpenImageBytes": 25000000,
+    "maximumArchiveWorkers": 4,
+    "maximumOpenImageWorkers": 24
+  }
+}

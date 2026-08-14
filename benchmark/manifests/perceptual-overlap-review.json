@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "hammingThreshold": 8,
+  "evaluationManifestSha256ByPath": {
+    "benchmark/manifests/test.jsonl": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
+    "benchmark/manifests/validation.jsonl": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b"
+  },
+  "items": [
+    {
+      "ids": [
+        "qwen-image-bench:d2493deb153b020cf169c7e3f57d15e4dd697038:HunyuanImage-3.0:000263_c6f526b3.png",
+        "qwen-image-bench:d2493deb153b020cf169c7e3f57d15e4dd697038:kling_v2_1:000246_6a273ea0.jpg"
+      ],
+      "imageSha256ById": {
+        "qwen-image-bench:d2493deb153b020cf169c7e3f57d15e4dd697038:HunyuanImage-3.0:000263_c6f526b3.png": "66f365bfbea1c984aa6f25cf533cf8d47ae4bee2aed037f1646a5e23ff2795dd",
+        "qwen-image-bench:d2493deb153b020cf169c7e3f57d15e4dd697038:kling_v2_1:000246_6a273ea0.jpg": "7f1155a7445c4a3da891e8b5a3528a09d6b4fa90515e05b6328b61b5c728643c"
+      },
+      "perceptualDhash64ById": {
+        "qwen-image-bench:d2493deb153b020cf169c7e3f57d15e4dd697038:HunyuanImage-3.0:000263_c6f526b3.png": "3333333333333333",
+        "qwen-image-bench:d2493deb153b020cf169c7e3f57d15e4dd697038:kling_v2_1:000246_6a273ea0.jpg": "3333233733333151"
+      },
+      "hammingDistance": 6,
+      "decision": "visually-distinct",
+      "reviewedAt": "2026-08-13",
+      "reviewer": "Codex visual audit",
+      "rationale": "False-positive dHash collision: one image is a four-panel fantasy game-item graphic on black; the other is a single runway-fashion portrait on a light background. They have different prompts, generators, compositions, subjects, and image bytes."
+    }
+  ]
+}

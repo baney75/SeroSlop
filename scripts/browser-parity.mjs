@@ -16,7 +16,8 @@ const manifestPath = path.join(fixtureRoot, "manifest.json");
 const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes.toString("utf8"));
 if (!Array.isArray(manifest) || !manifest.length) throw new Error("Parity manifest is empty");
-const modelSha256 = "29545a1da0cfe2bf0149448334fd45a21f48074c57296db3b84437dd66f80a43";
+const modelLock = JSON.parse(await readFile("model-lock.json", "utf8"));
+const modelSha256 = modelLock.sha256;
 const testedGitHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const testedGitTree = execFileSync("git", ["rev-parse", "HEAD^{tree}"], { encoding: "utf8" }).trim();
 const trackedSourceWorktreeDirty = Boolean(execFileSync(
@@ -24,8 +25,8 @@ const trackedSourceWorktreeDirty = Boolean(execFileSync(
   ["status", "--porcelain", "--untracked-files=no", "--", ".", ":(exclude)artifacts/**"],
   { encoding: "utf8" },
 ).trim());
-const RAW_THRESHOLD = 0.5781767196773971;
-const CALIBRATION_INTERCEPT = 0.30374610239790173;
+const RAW_THRESHOLD = 1 / (1 + Math.exp(-modelLock.calibration.validationThresholdLogit));
+const CALIBRATION_INTERCEPT = modelLock.calibration.intercept;
 
 function mimeFor(file) {
   if (/\.png$/iu.test(file)) return "image/png";

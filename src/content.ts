@@ -6,7 +6,7 @@ import {
   type PageStats,
   type SiteStateResponse,
 } from "./shared/contracts";
-import { extractCssImageUrls, formatLikelihood, type TargetDescriptor } from "./shared/content-targets";
+import { extractCssImageUrls, formatAiScore, type TargetDescriptor } from "./shared/content-targets";
 
 const MIN_DIMENSION = 64;
 const MAX_SNAPSHOT_EDGE = 1_024;
@@ -14,6 +14,7 @@ const MAX_LOCAL_IMAGE_CHARACTERS = 8 * 1024 * 1024;
 const MAX_TARGETS_PER_DOCUMENT = 512;
 const MAX_PENDING_ANALYSES = 32;
 const MAX_ELEMENTS_PER_SCAN = 5_000;
+const MIN_FULL_DOCUMENT_ELEMENTS_PER_PASS = 2_500;
 const MAX_CONCURRENT_ANALYSES = 1;
 const MAX_MUTATIONS_PER_CALLBACK = 1_000;
 const MAX_PENDING_MUTATION_ROOTS = 256;
@@ -35,7 +36,13 @@ interface TargetRecord extends TargetDescriptor {
   acceptedResultCount: number;
   needsReconciliation: boolean;
   reconciledMutationEpoch: number;
+  admissionSequence: number;
   requestId?: string;
+}
+
+interface AdmissionCandidate {
+  record: TargetRecord;
+  priority: number;
 }
 
 const recordsByElement = new Map<HTMLElement, Map<string, TargetRecord>>();
@@ -56,6 +63,9 @@ let captureHidingOverlay = false;
 let scanPasses = 0;
 let lastScanVisited = 0;
 let fullDocumentScanRequired = false;
+let fullDocumentWalker: TreeWalker | undefined;
+let fullDocumentPendingNode: Node | undefined;
+let fullDocumentRestartRequested = false;
 let mutationWindowStartedAt = performance.now();
 let mutationUnitsInWindow = 0;
 let maxObservedMutationUnitsInWindow = 0;
@@ -64,6 +74,15 @@ let mutationInvalidationEpoch = 0;
 let mutationOverflowRecoveryPending = false;
 let synchronousMutationReconciliations = 0;
 let mutationCallbackActive = false;
+let nextAdmissionSequence = 0;
+let admissionPassDepth = 0;
+let admissionCandidates: AdmissionCandidate[] | undefined;
+let admissionPriorityEvaluationsInPass = 0;
+let lastAdmissionPriorityEvaluations = 0;
+let maxAdmissionPriorityEvaluationsInPass = 0;
+let admissionPasses = 0;
+let documentLifecycleEpoch = 0;
+let staleDocumentResponsesRejected = 0;
 
 const overlayHost = document.createElement("div");
 const overlayStyles = {
@@ -109,9 +128,10 @@ style.textContent = `
     overflow: hidden; padding: 7px 10px; pointer-events: none; position: fixed; top: 0;
     text-overflow: ellipsis; white-space: nowrap;
   }
+  [role="status"][hidden] { display: none !important; }
   [role="status"][data-state="analyzing"] { background: #3e4778; }
   [role="status"][data-state="complete"][data-classification="likely-ai"] { background: #7a2e24; }
-  [role="status"][data-state="complete"][data-classification="not-flagged"] { background: #176044; }
+  [role="status"][data-state="complete"][data-classification="not-flagged"] { background: #334155; }
   [role="status"][data-state="unavailable"] { background: #5e3440; }
   @media (prefers-reduced-motion: no-preference) {
     [role="status"][data-state="analyzing"] { animation: prooflens-pulse 1.2s ease-in-out infinite alternate; }
@@ -167,11 +187,26 @@ function makeBadge(): HTMLDivElement {
   return badge;
 }
 
+function boundedAccessibleName(value: string): string {
+  const normalized = value.replace(/\s+/gu, " ").trim();
+  return normalized.length > 120 ? `${normalized.slice(0, 117)}…` : normalized;
+}
+
+function describeTarget(record: TargetRecord): string {
+  if (record.kind === "background") {
+    const pageName = boundedAccessibleName(record.element.getAttribute("aria-label") ?? "");
+    return pageName ? `CSS background “${pageName}”` : "CSS background image";
+  }
+  const image = record.element as HTMLImageElement;
+  const pageName = boundedAccessibleName(image.alt || image.getAttribute("aria-label") || "");
+  return pageName ? `image “${pageName}”` : "image";
+}
+
 function updateBadge(record: TargetRecord, label: string, detail: string): void {
   record.badge.dataset.state = record.state;
   record.badge.textContent = label;
   record.badge.title = detail;
-  record.badge.setAttribute("aria-label", `${label}. ${detail}`);
+  record.badge.setAttribute("aria-label", `${label} for ${describeTarget(record)}. ${detail}`);
   record.badge.hidden = !labelsVisible || !enabled || mutationOverflowRecoveryPending;
   schedulePositions();
   reportStats();
@@ -199,10 +234,116 @@ function resetRecord(record: TargetRecord, detail = "Waiting for this image to e
 }
 
 function removeRecord(record: TargetRecord): void {
+  untrackAdmissionCandidate(record);
   record.requestId = undefined;
   record.badge.remove();
   removePendingRecord(record);
   records.delete(record);
+}
+
+function admissionPriority(element: HTMLElement, descriptor: TargetDescriptor): number {
+  admissionPriorityEvaluationsInPass += 1;
+  if (!element.isConnected) return Number.NEGATIVE_INFINITY;
+  const rect = element.getBoundingClientRect();
+  if (rect.width < MIN_DIMENSION || rect.height < MIN_DIMENSION || element.getClientRects().length === 0) {
+    return -3e12;
+  }
+  const isVisible = rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+  if (descriptor.kind === "image" && element instanceof HTMLImageElement) {
+    if (element.complete && (element.naturalWidth < MIN_DIMENSION || element.naturalHeight < MIN_DIMENSION)) {
+      return -2e12;
+    }
+    if (!element.complete) return isVisible ? 2e12 : -2e12;
+  } else if (descriptor.kind === "background") {
+    try {
+      const sources = JSON.parse(descriptor.source.replace(/^composite:/u, "")) as string[];
+      if (!sources.length || sources.some((source) => !["data:", "blob:", "http:", "https:"].includes(new URL(source).protocol))) {
+        return -2e12;
+      }
+    } catch {
+      return -2e12;
+    }
+  }
+  if (isVisible) return 3e12;
+  const horizontalDistance = rect.right <= 0 ? -rect.right : rect.left >= innerWidth ? rect.left - innerWidth : 0;
+  const verticalDistance = rect.bottom <= 0 ? -rect.bottom : rect.top >= innerHeight ? rect.top - innerHeight : 0;
+  return 1e12 - Math.hypot(horizontalDistance, verticalDistance);
+}
+
+function compareAdmissionCandidates(left: AdmissionCandidate, right: AdmissionCandidate): number {
+  return left.priority - right.priority || right.record.admissionSequence - left.record.admissionSequence;
+}
+
+function beginAdmissionPass(): void {
+  admissionPassDepth += 1;
+  if (admissionPassDepth !== 1) return;
+  admissionCandidates = undefined;
+  admissionPriorityEvaluationsInPass = 0;
+  admissionPasses += 1;
+}
+
+function endAdmissionPass(): void {
+  admissionPassDepth -= 1;
+  if (admissionPassDepth !== 0) return;
+  lastAdmissionPriorityEvaluations = admissionPriorityEvaluationsInPass;
+  maxAdmissionPriorityEvaluationsInPass = Math.max(
+    maxAdmissionPriorityEvaluationsInPass,
+    admissionPriorityEvaluationsInPass,
+  );
+  admissionCandidates = undefined;
+}
+
+function initializeAdmissionCandidates(): AdmissionCandidate[] {
+  if (admissionCandidates) return admissionCandidates;
+  admissionCandidates = [...records]
+    .map((record) => ({ record, priority: admissionPriority(record.element, record) }))
+    .sort(compareAdmissionCandidates);
+  return admissionCandidates;
+}
+
+function trackAdmissionCandidate(record: TargetRecord): void {
+  if (!admissionCandidates) return;
+  const candidate = { record, priority: admissionPriority(record.element, record) };
+  let lower = 0;
+  let upper = admissionCandidates.length;
+  while (lower < upper) {
+    const middle = (lower + upper) >>> 1;
+    if (compareAdmissionCandidates(admissionCandidates[middle]!, candidate) <= 0) lower = middle + 1;
+    else upper = middle;
+  }
+  admissionCandidates.splice(lower, 0, candidate);
+}
+
+function untrackAdmissionCandidate(record: TargetRecord): void {
+  if (!admissionCandidates) return;
+  const index = admissionCandidates.findIndex((candidate) => candidate.record === record);
+  if (index >= 0) admissionCandidates.splice(index, 1);
+}
+
+function removeIndexedRecord(record: TargetRecord): void {
+  const slots = recordsByElement.get(record.element);
+  removeRecord(record);
+  slots?.delete(record.slot);
+  if (slots && slots.size === 0) {
+    intersectionObserver.unobserve(record.element);
+    recordsByElement.delete(record.element);
+  }
+}
+
+function ensureAdmissionCapacity(element: HTMLElement, descriptor: TargetDescriptor): boolean {
+  if (records.size < MAX_TARGETS_PER_DOCUMENT) return true;
+  const ownsPass = admissionPassDepth === 0;
+  if (ownsPass) beginAdmissionPass();
+  try {
+    const candidates = initializeAdmissionCandidates();
+    const eviction = candidates.find((candidate) => candidate.record.element !== element);
+    const incomingPriority = admissionPriority(element, descriptor);
+    if (!eviction || incomingPriority <= eviction.priority) return false;
+    removeIndexedRecord(eviction.record);
+    return true;
+  } finally {
+    if (ownsPass) endAdmissionPass();
+  }
 }
 
 function invalidateRecordForDeferredSync(record: TargetRecord): void {
@@ -242,7 +383,7 @@ function syncElement(element: HTMLElement): void {
   if (element === overlayHost || overlayHost.contains(element)) return;
   const descriptors = descriptorsFor(element);
   let slots = recordsByElement.get(element);
-  if (!slots && descriptors.length && records.size < MAX_TARGETS_PER_DOCUMENT) {
+  if (!slots && descriptors.length) {
     slots = new Map();
     recordsByElement.set(element, slots);
     intersectionObserver.observe(element);
@@ -264,7 +405,7 @@ function syncElement(element: HTMLElement): void {
       }
       continue;
     }
-    if (records.size >= MAX_TARGETS_PER_DOCUMENT) break;
+    if (!ensureAdmissionCapacity(element, descriptor)) break;
     const record: TargetRecord = {
       ...descriptor,
       element,
@@ -275,9 +416,12 @@ function syncElement(element: HTMLElement): void {
       acceptedResultCount: 0,
       needsReconciliation: false,
       reconciledMutationEpoch: mutationInvalidationEpoch,
+      admissionSequence: ++nextAdmissionSequence,
     };
     slots.set(descriptor.slot, record);
     records.add(record);
+    trackAdmissionCandidate(record);
+    updateBadge(record, "ProofLens · queued", "Waiting for this image to enter the local analysis queue");
   }
   if (!slots.size) {
     intersectionObserver.unobserve(element);
@@ -289,12 +433,17 @@ function syncElement(element: HTMLElement): void {
 
 function reconcileVisibleCssBackgrounds(): void {
   if (!enabled) return;
+  beginAdmissionPass();
   let checked = 0;
-  for (const record of records) {
-    if (checked >= MAX_CSS_RECONCILIATION_RECORDS) break;
-    if (record.kind !== "background" || !record.element.isConnected || !nearViewport(record)) continue;
-    checked += 1;
-    syncElement(record.element);
+  try {
+    for (const record of records) {
+      if (checked >= MAX_CSS_RECONCILIATION_RECORDS) break;
+      if (record.kind !== "background" || !record.element.isConnected || !nearViewport(record)) continue;
+      checked += 1;
+      syncElement(record.element);
+    }
+  } finally {
+    endAdmissionPass();
   }
 }
 
@@ -314,11 +463,69 @@ function scanWithinBudget(root: ParentNode, budget: number): number {
   return visited;
 }
 
+function beginFullDocumentScan(): void {
+  fullDocumentWalker = document.createTreeWalker(document, NodeFilter.SHOW_ELEMENT);
+  fullDocumentPendingNode = undefined;
+  fullDocumentScanRequired = true;
+}
+
+function requestFullDocumentScan(): void {
+  if (fullDocumentScanRequired && fullDocumentWalker) {
+    fullDocumentRestartRequested = true;
+    return;
+  }
+  beginFullDocumentScan();
+}
+
+function finishFullDocumentPass(): void {
+  fullDocumentWalker = undefined;
+  fullDocumentPendingNode = undefined;
+  if (fullDocumentRestartRequested) {
+    fullDocumentRestartRequested = false;
+    beginFullDocumentScan();
+  } else {
+    fullDocumentScanRequired = false;
+  }
+}
+
+function scanFullDocumentWithinBudget(budget: number): number {
+  if (!fullDocumentWalker) beginFullDocumentScan();
+  let visited = 0;
+  while (visited < budget) {
+    const next = fullDocumentPendingNode ?? fullDocumentWalker?.nextNode();
+    fullDocumentPendingNode = undefined;
+    if (!next) {
+      finishFullDocumentPass();
+      break;
+    }
+    if (next instanceof HTMLElement) syncElement(next);
+    visited += 1;
+  }
+  if (visited === budget && fullDocumentWalker) {
+    const next = fullDocumentWalker.nextNode();
+    if (next) fullDocumentPendingNode = next;
+    else finishFullDocumentPass();
+  }
+  return visited;
+}
+
 function scan(root: ParentNode = document): void {
+  beginAdmissionPass();
   scanPasses += 1;
   lastFullScanAt = performance.now();
-  const visited = scanWithinBudget(root, MAX_ELEMENTS_PER_SCAN);
-  lastScanVisited = visited;
+  try {
+    let visited: number;
+    if (root === document) {
+      requestFullDocumentScan();
+      visited = scanFullDocumentWithinBudget(MAX_ELEMENTS_PER_SCAN);
+      if (fullDocumentScanRequired) scheduleBoundedScan();
+    } else {
+      visited = scanWithinBudget(root, MAX_ELEMENTS_PER_SCAN);
+    }
+    lastScanVisited = visited;
+  } finally {
+    endAdmissionPass();
+  }
 }
 
 function queueMutationRoot(root: HTMLElement): void {
@@ -328,7 +535,7 @@ function queueMutationRoot(root: HTMLElement): void {
     if (root.contains(queued)) pendingMutationRoots.delete(queued);
   }
   if (pendingMutationRoots.size >= MAX_PENDING_MUTATION_ROOTS) {
-    fullDocumentScanRequired = true;
+    requestFullDocumentScan();
     scheduleBoundedScan();
     return;
   }
@@ -377,7 +584,7 @@ function finishMutationOverflowRecoveryIfStable(): void {
 }
 
 function scheduleFullScan(): void {
-  fullDocumentScanRequired = true;
+  requestFullDocumentScan();
   scheduleBoundedScan();
 }
 
@@ -388,28 +595,35 @@ function scheduleBoundedScan(): void {
     fullScanTimer = undefined;
     fullScanFrame = requestAnimationFrame(() => {
       fullScanFrame = undefined;
-      lastFullScanAt = performance.now();
-      scanPasses += 1;
-      let visited = 0;
-      let reconciled = 0;
-      for (const element of pendingDeferredReconciliationElements) {
-        if (reconciled >= MAX_DEFERRED_RECONCILIATIONS_PER_PASS) break;
-        pendingDeferredReconciliationElements.delete(element);
-        if (recordsByElement.has(element)) syncElement(element);
-        reconciled += 1;
+      beginAdmissionPass();
+      try {
+        lastFullScanAt = performance.now();
+        scanPasses += 1;
+        let visited = 0;
+        let reconciled = 0;
+        for (const element of pendingDeferredReconciliationElements) {
+          if (reconciled >= MAX_DEFERRED_RECONCILIATIONS_PER_PASS) break;
+          pendingDeferredReconciliationElements.delete(element);
+          if (recordsByElement.has(element)) syncElement(element);
+          reconciled += 1;
+        }
+        const mutationRootBudget = fullDocumentScanRequired
+          ? MAX_ELEMENTS_PER_SCAN - MIN_FULL_DOCUMENT_ELEMENTS_PER_PASS
+          : MAX_ELEMENTS_PER_SCAN;
+        for (const root of pendingMutationRoots) {
+          if (visited >= mutationRootBudget) break;
+          pendingMutationRoots.delete(root);
+          if (root.isConnected) visited += scanWithinBudget(root, mutationRootBudget - visited);
+        }
+        if (fullDocumentScanRequired && visited < MAX_ELEMENTS_PER_SCAN) {
+          visited += scanFullDocumentWithinBudget(MAX_ELEMENTS_PER_SCAN - visited);
+        }
+        lastScanVisited = visited;
+        finishMutationOverflowRecoveryIfStable();
+        if (pendingDeferredReconciliationElements.size || pendingMutationRoots.size || fullDocumentScanRequired) scheduleBoundedScan();
+      } finally {
+        endAdmissionPass();
       }
-      for (const root of pendingMutationRoots) {
-        if (visited >= MAX_ELEMENTS_PER_SCAN) break;
-        pendingMutationRoots.delete(root);
-        if (root.isConnected) visited += scanWithinBudget(root, MAX_ELEMENTS_PER_SCAN - visited);
-      }
-      if (fullDocumentScanRequired && visited < MAX_ELEMENTS_PER_SCAN) {
-        fullDocumentScanRequired = false;
-        visited += scanWithinBudget(document, MAX_ELEMENTS_PER_SCAN - visited);
-      }
-      lastScanVisited = visited;
-      finishMutationOverflowRecoveryIfStable();
-      if (pendingDeferredReconciliationElements.size || pendingMutationRoots.size || fullDocumentScanRequired) scheduleBoundedScan();
     });
   };
   if (delay > 0) fullScanTimer = window.setTimeout(scheduleFrame, delay);
@@ -540,6 +754,7 @@ async function analyze(record: TargetRecord): Promise<void> {
   const requestId = crypto.randomUUID();
   const expectedSource = record.source;
   const expectedMutationEpoch = mutationInvalidationEpoch;
+  const expectedDocumentLifecycleEpoch = documentLifecycleEpoch;
   record.requestId = requestId;
   updateBadge(record, "ProofLens · analyzing", "Analysis runs privately on this device");
 
@@ -547,11 +762,29 @@ async function analyze(record: TargetRecord): Promise<void> {
     const source = inferenceSource(record);
     if (!source) throw new Error("Rendered pixels are unavailable");
     const response = await sendInference(requestId, source);
+    if (expectedDocumentLifecycleEpoch !== documentLifecycleEpoch) {
+      staleDocumentResponsesRejected += 1;
+      return;
+    }
     if (expectedMutationEpoch !== mutationInvalidationEpoch) {
       invalidateElementForDeferredSync(record.element);
       return;
     }
     if (record.requestId !== requestId || record.source !== expectedSource) return;
+    if (!record.element.isConnected) {
+      removeIndexedRecord(record);
+      reportStats();
+      return;
+    }
+    if (!eligible(record)) {
+      invalidateElementForDeferredSync(record.element);
+      return;
+    }
+    const currentDescriptor = descriptorsFor(record.element).find((descriptor) => descriptor.slot === record.slot);
+    if (!currentDescriptor || currentDescriptor.source !== expectedSource) {
+      invalidateElementForDeferredSync(record.element);
+      return;
+    }
     if (!response || response.requestId !== requestId) throw new Error("Inference response did not match its request");
     if (!response.ok || !response.result) {
       record.state = "unavailable";
@@ -565,14 +798,14 @@ async function analyze(record: TargetRecord): Promise<void> {
     record.flagged = classification === "likely-ai";
     record.badge.dataset.classification = classification;
     record.badge.dataset.provider = response.result.provider;
-    const percentage = formatLikelihood(response.result.aiLikelihood);
+    const score = formatAiScore(response.result.aiLikelihood);
     const runtime = response.result.provider === "webgpu" ? "WebGPU" : "WASM";
     updateBadge(
       record,
-      record.flagged ? `Likely AI · ${percentage}` : `Not flagged · ${percentage}`,
+      record.flagged ? `Likely AI · ${score}` : `Below flag threshold · ${score}`,
       record.flagged
-        ? `65.0% and above is flagged. Processed locally with ${runtime}. This estimate is not proof.`
-        : `Below the inclusive 65.0% threshold. Processed locally with ${runtime}. This estimate is not proof of authenticity.`,
+        ? `A score of 65.0/100 and above is flagged. Processed locally with ${runtime}. This estimate is not proof.`
+        : `Below the inclusive 65.0/100 flag threshold. Processed locally with ${runtime}. This estimate is not proof of authenticity.`,
     );
   } catch {
     if (record.requestId !== requestId) return;
@@ -606,6 +839,40 @@ function reportStats(): void {
 
 function positionBadges(): void {
   positionFrame = undefined;
+  interface PositionRect { left: number; top: number; right: number; bottom: number }
+  interface VisibleTarget { element: HTMLElement; rect: PositionRect }
+  interface PositionCandidate { left: number; top: number; placement: string; inside: boolean }
+  const occupied: PositionRect[] = [];
+  const visibleTargets: VisibleTarget[] = [];
+  for (const element of recordsByElement.keys()) {
+    if (!element.isConnected) continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.bottom <= 0 || rect.right <= 0 || rect.top >= innerHeight || rect.left >= innerWidth) continue;
+    visibleTargets.push({
+      element,
+      rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+    });
+  }
+  const overlaps = (
+    left: number,
+    top: number,
+    width: number,
+    height: number,
+    rectangles: PositionRect[],
+  ): boolean => rectangles.some((rectangle) =>
+    left < rectangle.right + 2 && left + width > rectangle.left - 2 &&
+    top < rectangle.bottom + 2 && top + height > rectangle.top - 2
+  );
+  const contains = (outer: PositionRect, left: number, top: number, width: number, height: number): boolean =>
+    left >= outer.left && top >= outer.top && left + width <= outer.right && top + height <= outer.bottom;
+  const withinViewport = (left: number, top: number, width: number, height: number): boolean =>
+    left >= POSITION_MARGIN && top >= POSITION_MARGIN &&
+    left + width <= innerWidth - POSITION_MARGIN && top + height <= innerHeight - POSITION_MARGIN;
+  const uniqueCandidates = (candidates: PositionCandidate[]): PositionCandidate[] => candidates.filter(
+    (candidate, index, values) => values.findIndex((value) =>
+      value.left === candidate.left && value.top === candidate.top && value.placement === candidate.placement
+    ) === index,
+  );
   for (const [element, slots] of recordsByElement) {
     if (!element.isConnected) {
       for (const record of slots.values()) removeRecord(record);
@@ -618,11 +885,80 @@ function positionBadges(): void {
     for (const record of slots.values()) {
       record.badge.hidden = !visible || !enabled || !labelsVisible || mutationOverflowRecoveryPending;
       if (!visible) continue;
+      const visibleTarget: PositionRect = {
+        left: Math.max(POSITION_MARGIN, rect.left),
+        top: Math.max(POSITION_MARGIN, rect.top),
+        right: Math.min(innerWidth - POSITION_MARGIN, rect.right),
+        bottom: Math.min(innerHeight - POSITION_MARGIN, rect.bottom),
+      };
+      const compactInside = visibleTarget.right - visibleTarget.left >= 132 &&
+        visibleTarget.bottom - visibleTarget.top >= 44;
+      const maxBadgeWidth = Math.max(
+        96,
+        Math.floor(Math.min(
+          compactInside ? visibleTarget.right - visibleTarget.left - POSITION_MARGIN * 2 : 180,
+          230,
+          innerWidth - POSITION_MARGIN * 2,
+        )),
+      );
+      record.badge.style.maxWidth = `${maxBadgeWidth}px`;
       const width = record.badge.offsetWidth || 180;
       const height = record.badge.offsetHeight || 30;
-      const left = Math.max(POSITION_MARGIN, Math.min(innerWidth - width - POSITION_MARGIN, rect.right - width - POSITION_MARGIN));
-      const top = Math.max(POSITION_MARGIN, Math.min(innerHeight - height - POSITION_MARGIN, rect.top + POSITION_MARGIN + stack * (height + 4)));
-      record.badge.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+      const stackOffset = stack * (height + 4);
+      const candidates: PositionCandidate[] = [];
+      if (contains(visibleTarget, visibleTarget.right - width - POSITION_MARGIN,
+        visibleTarget.top + POSITION_MARGIN + stackOffset, width, height)) {
+        candidates.push({
+          left: visibleTarget.right - width - POSITION_MARGIN,
+          top: visibleTarget.top + POSITION_MARGIN + stackOffset,
+          placement: "inside-top-right",
+          inside: true,
+        });
+      }
+      const verticalPositions = [
+        rect.top + stackOffset,
+        rect.bottom - height - stackOffset,
+        rect.top + (rect.height - height) / 2,
+      ];
+      const horizontalPositions = [
+        rect.left + stackOffset,
+        rect.right - width - stackOffset,
+        rect.left + (rect.width - width) / 2,
+      ];
+      for (const top of verticalPositions) {
+        candidates.push(
+          { left: rect.right + POSITION_MARGIN, top, placement: "outside-right", inside: false },
+          { left: rect.left - POSITION_MARGIN - width, top, placement: "outside-left", inside: false },
+        );
+      }
+      for (const left of horizontalPositions) {
+        candidates.push(
+          { left, top: rect.bottom + POSITION_MARGIN, placement: "outside-bottom", inside: false },
+          { left, top: rect.top - POSITION_MARGIN - height, placement: "outside-top", inside: false },
+        );
+      }
+      const selected = uniqueCandidates(candidates).find((candidate) => {
+        if (!withinViewport(candidate.left, candidate.top, width, height)) return false;
+        if (overlaps(candidate.left, candidate.top, width, height, occupied)) return false;
+        if (candidate.inside) {
+          if (!contains({ left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+            candidate.left, candidate.top, width, height)) return false;
+          return !visibleTargets.some((target) => target.element !== element &&
+            overlaps(candidate.left, candidate.top, width, height, [target.rect]));
+        }
+        return !visibleTargets.some((target) =>
+          overlaps(candidate.left, candidate.top, width, height, [target.rect]));
+      });
+      if (!selected) {
+        record.badge.hidden = true;
+        record.badge.dataset.placement = "collision-hidden";
+        continue;
+      }
+      const left = Math.round(selected.left);
+      const top = Math.round(selected.top);
+      record.badge.dataset.placement = selected.placement;
+      record.badge.style.transform = `translate(${left}px, ${top}px)`;
+      occupied.push({ left, top, right: left + width, bottom: top + height });
       stack += 1;
     }
   }
@@ -715,26 +1051,56 @@ const mutationObserver = new MutationObserver((mutations) => {
 });
 
 chrome.runtime.onMessage.addListener((
-  message: { type: string; enabled?: boolean; visible?: boolean },
+  message: { type: string; enabled?: boolean; visible?: boolean; expectedOrigin?: string },
   sender,
   sendResponse,
 ) => {
   if (sender.id !== chrome.runtime.id) return false;
+  if (message.type === "PL_CONFIRM_DOCUMENT") {
+    if (message.expectedOrigin === location.origin) sendResponse({ origin: location.origin });
+    else sendResponse({ pageChanged: true });
+    return false;
+  }
   if (message.type === "PL_GET_CONTENT_SNAPSHOT") {
     sendResponse({
-      badges: [...records].map((record) => ({
-        slot: record.slot,
-        kind: record.kind,
-        elementId: record.element.id || undefined,
-        acceptedResultCount: record.acceptedResultCount,
-        text: record.badge.textContent,
-        title: record.badge.title,
-        state: record.badge.dataset.state,
-        classification: record.badge.dataset.classification,
-        provider: record.badge.dataset.provider,
-        animationName: getComputedStyle(record.badge).animationName,
-        hidden: record.badge.hidden,
-      })),
+      badges: [...records].map((record) => {
+        const badgeRect = record.badge.getBoundingClientRect();
+        const targetRect = record.element.getBoundingClientRect();
+        const computedBadgeStyle = getComputedStyle(record.badge);
+        return {
+          slot: record.slot,
+          kind: record.kind,
+          elementId: record.element.id || undefined,
+          acceptedResultCount: record.acceptedResultCount,
+          text: record.badge.textContent,
+          accessibleName: record.badge.getAttribute("aria-label"),
+          title: record.badge.title,
+          state: record.badge.dataset.state,
+          classification: record.badge.dataset.classification,
+          provider: record.badge.dataset.provider,
+          animationName: computedBadgeStyle.animationName,
+          pointerEvents: computedBadgeStyle.pointerEvents,
+          display: computedBadgeStyle.display,
+          placement: record.badge.dataset.placement,
+          badgeRect: {
+            left: badgeRect.left,
+            top: badgeRect.top,
+            right: badgeRect.right,
+            bottom: badgeRect.bottom,
+            width: badgeRect.width,
+            height: badgeRect.height,
+          },
+          targetRect: {
+            left: targetRect.left,
+            top: targetRect.top,
+            right: targetRect.right,
+            bottom: targetRect.bottom,
+            width: targetRect.width,
+            height: targetRect.height,
+          },
+          hidden: record.badge.hidden,
+        };
+      }),
       recordCount: records.size,
       pendingCount: pendingRecords.length,
       activeAnalyses,
@@ -756,12 +1122,24 @@ chrome.runtime.onMessage.addListener((
       mutationOverflowRecoveryPending,
       synchronousMutationReconciliations,
       fullScanIntervalMs: FULL_SCAN_INTERVAL_MS,
+      fullDocumentScanRequired,
+      fullDocumentRestartRequested,
       cssReconciliationIntervalMs: CSS_RECONCILIATION_INTERVAL_MS,
       maxCssReconciliationRecords: MAX_CSS_RECONCILIATION_RECORDS,
+      admissionPasses,
+      lastAdmissionPriorityEvaluations,
+      maxAdmissionPriorityEvaluationsInPass,
+      documentLifecycleEpoch,
+      staleDocumentResponsesRejected,
       overlayAttached: overlayHost.isConnected,
       labelsVisible,
       enabled,
     });
+    return false;
+  }
+  if (["PL_SITE_STATE_CHANGED", "PL_LABEL_VISIBILITY", "PL_RESCAN"].includes(message.type) &&
+    message.expectedOrigin !== location.origin) {
+    sendResponse({ pageChanged: true });
     return false;
   }
   if (message.type === "PL_SITE_STATE_CHANGED" && typeof message.enabled === "boolean") {
@@ -783,15 +1161,21 @@ chrome.runtime.onMessage.addListener((
         }
       }
     }
+    sendResponse({ enabled });
+    return false;
   }
   if (message.type === "PL_LABEL_VISIBILITY" && typeof message.visible === "boolean") {
     labelsVisible = message.visible;
     for (const record of records) record.badge.hidden = !enabled || !labelsVisible || mutationOverflowRecoveryPending;
+    sendResponse({ labelsVisible });
+    return false;
   }
   if (message.type === "PL_RESCAN" || message.type === "PL_MODEL_READY") {
     for (const record of records) resetRecord(record, "Queued for fresh local analysis");
     scan();
     pumpAnalysisQueue();
+    sendResponse({ rescanned: message.type === "PL_RESCAN" });
+    return false;
   }
   return false;
 });
@@ -807,6 +1191,23 @@ document.addEventListener(
   true,
 );
 
+window.addEventListener("pagehide", () => {
+  documentLifecycleEpoch += 1;
+  pendingRecords.length = 0;
+  pendingRecordSet.clear();
+  for (const record of records) {
+    record.requestId = undefined;
+    if (record.state === "analyzing") record.state = "queued";
+  }
+});
+
+window.addEventListener("pageshow", (event) => {
+  if (!event.persisted) return;
+  documentLifecycleEpoch += 1;
+  for (const record of records) resetRecord(record, "Queued after page navigation");
+  scheduleFullScan();
+});
+
 async function start(): Promise<void> {
   const state = (await chrome.runtime.sendMessage({
     type: "PL_GET_SITE_STATE",
@@ -818,7 +1219,7 @@ async function start(): Promise<void> {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["src", "srcset", "sizes", "media", "type", "style", "class", "id", "hidden", "inert", "aria-label"],
+    attributeFilter: ["src", "srcset", "sizes", "media", "type", "style", "class", "id", "hidden", "inert", "alt", "aria-label"],
   });
   window.addEventListener("load", scheduleFullScan, { once: true });
   window.addEventListener("scroll", schedulePositions, { passive: true });

@@ -11,12 +11,12 @@ ProofLens processes untrusted webpage pixels and DOM state with broad host acces
 
 ## Controls
 
-- Manifest V3 and extension CSP restrict executable code to the package; local WASM is explicitly allowed.
+- Manifest V3 and extension CSP restrict executable code to the package, block remote connections and image beacons, and explicitly allow only the local WASM/worker/style requirements.
 - The model is verified by exact byte count and SHA-256 before storage and re-hashed from persisted bytes once per offscreen-document lifetime.
 - Runtime results are cached by local-pixel content SHA-256, not mutable URL.
 - Extension inference accepts only `data:image/*` payloads created from already-rendered pixels. It never fetches a page-controlled URL.
 - Local image payloads are capped before messaging and again while streaming. Supported raster headers are inspected before decode; 8,192-pixel edges, more than 25 megapixels, and aspect ratios above 16:1 fail closed.
-- A document retains at most 512 targets and 32 pending records. Only one content analysis runs at a time; service-worker and offscreen admission are independently capped at eight. Active-tab captures are serialized and start at least 600 milliseconds apart to stay within Chrome's capture quota during rapid CSS changes.
+- A document retains at most 512 targets and 32 pending records. Only one content analysis runs at a time; service-worker and offscreen admission are independently capped at eight. Active-tab captures are serialized and start at least 600 milliseconds apart to stay within Chrome's capture quota during rapid CSS changes. Each capture requires the original sender document ID and origin before and after Chrome's capture call; page lifecycle changes invalidate in-flight content results.
 - Full-DOM discovery examines at most 5,000 elements per pass and is throttled to once per second.
 - Content results require the matching request ID and unchanged source; late results are discarded.
 - Badges live in a closed styling boundary, repair host removal/tampering, and use text plus color. Failures never become confidence scores.

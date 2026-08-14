@@ -18,7 +18,7 @@ describe("pinned detector model", () => {
     expect(MODEL_SPEC.imageStd).toEqual([0.26862954, 0.26130258, 0.27577711]);
     expect(MODEL_SPEC.inputSize).toBe(384);
     expect(MODEL_SPEC.resizeShortEdge).toBe(440);
-    expect(MODEL_SPEC.calibration).toEqual({ slope: 1, intercept: 0.30374610239790173 });
+    expect(MODEL_SPEC.calibration).toEqual({ slope: lock.calibration.slope, intercept: lock.calibration.intercept });
   });
 
   it("ships the byte-for-byte artifact in the model lock", async () => {

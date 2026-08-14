@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "protocol": "validation",
+  "modelSha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+  "manifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+  "calibrationSha256": "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c",
+  "files": {
+    "prooflens-validation-original-predictions.jsonl": "846e8325ec224e55b2a65fb06b56b817d656656ab7594c1a1682f7e1a7a644d3",
+    "prooflens-validation-screenshot-predictions.jsonl": "d1e3c6c912a9a2710d4fdda37dd14879870d552cddb5030564111ae837689347",
+    "prooflens-validation-social-q75-predictions.jsonl": "dbbd0a8e04ae153a7c03d686e4715b2df973693111284220d053f1a9fa8d4725",
+    "prooflens-validation-social-heavy-predictions.jsonl": "03875d6f3f46ff58c8d58f00ea0e5ed5b059b234dc6a914c43940877bb361d05",
+    "prooflens-validation-summary.json": "86beecce6a1e3bd51efee192485d866945da232e31e6135eea106f9c765cad6d"
+  }
+}

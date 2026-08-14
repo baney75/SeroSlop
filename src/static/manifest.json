@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ProofLens",
   "version": "1.0.0",
-  "description": "Browser-local AI image likelihood estimates for ordinary webpages, fully offline after install.",
+  "description": "Browser-local AI image scores for ordinary webpages, fully offline after install.",
   "minimum_chrome_version": "121",
   "permissions": ["offscreen", "storage", "unlimitedStorage"],
   "host_permissions": ["<all_urls>"],
@@ -22,6 +22,6 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; connect-src 'self' data: blob:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; worker-src 'self'"
   }
 }

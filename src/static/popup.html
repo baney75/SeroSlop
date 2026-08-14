@@ -11,7 +11,11 @@
       header { background: #171b2c; color: #fff; }
       h1 { font-size: 18px; margin: 0 0 4px; } p { margin: 0; }
       .status { color: #81f4c5; font-weight: 700; }
-      .summary { margin-bottom: 16px; }
+      .context { color: color-mix(in srgb, CanvasText 70%, transparent); font-size: 12px; margin: 0 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .summary { margin-bottom: 12px; }
+      .feedback { min-height: 20px; margin: -4px 0 4px; color: color-mix(in srgb, CanvasText 76%, transparent); font-size: 12px; }
+      .feedback[data-state="error"] { color: light-dark(#b42318, #ffb4ab); }
+      .caveat { background: color-mix(in srgb, CanvasText 7%, transparent); border-radius: 8px; font-size: 12px; margin: 0 0 8px; padding: 9px; }
       label { align-items: center; display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; }
       button { width: 100%; margin-top: 12px; padding: 9px; }
       footer { border-top: 1px solid color-mix(in srgb, CanvasText 18%, transparent); }
@@ -21,10 +25,13 @@
   <body>
     <header><h1>ProofLens</h1><p id="model-status" class="status">Checking setup…</p></header>
     <main>
+      <p id="site-context" class="context">No supported site selected</p>
       <p id="page-summary" class="summary">Reading this page…</p>
-      <label><span>Analyze this site</span><input id="site-enabled" type="checkbox" disabled></label>
-      <label><span>Show labels in this tab</span><input id="labels-visible" type="checkbox" disabled></label>
-      <button id="rescan" type="button">Re-scan page</button>
+      <p id="control-feedback" class="feedback" role="status" aria-live="polite"></p>
+      <p class="caveat">Each result is an estimate, not proof of origin or authenticity.</p>
+      <label><span>Analyze this site <small>(saved)</small></span><input id="site-enabled" type="checkbox" disabled></label>
+      <label><span>Show labels on this page <small>(temporary)</small></span><input id="labels-visible" type="checkbox" disabled></label>
+      <button id="rescan" type="button" disabled>This page can’t be scanned</button>
     </main>
     <footer><a id="open-setup" href="setup.html">Setup and model details</a></footer>
     <script src="popup.js"></script>

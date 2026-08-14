@@ -2,13 +2,14 @@ export const MODERN_HEAD_DATASET = {
   schemaVersion: 1,
   frozenAt: "2026-08-13",
   seed: 20260813,
+  legacyEvaluationExclusions: "benchmark/manifests/legacy-evaluation-exclusions.json",
   qwenImageBench: {
     dataset: "Qwen/Qwen-Image-Bench",
     revision: "d2493deb153b020cf169c7e3f57d15e4dd697038",
     license: "Apache-2.0",
-    trainPerSource: 100,
-    validationPerSource: 50,
-    testPerSource: 50,
+    trainPerSource: 80,
+    validationPerSource: 150,
+    testPerSource: 300,
     trainSources: [
       "FLUX.2-pro",
       "GPT-Image-1",
@@ -19,11 +20,6 @@ export const MODERN_HEAD_DATASET = {
       "Seedream-4.0",
       "Seedream-4.5",
       "nano-banana-pro",
-      "GLM-Image",
-      "HunyuanImage-3.0",
-      "kling_v2_1",
-    ],
-    validationSources: [
       "FLUX.2_max",
       "gpt-image-2",
       "Imagen-4.0-Ultra",
@@ -31,6 +27,8 @@ export const MODERN_HEAD_DATASET = {
       "Qwen-Image-2.0-pro",
       "Seedream-5.0",
     ],
+    validationSources: ["GLM-Image", "HunyuanImage-3.0"],
+    testSources: ["kling_v2_1"],
   },
   openImages: {
     dataset: "Open Images V7",
@@ -40,7 +38,11 @@ export const MODERN_HEAD_DATASET = {
     imageBaseUrl: "https://open-images-dataset.s3.amazonaws.com/validation",
     trainCount: 1200,
     validationCount: 300,
-    testCount: 300,
+    testCount: 0,
+    excludedImageIds: [
+      // Near-black frame (mean RGB intensity below 0.5%); valid bytes but not a useful visual oracle.
+      "116393a7d0b56142",
+    ],
   },
   outputDirectory: "benchmark/data/modern-head",
 } as const;

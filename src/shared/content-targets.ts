@@ -20,7 +20,7 @@ export function extractCssImageUrls(backgroundImage: string, baseUrl: string): s
   return [...new Set(urls)];
 }
 
-export function formatLikelihood(value: number): string {
-  if (!Number.isFinite(value) || value < 0 || value > 1) throw new Error("Likelihood must be a probability");
-  return `${(value * 100).toFixed(1)}%`;
+export function formatAiScore(value: number): string {
+  if (!Number.isFinite(value) || value < 0 || value > 1) throw new Error("Score input must be finite and bounded");
+  return `${(value * 100).toFixed(1)}/100`;
 }

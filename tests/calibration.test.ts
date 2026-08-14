@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { calibrateAiLikelihood } from "../src/inference/calibration";
 import { classifyLikelihood } from "../src/shared/contracts";
 import { MODEL_SPEC } from "../src/shared/model-spec";
+import lock from "../model-lock.json";
 
 describe("frozen score policy", () => {
   it("maps the validation logit threshold to the displayed 65% cutoff", () => {
-    const raw = 1 / (1 + Math.exp(-0.3152931060083219));
+    const raw = 1 / (1 + Math.exp(-lock.calibration.validationThresholdLogit));
     expect(calibrateAiLikelihood(raw, MODEL_SPEC.calibration)).toBeCloseTo(0.65, 12);
   });
 

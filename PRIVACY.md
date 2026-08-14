@@ -1,12 +1,12 @@
 # Privacy and permissions
 
-ProofLens has no analytics, telemetry, ads, user account, detector API, cloud inference, localhost backend, or remote model loader.
+ProofLens has no analytics, telemetry, ads, user account, detector API, cloud inference, localhost backend, or remote model loader. Extension-page Content Security Policy also blocks remote connections and image beacons, so this boundary does not rely only on current call sites.
 
 ## Data flow
 
 - The content script discovers image targets and renders labels.
 - When page pixels are canvas-readable, it reduces images above a 1,024-pixel long edge, encodes the bounded pixels locally as lossless PNG, and sends that data URL through extension messaging.
-- Otherwise, the service worker locally captures the already-rendered active viewport while hiding ProofLens labels. The offscreen document crops the target region before inference. The transient full-viewport capture is never stored, logged, or transmitted.
+- Otherwise, the service worker locally captures the already-rendered active viewport while hiding ProofLens labels. Capture is bound to the exact content-script document ID and origin before and after Chrome’s capture call; a navigation fails closed. The offscreen document crops the target region before inference. The transient full-viewport capture is never stored, logged, or transmitted.
 - Extension code never fetches a page-controlled image URL. Redirects, DNS rebinding, cookies, referrers, localhost, and private-network destinations are therefore absent from image acquisition.
 - Decoded pixels, tensors, scores, and content hashes remain in the browser process.
 - The model is bundled in the extension package. Setup copies it to extension-owned IndexedDB only after verifying its size and SHA-256. Inference never downloads or replaces it.

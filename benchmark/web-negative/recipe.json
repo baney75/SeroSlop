@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "seed": 20260813,
+  "libraryOfCongress": {
+    "collectionUrl": "https://www.loc.gov/collections/fsa-owi-color-photographs/",
+    "collectionTitle": "Farm Security Administration - Office of War Information color slides and transparencies collection (Library of Congress)",
+    "rightsSource": "https://www.loc.gov/collections/fsa-owi-color-photographs/about-this-collection/rights-and-access/",
+    "rightsStatus": "Public domain; free to use and reuse",
+    "targetCount": 300,
+    "catalogPageSize": 500,
+    "latestCreationYear": 1944,
+    "minimumShortEdge": 384,
+    "downloadBatchSize": 25,
+    "maximumDownloadWorkers": 4,
+    "acceptedRightsAdvisories": [
+      "No known restrictions on publication."
+    ]
+  },
+  "confirmatoryTest": {
+    "syntheticManifest": "benchmark/data/modern-head/test-synthetic-manifest.jsonl",
+    "syntheticCount": 300,
+    "realCount": 300,
+    "expectedCount": 600
+  },
+  "chartography": {
+    "dataset": "surgeai/chartography",
+    "revision": "a0156216330b52452b1da68b58ffcc0a53be3984",
+    "metadataSha256": "ee8e1687f7f35250bcc7349bd5c76739b9239e90a736277f8e4c71d4059574dd",
+    "license": "CC-BY-4.0",
+    "sourceType": "Expert-created",
+    "expectedCount": 19
+  },
+  "expectedTotalCount": 319,
+  "maximumImageBytes": 25000000,
+  "acceptanceGates": {
+    "maximumOverallFalsePositiveUpper95": 0.1,
+    "maximumPerSourceFalsePositiveUpper95": 0.2
+  }
+}

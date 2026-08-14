@@ -8,6 +8,7 @@ export interface BenchmarkItem {
   imageSha256: string;
   label: 0 | 1;
   source: string;
+  groupId?: string;
 }
 
 export interface Prediction extends BenchmarkItem {

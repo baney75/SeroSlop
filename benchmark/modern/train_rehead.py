@@ -16,20 +16,32 @@ from io import BytesIO
 import json
 import math
 from pathlib import Path
+import platform
 import random
+import sys
 import time
 
 import numpy as np
 import onnx
 from onnx import TensorProto, helper, numpy_helper
 import onnxruntime as ort
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps, __version__ as PILLOW_VERSION
 import torch
 from torch import nn
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from feature_cache_contract import expected_view_metadata, validate_feature_arrays
+from fresh_feature_run import (
+    cache_belongs_to_fresh_feature_run,
+    complete_fresh_feature_run,
+    marker_sha256,
+    open_or_create_fresh_feature_run,
+)
+from thresholds import complete_decision_thresholds
+
 
 SEED = 20260813
-PIPELINE_VERSION = 1
+PIPELINE_VERSION = 8
 INPUT_SIZE = 384
 RESIZE_SHORT_EDGE = 440
 MEAN = np.asarray((0.48145466, 0.4578275, 0.40821073), dtype=np.float32)
@@ -37,6 +49,10 @@ STD = np.asarray((0.26862954, 0.26130258, 0.27577711), dtype=np.float32)
 VARIANTS = ("original", "screenshot", "social-q75", "social-heavy")
 FEATURE_OUTPUT = "/Gather_output_0"
 DISPLAY_THRESHOLD = 0.65
+TRAINING_EPOCHS = 12
+TRAINING_BATCH_SIZE = 2_048
+LEGACY_FEATURE_CACHE_TRAINER_SHA256 = "00f3bdea0ae58166d2b1708eeb4582562631d18b6a60f43c2273de1bd68e1377"
+FEATURE_EXTRACTOR_CONTRACT = "cf384-static-batch24-preprocess-v1"
 
 
 @dataclass(frozen=True)
@@ -73,12 +89,177 @@ def load_manifest(path: Path, data_root: Path) -> list[Item]:
         )
     if not items:
         raise ValueError(f"Manifest is empty: {path}")
+    if len({item.id for item in items}) != len(items):
+        raise ValueError(f"Manifest contains duplicate IDs: {path}")
+    if len({item.image_sha256 for item in items}) != len(items):
+        raise ValueError(f"Manifest contains duplicate image bytes: {path}")
     return items
+
+
+def validate_large_training_packet(
+    recipe_path: Path,
+    recipe: dict[str, object],
+    selection_summary_path: Path,
+    train_manifest: Path,
+    train_items: list[Item],
+) -> tuple[dict[str, object], str]:
+    summary = json.loads(selection_summary_path.read_text())
+    summary_hash = digest(selection_summary_path)
+    if summary.get("schemaVersion") != 1:
+        raise ValueError("Unsupported large-corpus selection summary")
+    if summary.get("recipeSha256") != digest(recipe_path):
+        raise ValueError("Selection summary does not target the training recipe")
+    if summary.get("manifestSha256") != digest(train_manifest):
+        raise ValueError("Selection summary does not bind the training manifest")
+    expected_total = int(recipe["expectedTotalCount"])
+    if len(train_items) != expected_total or summary.get("counts", {}).get("total") != expected_total:
+        raise ValueError("Large-corpus total count does not match recipe and summary")
+    source_counts = {
+        source: sum(item.source == source for item in train_items)
+        for source in sorted({item.source for item in train_items})
+    }
+    if source_counts != summary.get("sourceCounts"):
+        raise ValueError("Training manifest source counts do not match the selection summary")
+    if source_counts.get("diffusiondb-stable-diffusion") != int(recipe["diffusionDb"]["targetCount"]):
+        raise ValueError("DiffusionDB training count does not match the recipe")
+    if source_counts.get("open-images-train") != int(recipe["openImages"]["targetCount"]):
+        raise ValueError("Open Images training count does not match the recipe")
+    if sum(count for source, count in source_counts.items() if source not in {
+        "diffusiondb-stable-diffusion", "open-images-train"
+    }) != int(recipe["expectedModernTrainingCount"]):
+        raise ValueError("Modern training source counts do not match the recipe")
+    class_counts = {
+        "real": sum(item.label == 0 for item in train_items),
+        "synthetic": sum(item.label == 1 for item in train_items),
+    }
+    if class_counts != summary.get("classCounts"):
+        raise ValueError("Training manifest class counts do not match the selection summary")
+    train_ids = {item.id for item in train_items}
+    train_hashes = {item.image_sha256 for item in train_items}
+    exclusions: list[dict[str, object]] = []
+    exclusion_manifests = [
+        *recipe["evaluationManifests"],
+        *recipe.get("additionalTrainingExclusionManifests", []),
+    ]
+    for manifest in exclusion_manifests:
+        path = Path(str(manifest["path"]))
+        rows = [json.loads(line) for line in path.read_text().splitlines() if line]
+        if train_ids.intersection(str(row["id"]) for row in rows):
+            raise ValueError("Training IDs overlap a frozen evaluation manifest")
+        if train_hashes.intersection(str(row["imageSha256"]) for row in rows):
+            raise ValueError("Training image bytes overlap a frozen evaluation manifest")
+        exclusions.append(
+            {
+                "path": str(manifest["path"]),
+                "sha256": digest(path),
+                "rows": len(rows),
+                "dataRoot": str(manifest["dataRoot"]),
+                "role": "validation-or-confirmatory-test"
+                if manifest in recipe["evaluationManifests"]
+                else "web-negative-training-exclusion",
+            }
+        )
+    if exclusions != summary.get("evaluationExclusions"):
+        raise ValueError("Selection summary does not bind the frozen evaluation manifests")
+    review_path = Path(str(recipe["perceptualOverlapReview"]))
+    review = json.loads(review_path.read_text())
+    expected_review_evidence = {
+        "path": str(recipe["perceptualOverlapReview"]),
+        "sha256": digest(review_path),
+        "reviewedPairCount": len(review.get("items", [])),
+        "hammingThreshold": int(recipe["perceptualDuplicateHammingThreshold"]),
+    }
+    if summary.get("perceptualOverlapReview") != expected_review_evidence:
+        raise ValueError("Selection summary does not bind the perceptual-overlap review")
+    training_review_path = Path(str(recipe["trainingPerceptualOverlapReview"]))
+    training_review = json.loads(training_review_path.read_text())
+    expected_training_review_evidence = {
+        "path": str(recipe["trainingPerceptualOverlapReview"]),
+        "sha256": digest(training_review_path),
+        "reviewedPairCount": len(training_review.get("items", [])),
+        "hammingThreshold": int(recipe["perceptualDuplicateHammingThreshold"]),
+    }
+    if summary.get("trainingPerceptualOverlapReview") != expected_training_review_evidence:
+        raise ValueError("Selection summary does not bind the training/evaluation perceptual review")
+    overlap = summary.get("overlapWithEvaluation", {})
+    if (
+        overlap.get("ids") != 0
+        or overlap.get("imageHashes") != 0
+        or overlap.get("unreviewedPerceptualDhashPairsAtOrBelowThreshold") != 0
+        or overlap.get("reviewedVisuallyDistinctDhashPairsAtOrBelowThreshold")
+        != len(training_review.get("items", []))
+    ):
+        raise ValueError("Selection summary reports training/evaluation overlap")
+    return summary, summary_hash
+
+
+def verify_item_files(items: list[Item]) -> None:
+    def verify(item: Item) -> None:
+        if digest(item.path) != item.image_sha256:
+            raise ValueError(f"Image integrity mismatch while reusing cached features: {item.id}")
+
+    with ThreadPoolExecutor(max_workers=min(8, len(items))) as executor:
+        list(executor.map(verify, items))
 
 
 def seeded_random(item: Item, purpose: str) -> random.Random:
     value = int(sha256(f"{SEED}:{item.id}:{purpose}".encode()).hexdigest()[:16], 16)
     return random.Random(value)
+
+
+def feature_configuration_hash(
+    *,
+    training: bool,
+    single_view_sources: frozenset[str],
+    providers: tuple[str, ...],
+    feature_batch_size: int,
+) -> str:
+    """Bind a feature cache to every input-affecting extraction choice."""
+    configuration = {
+        "pipelineVersion": PIPELINE_VERSION,
+        "featureExtractorContract": FEATURE_EXTRACTOR_CONTRACT,
+        "inputSize": INPUT_SIZE,
+        "resizeShortEdge": RESIZE_SHORT_EDGE,
+        "mean": MEAN.tolist(),
+        "std": STD.tolist(),
+        "variants": list(VARIANTS),
+        "training": training,
+        "singleViewSources": sorted(single_view_sources),
+        "onnxRuntime": ort.__version__,
+        "pillow": PILLOW_VERSION,
+        "providers": list(providers),
+        "featureBatchSize": feature_batch_size,
+    }
+    encoded = json.dumps(configuration, separators=(",", ":"), sort_keys=True).encode()
+    return sha256(encoded).hexdigest()
+
+
+def legacy_feature_configuration_hash(
+    *,
+    training: bool,
+    single_view_sources: frozenset[str],
+    providers: tuple[str, ...],
+    feature_batch_size: int,
+) -> str:
+    """Recognize the exact pre-threshold-fix cache after source-pixel revalidation."""
+    configuration = {
+        "pipelineVersion": PIPELINE_VERSION,
+        "trainerSha256": LEGACY_FEATURE_CACHE_TRAINER_SHA256,
+        "commandArguments": sys.argv[1:],
+        "inputSize": INPUT_SIZE,
+        "resizeShortEdge": RESIZE_SHORT_EDGE,
+        "mean": MEAN.tolist(),
+        "std": STD.tolist(),
+        "variants": list(VARIANTS),
+        "training": training,
+        "singleViewSources": sorted(single_view_sources),
+        "onnxRuntime": ort.__version__,
+        "pillow": PILLOW_VERSION,
+        "providers": list(providers),
+        "featureBatchSize": feature_batch_size,
+    }
+    encoded = json.dumps(configuration, separators=(",", ":"), sort_keys=True).encode()
+    return sha256(encoded).hexdigest()
 
 
 def resize_long_edge(image: Image.Image, maximum: int) -> Image.Image:
@@ -166,18 +347,25 @@ def preprocess_image(image: Image.Image, item: Item, variant: str, training: boo
     return np.transpose((pixels - MEAN) / STD, (2, 0, 1)).astype(np.float32)
 
 
-def preprocess_views(item: Item, training: bool) -> list[np.ndarray]:
+def preprocess_views(item: Item, training: bool, variants: tuple[str, ...] = VARIANTS) -> list[np.ndarray]:
     if digest(item.path) != item.image_sha256:
         raise ValueError(f"Image integrity mismatch: {item.id}")
     with Image.open(item.path) as opened:
         image = ImageOps.exif_transpose(opened).convert("RGB")
-    return [preprocess_image(image.copy(), item, variant, training) for variant in VARIANTS]
+    return [preprocess_image(image.copy(), item, variant, training) for variant in variants]
 
 
-def make_feature_model(source: Path, destination: Path) -> tuple[np.ndarray, float]:
+def make_feature_model(source: Path, destination: Path, batch_size: int) -> tuple[np.ndarray, float]:
     model = onnx.load(source)
     if not any(output.name == FEATURE_OUTPUT for output in model.graph.output):
         model.graph.output.append(helper.make_tensor_value_info(FEATURE_OUTPUT, TensorProto.FLOAT, ["batch_size", 384]))
+    # A fixed feature-extraction batch lets ONNX Runtime fully optimize this
+    # frozen graph on CPU. The final exported classifier remains dynamic.
+    for value in [*model.graph.input, *model.graph.output]:
+        shape = value.type.tensor_type.shape
+        if shape.dim:
+            shape.dim[0].ClearField("dim_param")
+            shape.dim[0].dim_value = batch_size
     initializers = {value.name: value for value in model.graph.initializer}
     upstream_weight = numpy_helper.to_array(initializers["classifier.weight"]).astype(np.float32).reshape(-1)
     upstream_bias = float(numpy_helper.to_array(initializers["classifier.bias"]).reshape(-1)[0])
@@ -190,28 +378,58 @@ def extract_features(
     items: list[Item],
     batch_size: int,
     training: bool,
+    single_view_sources: frozenset[str],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     features: list[np.ndarray] = []
     labels: list[int] = []
     variants: list[int] = []
     sources: list[str] = []
-    expanded_count = len(items) * len(VARIANTS)
+    view_names = [
+        ("original",) if training and item.source in single_view_sources else VARIANTS
+        for item in items
+    ]
+    expanded_count = sum(len(names) for names in view_names)
+    completed_views = np.cumsum([0, *(len(names) for names in view_names)])
     started = time.perf_counter()
-    images_per_batch = max(1, batch_size // len(VARIANTS))
-    with ThreadPoolExecutor(max_workers=min(8, images_per_batch)) as executor:
-        for offset in range(0, len(items), images_per_batch):
-            batch_items = items[offset : offset + images_per_batch]
-            views = list(executor.map(lambda item: preprocess_views(item, training), batch_items))
+    with ThreadPoolExecutor(max_workers=min(8, batch_size)) as executor:
+        offset = 0
+        while offset < len(items):
+            end = offset
+            batch_views = 0
+            while end < len(items) and batch_views + len(view_names[end]) <= batch_size:
+                batch_views += len(view_names[end])
+                end += 1
+            if end == offset:
+                end += 1
+            batch_items = items[offset:end]
+            batch_view_names = view_names[offset : offset + len(batch_items)]
+            views = list(
+                executor.map(
+                    lambda pair: preprocess_views(pair[0], training, pair[1]),
+                    zip(batch_items, batch_view_names, strict=True),
+                )
+            )
             tensor = np.stack([pixels for item_views in views for pixels in item_views])
-            output = np.asarray(session.run([FEATURE_OUTPUT], {"pixel_values": tensor})[0], dtype=np.float32)
+            true_batch_size = tensor.shape[0]
+            if true_batch_size < batch_size:
+                padding = np.zeros((batch_size - true_batch_size, *tensor.shape[1:]), dtype=np.float32)
+                tensor = np.concatenate((tensor, padding))
+            output = np.asarray(session.run([FEATURE_OUTPUT], {"pixel_values": tensor})[0], dtype=np.float32)[
+                :true_batch_size
+            ]
             features.append(output)
-            labels.extend(item.label for item in batch_items for _ in VARIANTS)
-            variants.extend(index for _ in batch_items for index in range(len(VARIANTS)))
-            sources.extend(item.source for item in batch_items for _ in VARIANTS)
-            completed = min(offset + images_per_batch, len(items)) * len(VARIANTS)
+            labels.extend(item.label for item, item_views in zip(batch_items, views, strict=True) for _ in item_views)
+            variants.extend(
+                VARIANTS.index(name)
+                for names in batch_view_names
+                for name in names
+            )
+            sources.extend(item.source for item, item_views in zip(batch_items, views, strict=True) for _ in item_views)
+            completed = int(completed_views[end])
             if completed % (batch_size * 10) == 0 or completed == expanded_count:
                 elapsed = time.perf_counter() - started
                 print(f"features {completed}/{expanded_count} ({completed / max(elapsed, 1e-6):.1f}/s)", flush=True)
+            offset = end
     return (
         np.concatenate(features),
         np.asarray(labels, dtype=np.float32),
@@ -220,38 +438,232 @@ def extract_features(
     )
 
 
-def extract_or_load(
+def save_feature_shard(
+    path: Path,
+    result: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    *,
+    manifest_hash: str,
+    model_hash: str,
+    item_ids_hash: str,
+    feature_configuration_hash: str,
+    training: bool,
+    fresh_feature_run_id: str | None,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_suffix(path.suffix + ".partial")
+    with partial.open("wb") as handle:
+        np.savez_compressed(
+            handle,
+            features=result[0],
+            labels=result[1],
+            variants=result[2],
+            sources=result[3],
+            manifest_hash=np.asarray(manifest_hash),
+            model_hash=np.asarray(model_hash),
+            item_ids_hash=np.asarray(item_ids_hash),
+            feature_configuration_hash=np.asarray(feature_configuration_hash),
+            fresh_feature_run_id=np.asarray(fresh_feature_run_id or ""),
+            training=np.asarray(training),
+            pipeline_version=np.asarray(PIPELINE_VERSION),
+        )
+    partial.replace(path)
+
+
+def array_digest(value: np.ndarray) -> str:
+    array = np.ascontiguousarray(value)
+    fingerprint = sha256()
+    fingerprint.update(array.dtype.str.encode())
+    fingerprint.update(json.dumps(array.shape, separators=(",", ":")).encode())
+    fingerprint.update(array.tobytes())
+    return fingerprint.hexdigest()
+
+
+def validate_feature_result(
+    result: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    items: list[Item],
+    *,
+    training: bool,
+    single_view_sources: frozenset[str],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    expected_labels, expected_variants, expected_sources = expected_view_metadata(
+        items,
+        training=training,
+        single_view_sources=single_view_sources,
+    )
+    features, labels, variants, sources = (np.asarray(value) for value in result)
+    validate_feature_arrays(
+        features,
+        labels,
+        variants,
+        sources,
+        expected_labels=expected_labels,
+        expected_variants=expected_variants,
+        expected_sources=expected_sources,
+    )
+    return features, labels, variants, sources
+
+
+def extract_or_load_sharded(
     session: ort.InferenceSession,
     items: list[Item],
     manifest: Path,
-    cache: Path,
+    cache_directory: Path,
+    cache_name: str,
     model_hash: str,
     batch_size: int,
     training: bool,
+    shard_images: int,
+    single_view_sources: frozenset[str],
+    reextract_cached_features: bool,
+    fresh_feature_run_id: str | None,
+    shard_evidence: list[dict[str, object]],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     manifest_hash = digest(manifest)
-    if cache.exists():
-        data = np.load(cache, allow_pickle=False)
-        if (
-            str(data["manifest_hash"].item()) == manifest_hash
-            and str(data["model_hash"].item()) == model_hash
-            and int(data["pipeline_version"].item()) == PIPELINE_VERSION
-        ):
-            print(f"loaded {cache}", flush=True)
-            return data["features"], data["labels"], data["variants"], data["sources"]
-    result = extract_features(session, items, batch_size, training)
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(
-        cache,
-        features=result[0],
-        labels=result[1],
-        variants=result[2],
-        sources=result[3],
-        manifest_hash=np.asarray(manifest_hash),
-        model_hash=np.asarray(model_hash),
-        pipeline_version=np.asarray(PIPELINE_VERSION),
+    configuration_hash = feature_configuration_hash(
+        training=training,
+        single_view_sources=single_view_sources,
+        providers=tuple(session.get_providers()),
+        feature_batch_size=batch_size,
     )
-    return result
+    legacy_configuration_hash = legacy_feature_configuration_hash(
+        training=training,
+        single_view_sources=single_view_sources,
+        providers=tuple(session.get_providers()),
+        feature_batch_size=batch_size,
+    )
+    outputs: list[tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = []
+    for shard_index, offset in enumerate(range(0, len(items), shard_images)):
+        shard_items = items[offset : offset + shard_images]
+        item_ids_hash = sha256("\n".join(item.id for item in shard_items).encode()).hexdigest()
+        cache = cache_directory / f"{cache_name}-{shard_index:05d}.npz"
+        loaded: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None = None
+        freshly_extracted_this_process = False
+        freshly_extracted_this_run = False
+        replaced_cache_sha256: str | None = None
+        if cache.exists():
+            with np.load(cache, allow_pickle=False) as data:
+                required = {
+                    "features",
+                    "labels",
+                    "variants",
+                    "sources",
+                    "manifest_hash",
+                    "model_hash",
+                    "item_ids_hash",
+                    "feature_configuration_hash",
+                    "fresh_feature_run_id",
+                    "training",
+                    "pipeline_version",
+                }
+                cached_configuration_hash = str(data["feature_configuration_hash"].item()) if "feature_configuration_hash" in data.files else ""
+                cached_fresh_feature_run_id = str(data["fresh_feature_run_id"].item()) if "fresh_feature_run_id" in data.files else ""
+                belongs_to_fresh_run = cache_belongs_to_fresh_feature_run(
+                    fresh_feature_run_id,
+                    cached_fresh_feature_run_id,
+                )
+                may_load = not reextract_cached_features or belongs_to_fresh_run
+                if reextract_cached_features and not belongs_to_fresh_run:
+                    replaced_cache_sha256 = digest(cache)
+                if may_load and required <= set(data.files) and (
+                    str(data["manifest_hash"].item()) == manifest_hash
+                    and str(data["model_hash"].item()) == model_hash
+                    and str(data["item_ids_hash"].item()) == item_ids_hash
+                    and cached_configuration_hash in {configuration_hash, legacy_configuration_hash}
+                    and bool(data["training"].item()) == training
+                    and int(data["pipeline_version"].item()) == PIPELINE_VERSION
+                ):
+                    verify_item_files(shard_items)
+                    candidate = tuple(
+                        np.asarray(data[name]).copy()
+                        for name in ("features", "labels", "variants", "sources")
+                    )  # type: ignore[assignment]
+                    try:
+                        loaded = validate_feature_result(
+                            candidate,
+                            shard_items,
+                            training=training,
+                            single_view_sources=single_view_sources,
+                        )
+                    except ValueError as error:
+                        print(f"rejected {cache}: {error}", flush=True)
+                        loaded = None
+                    if loaded is not None:
+                        if cached_configuration_hash == legacy_configuration_hash:
+                            save_feature_shard(
+                                cache,
+                                loaded,
+                                manifest_hash=manifest_hash,
+                                model_hash=model_hash,
+                                item_ids_hash=item_ids_hash,
+                                feature_configuration_hash=configuration_hash,
+                                training=training,
+                                fresh_feature_run_id=cached_fresh_feature_run_id or None,
+                            )
+                            print(f"verified and migrated {cache}", flush=True)
+                        else:
+                            print(f"loaded {cache}", flush=True)
+                        freshly_extracted_this_run = belongs_to_fresh_run
+        if loaded is None:
+            loaded = extract_features(session, shard_items, batch_size, training, single_view_sources)
+            loaded = validate_feature_result(
+                loaded,
+                shard_items,
+                training=training,
+                single_view_sources=single_view_sources,
+            )
+            save_feature_shard(
+                cache,
+                loaded,
+                manifest_hash=manifest_hash,
+                model_hash=model_hash,
+                item_ids_hash=item_ids_hash,
+                feature_configuration_hash=configuration_hash,
+                training=training,
+                fresh_feature_run_id=fresh_feature_run_id,
+            )
+            freshly_extracted_this_process = True
+            freshly_extracted_this_run = fresh_feature_run_id is not None
+            print(f"{'refreshed' if replaced_cache_sha256 else 'saved'} {cache}", flush=True)
+        shard_evidence.append(
+            {
+                "cache": str(cache),
+                "cacheSha256": digest(cache),
+                "replacedCacheSha256": replaced_cache_sha256,
+                "freshFeatureRunId": fresh_feature_run_id,
+                "freshlyExtractedThisRun": freshly_extracted_this_run,
+                "freshlyExtractedThisProcess": freshly_extracted_this_process,
+                "items": len(shard_items),
+                "views": int(loaded[0].shape[0]),
+                "itemIdsSha256": item_ids_hash,
+                "featureConfigurationSha256": configuration_hash,
+                "arraySha256": {
+                    "features": array_digest(loaded[0]),
+                    "labels": array_digest(loaded[1]),
+                    "variants": array_digest(loaded[2]),
+                    "sources": array_digest(loaded[3]),
+                },
+            }
+        )
+        outputs.append(loaded)
+    return tuple(np.concatenate([output[index] for output in outputs]) for index in range(4))  # type: ignore[return-value]
+
+
+def source_balanced_weights(labels: np.ndarray, sources: np.ndarray) -> np.ndarray:
+    """Give each class half the loss and each source an equal share of its class."""
+    weights = np.zeros(labels.shape[0], dtype=np.float32)
+    for label in (0, 1):
+        label_sources = sorted(set(sources[labels == label].tolist()))
+        if not label_sources:
+            raise ValueError(f"Training data has no rows for label {label}")
+        for source in label_sources:
+            selected = (labels == label) & (sources == source)
+            count = int(selected.sum())
+            if count == 0:
+                raise AssertionError("source selection became empty")
+            weights[selected] = 0.5 / (len(label_sources) * count)
+    if not np.isclose(float(weights.sum()), 1.0, atol=1e-6):
+        raise AssertionError("source-balanced weights do not sum to one")
+    return weights
 
 
 def variant_metrics(logits: np.ndarray, labels: np.ndarray, variants: np.ndarray, sources: np.ndarray, threshold: float) -> dict[str, object]:
@@ -278,12 +690,36 @@ def variant_metrics(logits: np.ndarray, labels: np.ndarray, variants: np.ndarray
     return output
 
 
-def choose_threshold(logits: np.ndarray, labels: np.ndarray, variants: np.ndarray, sources: np.ndarray) -> tuple[float, dict[str, object], tuple[float, ...]]:
-    candidates = np.unique(np.quantile(logits, np.linspace(0.01, 0.99, 513)))
-    candidates = np.concatenate(([float(logits.min()) - 1e-6], candidates, [float(logits.max()) + 1e-6]))
+def passes_validation_gates(values: dict[str, object], gates: dict[str, object] | None) -> bool:
+    if gates is None:
+        return True
+    rows = list(values.values())
+    family_recalls = [
+        float(recall)
+        for row in rows
+        for recall in dict(row["syntheticRecallBySource"]).values()
+    ]
+    return all(
+        float(row["balancedAccuracy"]) >= float(gates["minimumBalancedAccuracyPerVariant"])
+        and float(row["realRecall"]) >= float(gates["minimumRealRecallPerVariant"])
+        and float(row["syntheticRecall"]) >= float(gates["minimumSyntheticRecallPerVariant"])
+        for row in rows
+    ) and min(family_recalls) >= float(gates["minimumSyntheticRecallPerFamily"])
+
+
+def choose_threshold(
+    logits: np.ndarray,
+    labels: np.ndarray,
+    variants: np.ndarray,
+    sources: np.ndarray,
+    gates: dict[str, object] | None,
+) -> tuple[float, dict[str, object], tuple[float, ...]]:
+    candidates = complete_decision_thresholds(logits.tolist())
     best: tuple[tuple[float, ...], float, dict[str, object]] | None = None
     for threshold in candidates:
         values = variant_metrics(logits, labels, variants, sources, float(threshold))
+        if not passes_validation_gates(values, gates):
+            continue
         rows = list(values.values())
         family_recalls = [
             float(recall)
@@ -299,13 +735,16 @@ def choose_threshold(logits: np.ndarray, labels: np.ndarray, variants: np.ndarra
         if best is None or key > best[0]:
             best = (key, float(threshold), values)
     if best is None:
-        raise RuntimeError("No threshold candidates")
+        raise RuntimeError("No threshold satisfies the frozen validation gates")
+    if not math.isfinite(best[1]):
+        raise RuntimeError("Selected validation threshold is not finite")
     return best[1], best[2], best[0]
 
 
 def fit_candidate(
     train_features: np.ndarray,
     train_labels: np.ndarray,
+    train_sources: np.ndarray,
     validation_features: np.ndarray,
     validation_labels: np.ndarray,
     validation_variants: np.ndarray,
@@ -315,40 +754,50 @@ def fit_candidate(
     decay: float,
     alpha: float,
     device: torch.device,
+    validation_gates: dict[str, object] | None,
 ) -> tuple[np.ndarray, float, float, dict[str, object], tuple[float, ...]]:
     mean = train_features.mean(axis=0).astype(np.float32)
     std = train_features.std(axis=0).clip(min=1e-5).astype(np.float32)
     x = torch.from_numpy((train_features - mean) / std).to(device)
     y = torch.from_numpy(train_labels).to(device).unsqueeze(1)
-    x_validation = torch.from_numpy((validation_features - mean) / std).to(device)
+    example_weights = torch.from_numpy(source_balanced_weights(train_labels, train_sources)).to(device)
     head = nn.Linear(train_features.shape[1], 1).to(device)
     with torch.no_grad():
         head.weight.copy_(torch.from_numpy(upstream_weight * std).to(device).unsqueeze(0))
         head.bias.copy_(torch.tensor([upstream_bias + float(np.dot(upstream_weight, mean))], device=device))
     optimizer = torch.optim.AdamW(head.parameters(), lr=0.012, weight_decay=decay)
     generator = torch.Generator(device="cpu").manual_seed(SEED)
-    real_indices = torch.from_numpy(np.flatnonzero(train_labels == 0))
-    synthetic_indices = torch.from_numpy(np.flatnonzero(train_labels == 1))
-    half = min(768, real_indices.numel(), synthetic_indices.numel())
-    for _ in range(900):
-        indices = torch.cat(
-            (
-                real_indices[torch.randint(0, real_indices.numel(), (half,), generator=generator)],
-                synthetic_indices[torch.randint(0, synthetic_indices.numel(), (half,), generator=generator)],
-            )
-        ).to(device)
-        loss = nn.functional.binary_cross_entropy_with_logits(head(x[indices]), y[indices])
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        optimizer.step()
+    for _ in range(TRAINING_EPOCHS):
+        order = torch.randperm(train_features.shape[0], generator=generator)
+        for offset in range(0, order.numel(), TRAINING_BATCH_SIZE):
+            indices = order[offset : offset + TRAINING_BATCH_SIZE].to(device)
+            losses = nn.functional.binary_cross_entropy_with_logits(
+                head(x[indices]), y[indices], reduction="none"
+            ).squeeze(1)
+            batch_weights = example_weights[indices]
+            loss = torch.sum(losses * batch_weights) / torch.sum(batch_weights)
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
     learned_normalized_weight = head.weight.detach().float().cpu().numpy()[0]
     learned_normalized_bias = float(head.bias.detach().float().cpu().item())
     learned_weight = learned_normalized_weight / std
     learned_bias = learned_normalized_bias - float(np.dot(learned_normalized_weight, mean / std))
     weight = upstream_weight * (1 - alpha) + learned_weight * alpha
     bias = upstream_bias * (1 - alpha) + learned_bias * alpha
-    logits = validation_features @ weight + bias
-    threshold, values, key = choose_threshold(logits, validation_labels, validation_variants, validation_sources)
+    if not np.isfinite(weight).all() or not math.isfinite(bias):
+        raise FloatingPointError("Candidate classifier parameters are non-finite")
+    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        logits = validation_features @ weight + bias
+    if not np.isfinite(logits).all():
+        raise FloatingPointError("Candidate validation logits are non-finite")
+    threshold, values, key = choose_threshold(
+        logits,
+        validation_labels,
+        validation_variants,
+        validation_sources,
+        validation_gates,
+    )
     return weight, bias, threshold, values, key
 
 
@@ -370,51 +819,157 @@ def main() -> None:
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--expected-model-sha256", required=True)
     parser.add_argument("--data-root", type=Path, required=True)
+    parser.add_argument("--train-manifest", type=Path)
+    parser.add_argument("--validation-data-root", type=Path)
+    parser.add_argument("--validation-manifest", type=Path)
+    parser.add_argument("--recipe", type=Path)
+    parser.add_argument("--selection-summary", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--feature-shard-images", type=int, default=2_000)
+    parser.add_argument("--single-view-source", action="append", default=[])
+    parser.add_argument("--execution-provider", choices=("cuda", "coreml", "cpu"), default="cuda")
+    parser.add_argument(
+        "--reextract-cached-features",
+        action="store_true",
+        help=(
+            "Reject caches from earlier runs, then recompute from source pixels. "
+            "Interrupted invocations resume only shards carrying this exact run marker."
+        ),
+    )
     args = parser.parse_args()
 
     torch.manual_seed(SEED)
     np.random.seed(SEED)
+    torch.use_deterministic_algorithms(True)
     model_hash = digest(args.model)
     if model_hash != args.expected_model_sha256:
         raise ValueError(f"Unexpected model SHA-256: {model_hash}")
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    train_manifest = args.data_root / "train-manifest.jsonl"
-    validation_manifest = args.data_root / "validation-manifest.jsonl"
+    if args.feature_shard_images < 1:
+        raise ValueError("feature-shard-images must be positive")
+    if args.batch_size < len(VARIANTS):
+        raise ValueError(f"batch-size must be at least {len(VARIANTS)}")
+    train_manifest = args.train_manifest or (args.data_root / "train-manifest.jsonl")
+    validation_data_root = args.validation_data_root or args.data_root
+    validation_manifest = args.validation_manifest or (validation_data_root / "validation-manifest.jsonl")
+    train_items = load_manifest(train_manifest, args.data_root)
+    validation_items = load_manifest(validation_manifest, validation_data_root)
+    single_view_sources = frozenset(str(source) for source in args.single_view_source)
+    missing_single_view_sources = single_view_sources - {item.source for item in train_items}
+    if missing_single_view_sources:
+        raise ValueError(f"single-view sources are absent from training data: {sorted(missing_single_view_sources)}")
+    recipe_config = json.loads(args.recipe.read_text()) if args.recipe else None
+    validation_gates = recipe_config.get("validationGates") if recipe_config else None
+    selection_summary_hash: str | None = None
+    if recipe_config is not None:
+        if int(recipe_config["expectedTotalCount"]) != len(train_items):
+            raise ValueError("Training manifest count does not match recipe")
+        if frozenset(recipe_config["singleViewTrainingSources"]) != single_view_sources:
+            raise ValueError("single-view-source arguments do not match recipe")
+        selection_summary_path = args.selection_summary or (args.data_root / "selection-summary.json")
+        _, selection_summary_hash = validate_large_training_packet(
+            args.recipe,
+            recipe_config,
+            selection_summary_path,
+            train_manifest,
+            train_items,
+        )
     feature_model = args.output_dir / "feature-model.onnx"
-    upstream_weight, upstream_bias = make_feature_model(args.model, feature_model)
-    session = ort.InferenceSession(str(feature_model), providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
-    if "CUDAExecutionProvider" not in session.get_providers():
+    upstream_weight, upstream_bias = make_feature_model(args.model, feature_model, args.batch_size)
+    providers = {
+        "cuda": ["CUDAExecutionProvider", "CPUExecutionProvider"],
+        "coreml": ["CoreMLExecutionProvider", "CPUExecutionProvider"],
+        "cpu": ["CPUExecutionProvider"],
+    }[args.execution_provider]
+    session = ort.InferenceSession(str(feature_model), providers=providers)
+    if args.execution_provider == "cuda" and "CUDAExecutionProvider" not in session.get_providers():
         raise RuntimeError(f"CUDA provider unavailable: {session.get_providers()}")
-    train = extract_or_load(
+    if args.execution_provider == "coreml" and "CoreMLExecutionProvider" not in session.get_providers():
+        raise RuntimeError(f"CoreML provider unavailable: {session.get_providers()}")
+    provider_tuple = tuple(session.get_providers())
+    feature_configuration_hashes = {
+        "training": feature_configuration_hash(
+            training=True,
+            single_view_sources=single_view_sources,
+            providers=provider_tuple,
+            feature_batch_size=args.batch_size,
+        ),
+        "validation": feature_configuration_hash(
+            training=False,
+            single_view_sources=frozenset(),
+            providers=provider_tuple,
+            feature_batch_size=args.batch_size,
+        ),
+    }
+    fresh_feature_marker = args.output_dir / "fresh-feature-run.json"
+    fresh_feature_context = {
+        "pipelineVersion": PIPELINE_VERSION,
+        "featureExtractorContract": FEATURE_EXTRACTOR_CONTRACT,
+        "upstreamModelSha256": model_hash,
+        "trainManifestSha256": digest(train_manifest),
+        "validationManifestSha256": digest(validation_manifest),
+        "selectionSummarySha256": selection_summary_hash,
+        "featureBatchSize": args.batch_size,
+        "featureShardImages": args.feature_shard_images,
+        "singleViewTrainingSources": sorted(single_view_sources),
+        "featureConfigurationHashes": feature_configuration_hashes,
+    }
+    fresh_feature_run = (
+        open_or_create_fresh_feature_run(fresh_feature_marker, fresh_feature_context)
+        if args.reextract_cached_features
+        else None
+    )
+    fresh_feature_run_id = str(fresh_feature_run["runId"]) if fresh_feature_run else None
+    feature_shard_evidence: list[dict[str, object]] = []
+    train = extract_or_load_sharded(
         session,
-        load_manifest(train_manifest, args.data_root),
+        train_items,
         train_manifest,
-        args.output_dir / "train-features.npz",
+        args.output_dir / "features",
+        "train",
         model_hash,
         args.batch_size,
         True,
+        args.feature_shard_images,
+        single_view_sources,
+        args.reextract_cached_features,
+        fresh_feature_run_id,
+        feature_shard_evidence,
     )
-    validation = extract_or_load(
+    validation = extract_or_load_sharded(
         session,
-        load_manifest(validation_manifest, args.data_root),
+        validation_items,
         validation_manifest,
-        args.output_dir / "validation-features.npz",
+        args.output_dir / "features",
+        "validation",
         model_hash,
         args.batch_size,
         False,
+        args.feature_shard_images,
+        frozenset(),
+        args.reextract_cached_features,
+        fresh_feature_run_id,
+        feature_shard_evidence,
     )
-    device = torch.device("cuda")
+    if recipe_config is not None and int(recipe_config["expectedTrainingFeatureViews"]) != int(train[0].shape[0]):
+        raise ValueError("Extracted training feature-view count does not match recipe")
+    device = torch.device("cuda" if args.execution_provider == "cuda" else "cpu")
     candidates: list[dict[str, object]] = []
     best: tuple[tuple[float, ...], np.ndarray, float, float, dict[str, object], dict[str, float]] | None = None
     for decay in (0.10, 0.03, 0.01, 0.003, 0.001):
         for alpha in (0.40, 0.55, 0.70, 0.85, 1.0):
-            weight, bias, threshold, values, key = fit_candidate(
-                train[0], train[1], validation[0], validation[1], validation[2], validation[3],
-                upstream_weight, upstream_bias, decay, alpha, device,
-            )
             parameters = {"weightDecay": decay, "upstreamBlendAlpha": alpha}
+            try:
+                weight, bias, threshold, values, key = fit_candidate(
+                    train[0], train[1], train[3], validation[0], validation[1], validation[2], validation[3],
+                    upstream_weight, upstream_bias, decay, alpha, device, validation_gates,
+                )
+            except (FloatingPointError, RuntimeError) as error:
+                record = {"parameters": parameters, "status": "rejected", "reason": str(error)}
+                candidates.append(record)
+                print(json.dumps(record, separators=(",", ":")), flush=True)
+                continue
             record = {"parameters": parameters, "selectionKey": key, "thresholdLogit": threshold, "variants": values}
             candidates.append(record)
             print(json.dumps(record, separators=(",", ":")), flush=True)
@@ -423,13 +978,18 @@ def main() -> None:
     if best is None:
         raise RuntimeError("No trained candidate")
     _, weight, bias, threshold, values, parameters = best
+    if recipe_config is not None:
+        if not passes_validation_gates(values, recipe_config["validationGates"]):
+            raise RuntimeError("Selected candidate failed frozen validation gates")
     model_path = args.output_dir / "model.onnx"
     replace_classifier(args.model, model_path, weight, bias)
     exported_hash = digest(model_path)
-    parity_session = ort.InferenceSession(str(model_path), providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
-    expected = validation[0] @ weight + bias
+    parity_session = ort.InferenceSession(str(model_path), providers=providers)
+    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        expected = validation[0] @ weight + bias
+    if not np.isfinite(expected).all():
+        raise RuntimeError("Selected classifier produced non-finite reference logits")
     actual: list[np.ndarray] = []
-    validation_items = load_manifest(validation_manifest, args.data_root)
     images_per_batch = max(1, args.batch_size // len(VARIANTS))
     with ThreadPoolExecutor(max_workers=min(8, images_per_batch)) as executor:
         for offset in range(0, len(validation_items), images_per_batch):
@@ -437,35 +997,98 @@ def main() -> None:
             views = list(executor.map(lambda item: preprocess_views(item, False), batch_items))
             tensor = np.stack([pixels for item_views in views for pixels in item_views])
             actual.append(np.asarray(parity_session.run(["logits"], {"pixel_values": tensor})[0]).reshape(-1))
-    max_error = float(np.max(np.abs(expected - np.concatenate(actual))))
-    if max_error > 2e-4:
+    actual_values = np.concatenate(actual)
+    if not np.isfinite(actual_values).all():
+        raise RuntimeError("Exported classifier produced non-finite ONNX logits")
+    max_error = float(np.max(np.abs(expected - actual_values)))
+    if not math.isfinite(max_error) or max_error > 2e-4:
         raise RuntimeError(f"Export parity error too high: {max_error}")
     calibration_intercept = math.log(DISPLAY_THRESHOLD / (1 - DISPLAY_THRESHOLD)) - threshold
     calibration = {
         "schemaVersion": 1,
-        "method": "Held-out-generator logit alignment to fixed 65% display threshold",
+        "method": "Validation-selected logit alignment to fixed 65/100 display threshold; not probability calibration",
         "slope": 1,
         "intercept": calibration_intercept,
         "validationThresholdLogit": threshold,
         "rawProbabilityThreshold": 1 / (1 + math.exp(-threshold)),
         "displayThreshold": DISPLAY_THRESHOLD,
         "modelSha256": exported_hash,
+        "trainManifestSha256": digest(train_manifest),
+        "validationManifestSha256": digest(validation_manifest),
+        "selectionSummarySha256": selection_summary_hash,
     }
+    source_counts = {
+        source: sum(item.source == source for item in train_items)
+        for source in sorted({item.source for item in train_items})
+    }
+    if fresh_feature_run is not None and fresh_feature_run_id is not None:
+        fresh_feature_run = complete_fresh_feature_run(
+            fresh_feature_marker,
+            fresh_feature_context,
+            fresh_feature_run_id,
+        )
     summary = {
         "schemaVersion": 1,
         "seed": SEED,
+        "pipelineVersion": PIPELINE_VERSION,
+        "trainerSha256": digest(Path(__file__)),
+        "commandArguments": sys.argv[1:],
+        "recipeSha256": digest(args.recipe) if args.recipe else None,
+        "selectionSummarySha256": selection_summary_hash,
         "upstreamModelSha256": model_hash,
         "trainManifestSha256": digest(train_manifest),
         "validationManifestSha256": digest(validation_manifest),
-        "trainImages": len(load_manifest(train_manifest, args.data_root)),
-        "validationImages": len(load_manifest(validation_manifest, args.data_root)),
+        "trainImages": len(train_items),
+        "validationImages": len(validation_items),
         "viewsPerImage": len(VARIANTS),
+        "trainFeatureViews": int(train[0].shape[0]),
+        "validationFeatureViews": int(validation[0].shape[0]),
+        "sourceBalancedSampling": False,
+        "sourceBalancedLoss": True,
+        "trainingEpochs": TRAINING_EPOCHS,
+        "trainingBatchSize": TRAINING_BATCH_SIZE,
+        "uniqueTrainingImagesCovered": len(train_items),
+        "uniqueTrainingFeatureViewsCovered": int(train[0].shape[0]),
+        "trainingSourceCounts": source_counts,
+        "featureShardImages": args.feature_shard_images,
+        "featureBatchSize": args.batch_size,
+        "cachedFeatureSourcePixelsReverified": True,
+        "cachedFeatureArraysValidated": True,
+        "cachedFeatureValuesReextracted": args.reextract_cached_features,
+        "freshFeatureRun": fresh_feature_run,
+        "freshFeatureRunMarkerSha256": marker_sha256(fresh_feature_run) if fresh_feature_run else None,
+        "cachedFeatureDtypes": {
+            "features": "float32",
+            "labels": "float32",
+            "variants": "int64",
+            "sources": "unicode",
+        },
+        "singleViewTrainingSources": sorted(single_view_sources),
+        "featureConfigurationHashes": feature_configuration_hashes,
+        "featureShardEvidence": feature_shard_evidence,
         "selectedParameters": parameters,
+        "validationGates": recipe_config.get("validationGates") if recipe_config else None,
+        "validationGatesPassed": True,
         "selectionKey": best[0],
         "thresholdLogit": threshold,
         "variants": values,
         "model": {"path": str(model_path), "bytes": model_path.stat().st_size, "sha256": exported_hash, "maxAbsParityError": max_error},
         "candidateCount": len(candidates),
+        "validCandidateCount": sum("selectionKey" in candidate for candidate in candidates),
+        "environment": {
+            "numpy": np.__version__,
+            "onnxRuntime": ort.__version__,
+            "pillow": PILLOW_VERSION,
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "torch": torch.__version__,
+            "cuda": torch.version.cuda,
+            "gpu": torch.cuda.get_device_name(0) if args.execution_provider == "cuda" else None,
+            "executionProvider": args.execution_provider,
+            "providers": parity_session.get_providers(),
+            "torchDeterministicAlgorithms": torch.are_deterministic_algorithms_enabled(),
+            "torchThreads": torch.get_num_threads(),
+        },
     }
     (args.output_dir / "calibration.json").write_text(json.dumps(calibration, indent=2) + "\n")
     (args.output_dir / "validation-summary.json").write_text(json.dumps(summary, indent=2) + "\n")

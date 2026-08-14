@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractCssImageUrls, formatLikelihood } from "../src/shared/content-targets";
+import { extractCssImageUrls, formatAiScore } from "../src/shared/content-targets";
 
 describe("ordinary webpage target helpers", () => {
   it("extracts, resolves, and deduplicates CSS background URLs", () => {
@@ -11,9 +11,9 @@ describe("ordinary webpage target helpers", () => {
     ).toEqual(["https://example.test/hero.webp", "https://example.test/articles/tile.png"]);
   });
 
-  it("renders a stable per-image confidence", () => {
-    expect(formatLikelihood(0.65)).toBe("65.0%");
-    expect(formatLikelihood(0.9999)).toBe("100.0%");
-    expect(() => formatLikelihood(Number.NaN)).toThrow("probability");
+  it("renders a stable bounded model score without probability semantics", () => {
+    expect(formatAiScore(0.65)).toBe("65.0/100");
+    expect(formatAiScore(0.9999)).toBe("100.0/100");
+    expect(() => formatAiScore(Number.NaN)).toThrow("bounded");
   });
 });

@@ -1,9 +1,0 @@
-{
-  "schemaVersion": 1,
-  "method": "Held-out-generator logit alignment to fixed 65% display threshold",
-  "slope": 1,
-  "intercept": 0.30374610239790173,
-  "validationThresholdLogit": 0.3152931060083219,
-  "displayThreshold": 0.65,
-  "modelSha256": "29545a1da0cfe2bf0149448334fd45a21f48074c57296db3b84437dd66f80a43"
-}

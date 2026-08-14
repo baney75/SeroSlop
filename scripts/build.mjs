@@ -8,8 +8,9 @@ const root = process.cwd();
 const outdir = path.join(root, "dist");
 const releaseDir = path.join(root, "release");
 const modelPath = path.join(root, "weights", "prooflens-cf384.onnx");
-const expectedModelHash = "29545a1da0cfe2bf0149448334fd45a21f48074c57296db3b84437dd66f80a43";
-const expectedModelBytes = 87_442_080;
+const modelLock = JSON.parse(await readFile(path.join(root, "model-lock.json"), "utf8"));
+const expectedModelHash = modelLock.sha256;
+const expectedModelBytes = modelLock.bytes;
 const reproducibleTime = new Date("2000-01-01T00:00:00.000Z");
 
 function digest(bytes) {

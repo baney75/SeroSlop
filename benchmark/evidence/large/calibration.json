@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "method": "Validation-selected logit alignment to fixed 65/100 display threshold; not probability calibration",
+  "slope": 1,
+  "intercept": 1.521955520623936,
+  "validationThresholdLogit": -0.9029163122177123,
+  "rawProbabilityThreshold": 0.2884515632035137,
+  "displayThreshold": 0.65,
+  "modelSha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+  "trainManifestSha256": "8e221006888f4bcd1632338a7d38f13aa081c9ac5b80340de8239178218dc4e4",
+  "validationManifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+  "selectionSummarySha256": "5f1276cd197947415b4e1bdbbbacd5a1a3f85e1570a4fdb8fe35999cf35e4897"
+}

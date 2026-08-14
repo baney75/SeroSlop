@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "base": {
+    "path": "benchmark/candidates/upstream-cf384.onnx",
+    "sha256": "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1",
+    "bytes": 87442080
+  },
+  "candidate": {
+    "path": "benchmark/candidates/prooflens-cf384-large/model.onnx",
+    "sha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+    "bytes": 87442080
+  },
+  "changedInitializers": [
+    {
+      "name": "classifier.bias",
+      "beforeSha256": "fe299dffff13b5627ebb32d696c6fbebe68095b5cfa02968383fda56f2254073",
+      "afterSha256": "c7d5769c4afc5914f74e6eb968cd0d2a88d59ef05f5afdff4d1b1a38d522d5d9",
+      "dimensions": [
+        1
+      ]
+    },
+    {
+      "name": "classifier.weight",
+      "beforeSha256": "30d45ef12860c20c567bac03178dac7de3c1ea589e5dd6726b4bfff1bfb36d9c",
+      "afterSha256": "a925f72a3232c33ef57762fa84ae9b9aea7f085613ba76e2c4c83c8deef0f620",
+      "dimensions": [
+        1,
+        384
+      ]
+    }
+  ],
+  "unchangedInitializerCount": 198,
+  "graphNodesSha256": "903e2f36a999ce19d9de656580287ff83573043b7c34a4f5189bfc0f4ad7f20f",
+  "graphInputsSha256": "b398d21e549e4c92690d207e6d9a7d51d7acd7db8c15d70378e036783b62f88d",
+  "graphOutputsSha256": "a8eff86f8cb35e690c14b4251eb4bdf2517f5a3e8407d5cb2a84aa101ada737e",
+  "opsetsSha256": "2c17fd8338047e997e7085cd513fd40b4561aa17bf145a79da3b43d13970c18d"
+}

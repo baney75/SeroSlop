@@ -2,13 +2,20 @@
   "schemaVersion": 1,
   "frozenAt": "2026-08-13",
   "seed": 20260813,
+  "legacyEvaluationExclusions": {
+    "path": "benchmark/manifests/legacy-evaluation-exclusions.json",
+    "sha256": "5a8a056ac4fbebebdc6b3d864323dce1f8c412d57f996ddcac2ead6a54ace2e3",
+    "sourceCommit": "403274c50a53e675d4d12ae7ce08080bf69a6d62",
+    "overlapIds": 0,
+    "overlapImageSha256": 0
+  },
   "qwenImageBench": {
     "dataset": "Qwen/Qwen-Image-Bench",
     "revision": "d2493deb153b020cf169c7e3f57d15e4dd697038",
     "license": "Apache-2.0",
-    "trainPerSource": 100,
-    "validationPerSource": 50,
-    "testPerSource": 50,
+    "trainPerSource": 80,
+    "validationPerSource": 150,
+    "testPerSource": 300,
     "trainSources": [
       "FLUX.2-pro",
       "GPT-Image-1",
@@ -19,17 +26,19 @@
       "Seedream-4.0",
       "Seedream-4.5",
       "nano-banana-pro",
-      "GLM-Image",
-      "HunyuanImage-3.0",
-      "kling_v2_1"
-    ],
-    "validationSources": [
       "FLUX.2_max",
       "gpt-image-2",
       "Imagen-4.0-Ultra",
       "nano-banana-2.0",
       "Qwen-Image-2.0-pro",
       "Seedream-5.0"
+    ],
+    "validationSources": [
+      "GLM-Image",
+      "HunyuanImage-3.0"
+    ],
+    "testSources": [
+      "kling_v2_1"
     ]
   },
   "openImages": {
@@ -40,16 +49,25 @@
     "imageBaseUrl": "https://open-images-dataset.s3.amazonaws.com/validation",
     "trainCount": 1200,
     "validationCount": 300,
-    "testCount": 300
+    "testCount": 0,
+    "excludedImageIds": [
+      "116393a7d0b56142"
+    ]
   },
   "outputDirectory": "benchmark/data/modern-head",
-  "strategy": "Lowest SHA-256 priority within each pinned source; validation holds out entire generator families; duplicate bytes across selected splits rejected",
+  "strategy": "Pinned prompt groups and generator families are disjoint across train, validation, and the synthetic confirmatory test; exact duplicate bytes across selected splits are rejected",
+  "dataQualityExclusions": {
+    "openImageIds": [
+      "116393a7d0b56142"
+    ],
+    "rationale": "Near-black or otherwise non-informative visual frames are excluded before model training or validation"
+  },
   "counts": {
     "train": 3600,
     "validation": 600,
-    "test": 600,
+    "testSynthetic": 300,
     "synthetic": 1800,
-    "real": 3000
+    "real": 2700
   },
   "docci": {
     "dataset": "google/docci",

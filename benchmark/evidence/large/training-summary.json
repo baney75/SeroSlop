@@ -1,0 +1,1153 @@
+{
+  "schemaVersion": 1,
+  "seed": 20260813,
+  "pipelineVersion": 8,
+  "trainerSha256": "6a4199d2be6fead9a10c483ce4c9648951d87ae18721499cc42a98db5f05bf56",
+  "commandArguments": [
+    "--model",
+    "benchmark/candidates/upstream-cf384.onnx",
+    "--expected-model-sha256",
+    "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1",
+    "--data-root",
+    "benchmark/data/large-head",
+    "--train-manifest",
+    "benchmark/data/large-head/train-manifest.jsonl",
+    "--validation-data-root",
+    "benchmark/data/modern-head",
+    "--validation-manifest",
+    "benchmark/manifests/validation.jsonl",
+    "--recipe",
+    "benchmark/large/recipe.json",
+    "--selection-summary",
+    "benchmark/data/large-head/selection-summary.json",
+    "--single-view-source",
+    "diffusiondb-stable-diffusion",
+    "--single-view-source",
+    "open-images-train",
+    "--execution-provider",
+    "cpu",
+    "--batch-size",
+    "24",
+    "--feature-shard-images",
+    "2000",
+    "--reextract-cached-features",
+    "--output-dir",
+    "benchmark/candidates/prooflens-cf384-large"
+  ],
+  "recipeSha256": "b7e6c20edbe7e1398b030fa3b5b349cdf9d0da54253b8ef2dea8f29b8d89d4ec",
+  "selectionSummarySha256": "5f1276cd197947415b4e1bdbbbacd5a1a3f85e1570a4fdb8fe35999cf35e4897",
+  "upstreamModelSha256": "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1",
+  "trainManifestSha256": "8e221006888f4bcd1632338a7d38f13aa081c9ac5b80340de8239178218dc4e4",
+  "validationManifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+  "trainImages": 103600,
+  "validationImages": 600,
+  "viewsPerImage": 4,
+  "trainFeatureViews": 114400,
+  "validationFeatureViews": 2400,
+  "sourceBalancedSampling": false,
+  "sourceBalancedLoss": true,
+  "trainingEpochs": 12,
+  "trainingBatchSize": 2048,
+  "uniqueTrainingImagesCovered": 103600,
+  "uniqueTrainingFeatureViewsCovered": 114400,
+  "trainingSourceCounts": {
+    "FLUX.2-pro": 80,
+    "FLUX.2_max": 80,
+    "GPT-Image-1": 80,
+    "GPT-Image-1.5": 80,
+    "Imagen-4.0": 80,
+    "Imagen-4.0-Ultra": 80,
+    "Qwen-Image": 80,
+    "Qwen-Image-2.0-pro": 80,
+    "Qwen-Image-2512": 80,
+    "Seedream-4.0": 80,
+    "Seedream-4.5": 80,
+    "Seedream-5.0": 80,
+    "diffusiondb-stable-diffusion": 50000,
+    "docci-train": 1200,
+    "gpt-image-2": 80,
+    "nano-banana-2.0": 80,
+    "nano-banana-pro": 80,
+    "open-images": 1200,
+    "open-images-train": 50000
+  },
+  "featureShardImages": 2000,
+  "featureBatchSize": 24,
+  "cachedFeatureSourcePixelsReverified": true,
+  "cachedFeatureArraysValidated": true,
+  "cachedFeatureValuesReextracted": true,
+  "freshFeatureRun": {
+    "schemaVersion": 1,
+    "runId": "67ce1649f1b6c2c78304d889d727eb9d",
+    "state": "complete",
+    "context": {
+      "pipelineVersion": 8,
+      "featureExtractorContract": "cf384-static-batch24-preprocess-v1",
+      "upstreamModelSha256": "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1",
+      "trainManifestSha256": "8e221006888f4bcd1632338a7d38f13aa081c9ac5b80340de8239178218dc4e4",
+      "validationManifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+      "selectionSummarySha256": "5f1276cd197947415b4e1bdbbbacd5a1a3f85e1570a4fdb8fe35999cf35e4897",
+      "featureBatchSize": 24,
+      "featureShardImages": 2000,
+      "singleViewTrainingSources": [
+        "diffusiondb-stable-diffusion",
+        "open-images-train"
+      ],
+      "featureConfigurationHashes": {
+        "training": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+        "validation": "f3fe099caf205a17eae0a5bf5fbdfaeda3745ec4ddc64cfd9ea163c82e91707f"
+      }
+    }
+  },
+  "freshFeatureRunMarkerSha256": "e9dec455053a306f40027bea36766ae7961b20c7a69be0f3799229ab75f80663",
+  "cachedFeatureDtypes": {
+    "features": "float32",
+    "labels": "float32",
+    "variants": "int64",
+    "sources": "unicode"
+  },
+  "singleViewTrainingSources": [
+    "diffusiondb-stable-diffusion",
+    "open-images-train"
+  ],
+  "featureConfigurationHashes": {
+    "training": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+    "validation": "f3fe099caf205a17eae0a5bf5fbdfaeda3745ec4ddc64cfd9ea163c82e91707f"
+  },
+  "featureShardEvidence": [
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00000.npz",
+      "cacheSha256": "ac153f3b43e4afddac72e4e850b73fc5db3f2894d1de733aa62495fc8aa5581d",
+      "replacedCacheSha256": "2b2538143b9d7fbde9ab6b0f7b77221a0131b3163c2ccd198fbcdc14cbcec653",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "894dd6030baaef06af827d8b6b89eacbdb7161ca2ba0049af25475afb95e61c7",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "f75b9511d6b20513b60e9e0a0cbc1bb026a2e7c527415f442f8f4bd7142e5eef",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00001.npz",
+      "cacheSha256": "e2eb0176413fa991c67350a4f2fc6efd373bc4370d79e90c96037a1bd9514483",
+      "replacedCacheSha256": "582784e0c563f6494668336ae9847c5b561301f453e0b4c29ee54c9132c6b9d2",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "98293f85c894a9817771f821039f9de1d474d4c78128917d096b09bd6653204e",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "64e796e179b36381b8233649998aeb981854df25597498f5361e556c15602cf2",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00002.npz",
+      "cacheSha256": "c614e997038e6c7b254b3c9f6ffacd933fbac11f76156dff83cdfee6b6a2372b",
+      "replacedCacheSha256": "6d084a173679e26bda63092e7cdfc34f8f4e2ffdf1d8a1546e757599fc76365c",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "36e4a4fb3b0e3d82c29ab992f375632a9d3b9709179e923bb92d056ebb9c4ec7",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "2c29e8bd7ef1c6e6b9a56ccbb6db12f1ec4a95c656fa4cfd84e810d227c6f421",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00003.npz",
+      "cacheSha256": "3419378cb24574beced2dedbd6c20cc023a75d6696c5d7896b2ca1638724679a",
+      "replacedCacheSha256": "6e10434aec4dbfe05b219c4e09a103f9e63c0a32afc87b4d0f00c0aa00b57209",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "6ccd63ab6a3e2d96d2e38b98755931eedf08dbd32eddbcc913c9e9ff8022f008",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "83d9caf1935d8e4f5fdeda6ad5bac9996b9579cccdc55067ebcb12d58a65d316",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00004.npz",
+      "cacheSha256": "faed38b51f8f1525bc7c562234d3e5c3e5f515438a15801074d0cd91990d32be",
+      "replacedCacheSha256": "2f1014b86c6304d161a8167500ffb7c14687d8f0dd6de73d8374663f6ba6b3ad",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "d1fd0496b734db4e5040e3a2095bdb7b73f6e0ee384369a9bace47e076515b14",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "634b9cf7b49a84b086b98e8b21632136f702bf564b5cd97534cde5bfe79dfeca",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00005.npz",
+      "cacheSha256": "e447dbb0425a5ec59b9d315f1be655a0f3cc3eb10a152f5e7ae3aed288b8e47a",
+      "replacedCacheSha256": "3cbfffc80e8855ff92ffb24def35540df0bfddcc29d4a420c98f1c03031e31c8",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "b35b17685cd47c79c2f52b2335979811979f413d15850903afd6eadb21e2224c",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "691a99fac622e625a4816fbbb9b085fb8d34ac8e31c5136b0e2a763e133c14f7",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00006.npz",
+      "cacheSha256": "7acf00fc22d671d390913b0b555a60870cae82f0f3158a42cc875f7211343ec3",
+      "replacedCacheSha256": "99121244a6387514b6609b63121b0205b49bfe187fee1c6eecf51e1616eeb2d2",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "9c6cf398c60a34c384540c658615f635156210fd2d33c36bb19561f48337c948",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "189d60549ac1078fbbd4149e3758971380432633a5f704f067f1b9c669ab97ef",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00007.npz",
+      "cacheSha256": "4a54a4ee5ee5a45985c74d4de453ad85ad9a8405b68baf8d6251f11ce553e7ef",
+      "replacedCacheSha256": "f48b6506cceac6b4735d784bb2e19a3bad9beeb2a6585d77cf36fd2d3743abb0",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "45d0dfc6c58c92bc5d14a3988dbf3ecca48a3a7dfa50d4f758197e2b09576374",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "fe1e4e52aa91679ad7f2c0ee995622b43c2a12b2a9f80e1a71645e5a289d9797",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00008.npz",
+      "cacheSha256": "34cc52b172f4c8726d4d81274a48484060446e9c4ccfcaf61d4a25ded2b35e9f",
+      "replacedCacheSha256": "dde429f6a6e7edce8c634fd10260c1cf792a9a0f039faa95915d5e3f47db09b7",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "7d43b1204d73c98c13b5ea25c721b0d3fe66426e35228382e36bbf5898fd419d",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "016600709f1b37638aacacd46d08966ba1e120d8c85d4b809c95419ddccce027",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00009.npz",
+      "cacheSha256": "45f0c4b07dcf2c8b3987e44a4efd333af2db473afd0d8ad25f2ea9f74a2e436c",
+      "replacedCacheSha256": "9ba459336d13bde43cc6da6a25ee7a4c6333833fa330f8fc61c40815d1b3cfe4",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "c4a0ca4bf39f233d3bf9045798a46ce55a0265947dec7140e98e1c204416d917",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "3909b426466e4dfacf20fa24157daa021230a958d81d5c1fdbfb26678ccc16d4",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00010.npz",
+      "cacheSha256": "0045ac565e25139aa22cf434d568cb5793b94c93e34ffc6312672bfbf6aa14f7",
+      "replacedCacheSha256": "96402e650aa2177282e111062365f1a3f2b1f577b10a7f4f8fea609a588a8ae0",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "6a732f02d5d48f26793082b051d1f74a0af2be66502f90159c7258dcf83a040f",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "8347785833c34acf133c19e1c8bdbf765eaeb8da1ef35af2f161d80cb7f17c8b",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00011.npz",
+      "cacheSha256": "127d946933ca90f46d845512e0ca328938728d3c64dcb1dc8c64eabf4cc777c2",
+      "replacedCacheSha256": "191655be7f649fc9d461af076b34f0d684a2ba850e874e7f29f3833a79f6b780",
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "180fe6907bfa571b9b52e5bb96e1f08e933769fa58f325e5b9b6d34940e8514b",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "9f634d012975c6d0ada1f8e55f808551fc5eb6329a95315fa1aa45784d4267ae",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00012.npz",
+      "cacheSha256": "13a5008d88bb8ae15b1f504084a6bc7225e7a47a57d96cb139f35303d5280f1b",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "0d829258f4e2298ed3dab1aa8152352aca21de608fc9c69c0e7af514a2eec882",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "692ae23662ec38c747d59798e025e05064af9a3b6ad23c53fa3b6d8ff440a511",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00013.npz",
+      "cacheSha256": "637c211d5495e63cc63a8a0e812459337aa49afe2403e51616aa80980ad5a25f",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "88db3844d63ce1bb741b5b5bfa0a3e1e514a860f139b545c844eb2b78736d5a0",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "a9711ce872401ff815c61611f97b24d2e0695d344881ac61b2400fbd359e7e7c",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00014.npz",
+      "cacheSha256": "96ba7dde682bd488fadb0df6610ba8c16aea2e5b99dce4ded0f98fe285790530",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "a0309d73897c99146eed89f8ac6b9329baa44781edf980c72645487e4b10d73c",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "2878a98da6fbbb789452223f2600dc85a0e5be2ca7af74f8b6f6483399da4f8a",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00015.npz",
+      "cacheSha256": "caec958cfedd5e5c25e9fa752e6aa12d4728caa405febf1277a2fe5d251df578",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "cdbb12174ec2d30ff38a04a8d002300dcbbb1a5c705c64c15815999457319b17",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "5b42a7b7e3fe8d38b31023e36695f8f05cd568961da47d1bf41e671b9728e867",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00016.npz",
+      "cacheSha256": "bf8d20b77b3acd8a6c81d729444de4bd3d176cd750819610e4f9e0ba7a8b29f9",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "e719defd18b54a7ee5b2332c718f734d678868f912b469d47bd072dfa267740b",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "204d951a21378b297340401254af29555888be39d526e2d79b49f4616ac62319",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00017.npz",
+      "cacheSha256": "1f257abb622fed54f9691e5e8271deeaa9cabf5a45485f315ab635f592f453af",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "8b4d3e3dc96c4b74fd0261d91459016a16118e6b0bb872455a9b754bf9631775",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "8519f56cd729d76a8be2d0626f1a85ed95289d64625aa2029db68fe6f2ada72f",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00018.npz",
+      "cacheSha256": "f32f05ef810e8c2b11208c653b73a1ad5aa0ec4e7b7ff6ceb073a76fa6c5fbb8",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "f2149e6274369b423b30b61b3a544c536f85cd011eccc02775e715d45104e495",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "601f1bcefac1f38dfc415ca860acbb7c0e1ce205655a001b8e79a77c4bd55dd2",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00019.npz",
+      "cacheSha256": "509f8397244288f280b7b71d917d23c8858b3dd98390b904bfc5fcc54f429c55",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "1a0b9fccfe3b68d3a9ac7a5f3e5ded963e47993b244596ba56ed45f30039a026",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "91f5c4744a70adacb9f73d40195bf6e512efaf950d6bb0ff39842f8e4776fdd4",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00020.npz",
+      "cacheSha256": "aebd5cb38c60ea9165a6915935b78db665e1a2df8e7033d173e5b91ff8d33956",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "b40033a1b0423b4e5b17a7efe42ea11e65243c8fc53912839beda0c172c8b27c",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "70953f8e618ffd4580c21f9545f18a9c2a3682ab08b53b1d27a55f1206b1f0fe",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00021.npz",
+      "cacheSha256": "1771f0f0c3716d80ed27e0fb7af6bd4722ea8f08f62d0095c2332dc52b8fd55b",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "b65feebb1907f0bc2b966b0202e4b20dc03c222ecdf04c42f22ffddec705e5cb",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "0c83465f90f42a529515599d8c37e3558ab4267975f6f4761b4c697cd8b8d97b",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00022.npz",
+      "cacheSha256": "c9d4baa3629f509d3ad0846208fd84786bed53178cdd40e529a7dc402ee8073f",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "be7d2ecf7b7fe717a2e9a2079e011beee92c7cbb577a763c3c018997c027c3de",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "bd87ce17e85c3b1312efc190c9a0ba42f562669e6843bb804108cea395809205",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00023.npz",
+      "cacheSha256": "1f092cf9004ed4f4252e6a93f788d18e67a4f2a44c0ec956a36baaab18af5c19",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "0369002f4648ee53bb16a6916d0adddb23305c850305eeb108da4a051a482ba2",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "e4315d044c6489e3e11d929d98377f631eeff027645355fcb561dbbdcd573362",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00024.npz",
+      "cacheSha256": "84945ea0ce476ec2868bf3151e0a987f41687137c375eca3e978997eda32d5cd",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "807d4a24fd7f16cfc005d7be1956f5bcd460c15d53e8475c99b83c5972580e4b",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "f9578d69f027e31982f45562f75141b4153f3621c2a19c443237eba51ccadb1d",
+        "labels": "3921c9262ae7b4ce8c2c90e2f7c87881229c5d12616ccc4218de9230bdb98cec",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "f4b0e38bf82f1c395b40feadae35f6d54e11f2f4e6f29d44cc703064041b8c82"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00025.npz",
+      "cacheSha256": "d36e7a770404489d5b9bd72193215b84310c992c828d08bd961966b467b1445c",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 5600,
+      "itemIdsSha256": "f5714843a00990e7b7ed617a779bacbf09d15e59863a17a290e5b9424aea99bc",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "553019b3110feea0d381cc7677784a3f552eeb6fbbd957d107571e8703242d02",
+        "labels": "51d5a8f6435f80ce82a9a1c42925277301de4d1fc7d5b4235d797a73465904c8",
+        "variants": "c203aa3898fdaa28897cd72d10a12d7b6a6a30652240341341165dbed8f4515a",
+        "sources": "c9c21e9f82eae0f47bb2410f7861a4f5de5d9dfa66c86592478178db8cef4669"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00026.npz",
+      "cacheSha256": "d5763c041e023b396946657ed12d6ce3192ce4a73ba81f316d23f1cbc3e28ff6",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "7b8867418f8e2886faf02a92dd8953df6bfa4949d2e726f115fc3193fbb076db",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "1332a3b1b0c57d63379098cbc3eaf50327960ab28b2403a1ae58628684f73da9",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00027.npz",
+      "cacheSha256": "a8b8e8690d8b7e7579d24401ae8a34190a47bc7bf85a27a59a38f6cbefb41759",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "7763106bfeeacecb3300d44cc505c9f03c02f0301f79cfc52363d752d94ba585",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "a4da435e3ba8f605a2eee9ede7b5e5150963d42c63e3341938303b442745dc9d",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00028.npz",
+      "cacheSha256": "49dd12bf496a43d902a6e01e4b903ed9fa6d6a23a47c349d96a3e9dc48da7f85",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "6b7ec76185c2874f989bbabe6464338d1d3773c21403aa421c5722b0af249785",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "d5951f8d032f138d136a67e4954cd59e8746f9ad31fbb672f9defabf3c63d2f1",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00029.npz",
+      "cacheSha256": "18664bf6eb9dc9b1e908d8ab021e1a6233a777c630f97d5182009162ac886623",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "d0378c1d86ff857dfe8aead1ad320cc43a09693e5b5efbf13a0fa7c777521bcd",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "da00bfe1de481df2b7ddae9404b5e72a118555b1b6a7d786dc327c2cb8be54c7",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00030.npz",
+      "cacheSha256": "dfd3431087446950086c055bf310a79a1b19b810805beaa96b2a6efd6c0c94ea",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "b122a52a992282cae3f0d2838b691f3f3df1b7d72f62baa561dbdd20f21fca23",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "01d14a103fc183129b68987fe8cf9b47e4e4c96503e9cfbbd29a28a54095c264",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00031.npz",
+      "cacheSha256": "e21e012f59bbf9c5030761cfb5d5379ffd81c920e9362c64055616f3ad5fdc87",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "ef2cd4c84f38208b765818b1f8f49bf0865c2bbdde8c0d0c3e27ff5f54285c4f",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "c89ba5f0aa1faa7ba06247bbd66ac93705fac06e5088ee7503a617c4d75642b6",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00032.npz",
+      "cacheSha256": "88bda1bd6d48eb35ac8bde6083d3305d83f2877a5650da0b3e579c42ff2bf973",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "ee6f888db267e89c9a41ed6986530387927393fb7e75a31081d8fbbb8bfd89d1",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "f493b31fc4e02e1a25402b3a7402497b6e52e8ac7e1e8e5641521b54e9c8387a",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00033.npz",
+      "cacheSha256": "6add510ca0b0d347a3cb2903e651adaaed953d79f60d0a0d1c04e056aa8d32ad",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "97a0a225f6a6fef841a848e2250bbb99f858d94d475759b22e8998b0b8a4443d",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "3194d892c0d4d554a8a00a75b6f59440371c65d54635c8aab80fe931eab3d6cf",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00034.npz",
+      "cacheSha256": "94b89363d0d7906204af13553362d315dd521fb44e9db124d1fb88f4f05885f9",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "1032740b02ce154c4baf9ea6d90d366db67258cd4cc5cb677e044ea5944f7a9b",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "f12e357610475642b2fd33938fb635ea466d5a8128e57c8e1cd8a2fa40d0b157",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00035.npz",
+      "cacheSha256": "862c8b7358af9474cd2aac677a57f73b3e01b040522cb54442c225f461776252",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "3b54bf398e7800734a8cc6d033662ab3897d0ba15ccebf5e0d6ed7d90e9b2dcd",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "017730b1e28cb5a07c48fdb418249a3df58948e9dfef05946dfab5ec33101718",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00036.npz",
+      "cacheSha256": "ff840dbdd5af5a3d1155d71e080a98afc8a99e0aab4ef6662f2459a41d791af3",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "4ee826623d7264296ef5beb2f03225e86b80facb813e64d9dad9f557c6a0201f",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "916a1950a2bf580f4ffc15d572767341043af9695710287bca80d24a767ef0e7",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00037.npz",
+      "cacheSha256": "077f08a1a83f911d087db90d526540dc0cd979b06b18c036033e41a4bc371195",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "8fbbd157c60f63aa8aa9d7d5dd3f87a5368b6990e1624bd26c30464a7e2a7db8",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "d42c49db3d3aa7744129881db1cc3d5e7979d992a8e50f5f79b4ce348e370420",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00038.npz",
+      "cacheSha256": "faf64fc09a9287c2817cdc8f16c24e2bd6bfcb71ba7826869963c998fe32320a",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "54856c434e3c38a3a5fab07ac438d35725084f0a987436e01de57f3b0239952f",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "84a04b68781bbc5a28af54c280eafd6f7261ee17e41cc0035f2b780e3f3a2b1a",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00039.npz",
+      "cacheSha256": "a1018d6bfb40100527dd494a351455a8a3729f03ebfca0822839ea8b6bfd3c78",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "3d580c071dc5cf091452734b0d77fecca338d05751185ff6b314048cff8ce148",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "b26f01e12d62d74c23bca6d542d58bbb09abe201c1c9ed025f9f7744538499e9",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00040.npz",
+      "cacheSha256": "a456ccc421e173ec352434f0be2e20bc912570906d7ee47a9b2caa97ab6e971a",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "54e839635cb85e4784dd48348e7eb6aa8fed306a78bedf170a3dae919f90b120",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "91e781ac534e45a5398d8de798aa9c604bc0a1b5bab4144be139f85d6962cca9",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00041.npz",
+      "cacheSha256": "4bf4f5d1d1d0c6f7ad76efa1e9a88ded1bcc6240d48033cc8b5e3098ba90ece6",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "30a9e43d3ca57959329260c0792f9f5fad0621ea7d806749c830e3401e435f0f",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "b57c7cc3c74b2bf89bbf8d0ed04599bca54879ecfe08d982068651976e96e0dc",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00042.npz",
+      "cacheSha256": "4be25bd60cd7b35091f40660aede8e623f28447dd09b776edfac6f05425f8fec",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "0b44a16ebeeda658f265fb93bc8f41f0d5075dda73826d251e6ac8a2705f2843",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "a16e1540587fd9c5a710c80daf5fc0468c4589f162e3b256f08554ee08348706",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00043.npz",
+      "cacheSha256": "6715facd54b740f031cc6a235e2d3bdc5033f3560e3fc25adef5db6b17dad476",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "a9706d998b92fa80dcd8b31ea10e9a7c105573bf973141f5561ded95107c86c9",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "cec82ec3f0c861f5ce8f149b611e1be1fe70ccab5c8ec2605b3041c2e4371363",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00044.npz",
+      "cacheSha256": "7c260eae5066627687447463df4eb4abaa1d6e8d5501903b14cf69167ef124ed",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "288ccf4fef091ff42957025d72173776b2051ee59473adf6126629a19775e346",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "6e74b60c86353a868088e09723b8f558c273b78c3db4cefa79058e9e02799dd7",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00045.npz",
+      "cacheSha256": "5ccb03c1cc8e9cd169f8f63e5da12289baa70bd77c13bfce06ed87cbfb341d8e",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "aa3a9608fc2fd24a4228d45f3376fd694a25ff011908dd334e45e5b709b24b45",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "cf77cf38d1408990d1445c48423eac7616ca63e85890151ec2a983a33a53f419",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00046.npz",
+      "cacheSha256": "7bea37541bd48b54b842a106edd45f436090377709b0794fa4830877cebacb82",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "56d6fa2dbb5c880d7c4496cfc54ec13ce2f6f47ae662bc5cfdfffd2b1778e766",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "b4404d948367eb27062e2d26ce33983abc949fe68698669610df3bc24263a675",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00047.npz",
+      "cacheSha256": "2a4950519d418ea08cc685b5db780670b61851163b4b534a111b6635d285ab52",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "6c94138e525b529a17ac7b005315f040497cde50a7fdf9f5b5318655140964e6",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "de4861b5e8f87ffc00dd448aafb34ffd2d2d1dd9aabdcd1fac74f250ac7775c2",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00048.npz",
+      "cacheSha256": "a75ef00af755b7cbe909954b1ab6ba88ac0c1e9bf0e2948ebfcd616faf6811a5",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "8ec69db273e00d5fc67817552af491c5b60d017aebfb6ebe0971713cb2f12bd5",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "520df176792d67b9c5407f72d222111a1554036f54f3beffebd15a2d07a20b32",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00049.npz",
+      "cacheSha256": "3f6635e6f6bb3fe558b13942af014ee69ca3f3f6bae7fec9865a17c18dd3a3da",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 2000,
+      "itemIdsSha256": "5e5ec4de944d69830b217befec75f783cb1d85004d864468cf3a38d4f867fbeb",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "f72d3a3340bc1b8e11dddef860f5ebbb3981418ab72c45e6b330a518f1f2590e",
+        "labels": "dbca8fe1b6caba138e2307026482db643c7f2e2a99f08ae0e9d8621c8ffc7988",
+        "variants": "fef0708504bf15de793f8ec24cbebdb23c7e7f4600c52597e9d7dabb72e80fa8",
+        "sources": "e2a5d30841a954d42783f30c2e95aad7a40686b0761e19c9959f072a7eaa2dbb"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00050.npz",
+      "cacheSha256": "6f240bbd4ec0e84ac90334f4b42d5183e8803be5d1af2346cb02ee9fdc670568",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 2000,
+      "views": 4400,
+      "itemIdsSha256": "d4779afac970bef2514ca7be576149f833ab6fa2a51c65ccb6aa6e58af10c124",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "5c935b595430096db08dd31b578b998e70a6d005d4a45dd191ef5d597ad6b343",
+        "labels": "808445052e14e3e2e22889f71e73401ca3593af2871a541a3491d8f8feaa7166",
+        "variants": "dfdb923329714f842cff1c1093e81b1fd25ce7678b5b5517b7519216480c6cd6",
+        "sources": "a519f8eee9767b5382e07422fa5f2145ceeebf2da37dae0f1d3985e66e0b50de"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/train-00051.npz",
+      "cacheSha256": "eed64ce71acc64ffdea1a4eb201bea635d29263eda8286b5d4c5e8ab47d2e67f",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 1600,
+      "views": 6400,
+      "itemIdsSha256": "4a535659138e51584628fd80e8530e19b053f8f194c598b6e8c13f3674f20f52",
+      "featureConfigurationSha256": "d2b1f0b2f326bb099d0f511c27c068a0f8ecbb4e7134c9274c262e943c03a969",
+      "arraySha256": {
+        "features": "5a13d6acf71c9b300ed5e8c4d9c8186adc179f6ea882fc12d1ae098d5265ec43",
+        "labels": "c3d89456035fca3d4a8c14eac6b02f40d3c9a9a34909d101888686f06520ce4a",
+        "variants": "0db07668c768e1e80145ec219a0a79b030e6351f29da49bba324918efb0f5a25",
+        "sources": "423fb409ea8a3579b90bf7fb748ceae39e1c99fe176e92483954418d42264844"
+      }
+    },
+    {
+      "cache": "benchmark/candidates/prooflens-cf384-large/features/validation-00000.npz",
+      "cacheSha256": "cd398826addd798c659638158d5d021cc73e455452835ba94be0486e0fc00390",
+      "replacedCacheSha256": null,
+      "freshFeatureRunId": "67ce1649f1b6c2c78304d889d727eb9d",
+      "freshlyExtractedThisRun": true,
+      "freshlyExtractedThisProcess": true,
+      "items": 600,
+      "views": 2400,
+      "itemIdsSha256": "5d4b2faeb85bc3fc5e857c8d5c3ff917d4a47f120a282f2bae900b27beeb19d7",
+      "featureConfigurationSha256": "f3fe099caf205a17eae0a5bf5fbdfaeda3745ec4ddc64cfd9ea163c82e91707f",
+      "arraySha256": {
+        "features": "291ffd99da37b3d491dd65b6bb46ea53b568c0663fe3e4f7be6f9c95a045a546",
+        "labels": "348046f2eec61f2e3504d9d0fcb54da8b9cb36f15eb39aa42db64c6b0cb85ad5",
+        "variants": "dbd8e9507d0f27a19facd85e183b843f744e0f16d17a2960adda52612ebb93ed",
+        "sources": "575cdb4675a9411c0058b9c08574122ea239e1bb492a6a748269b0344def24cd"
+      }
+    }
+  ],
+  "selectedParameters": {
+    "weightDecay": 0.1,
+    "upstreamBlendAlpha": 0.85
+  },
+  "validationGates": {
+    "minimumBalancedAccuracyPerVariant": 0.85,
+    "minimumRealRecallPerVariant": 0.85,
+    "minimumSyntheticRecallPerVariant": 0.75,
+    "minimumSyntheticRecallPerFamily": 0.6
+  },
+  "validationGatesPassed": true,
+  "selectionKey": [
+    0.9450000000000001,
+    0.95125,
+    0.9466666666666667,
+    0.84
+  ],
+  "thresholdLogit": -0.9029163122177123,
+  "variants": {
+    "original": {
+      "balancedAccuracy": 0.95,
+      "realRecall": 0.9566666666666667,
+      "syntheticRecall": 0.9433333333333334,
+      "syntheticRecallBySource": {
+        "GLM-Image": 0.8866666666666667,
+        "HunyuanImage-3.0": 1.0
+      }
+    },
+    "screenshot": {
+      "balancedAccuracy": 0.965,
+      "realRecall": 0.9933333333333333,
+      "syntheticRecall": 0.9366666666666666,
+      "syntheticRecallBySource": {
+        "GLM-Image": 0.8733333333333333,
+        "HunyuanImage-3.0": 1.0
+      }
+    },
+    "social-q75": {
+      "balancedAccuracy": 0.9450000000000001,
+      "realRecall": 0.9466666666666667,
+      "syntheticRecall": 0.9433333333333334,
+      "syntheticRecallBySource": {
+        "GLM-Image": 0.8866666666666667,
+        "HunyuanImage-3.0": 1.0
+      }
+    },
+    "social-heavy": {
+      "balancedAccuracy": 0.9450000000000001,
+      "realRecall": 0.9733333333333334,
+      "syntheticRecall": 0.9166666666666666,
+      "syntheticRecallBySource": {
+        "GLM-Image": 0.84,
+        "HunyuanImage-3.0": 0.9933333333333333
+      }
+    }
+  },
+  "model": {
+    "path": "benchmark/candidates/prooflens-cf384-large/model.onnx",
+    "bytes": 87442080,
+    "sha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+    "maxAbsParityError": 8.58306884765625e-06
+  },
+  "candidateCount": 25,
+  "validCandidateCount": 25,
+  "environment": {
+    "numpy": "2.2.6",
+    "onnxRuntime": "1.22.0",
+    "pillow": "11.3.0",
+    "python": "3.12.13",
+    "platform": "macOS-27.0-arm64-arm-64bit",
+    "torch": "2.8.0",
+    "cuda": null,
+    "gpu": null,
+    "executionProvider": "cpu",
+    "providers": [
+      "CPUExecutionProvider"
+    ],
+    "torchDeterministicAlgorithms": true,
+    "torchThreads": 4
+  }
+}

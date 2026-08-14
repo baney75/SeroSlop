@@ -9,6 +9,7 @@ import {
 } from "./shared/contracts";
 import { MinimumIntervalGate } from "./shared/minimum-interval-gate";
 import { PageStatsStore } from "./shared/page-stats-store";
+import { captureForExactDocument } from "./shared/document-bound-capture";
 
 const OFFSCREEN_PATH = "offscreen.html";
 const MAX_INFERENCE_REQUESTS = 8;
@@ -59,16 +60,42 @@ function inferenceFailure(requestId: string, message: string): InferenceResponse
   return { ok: false, requestId, error: { code: "inference-failed", message } };
 }
 
+function urlOrigin(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+async function confirmCaptureDocument(tabId: number, documentId: string, expectedOrigin: string): Promise<void> {
+  const response = await chrome.tabs.sendMessage(tabId, {
+    type: "PL_CONFIRM_DOCUMENT",
+    expectedOrigin,
+  }, { documentId }) as { origin?: string } | undefined;
+  if (response?.origin !== expectedOrigin) {
+    throw new Error("The requesting document changed during viewport capture");
+  }
+}
+
 async function captureViewport(sender: chrome.runtime.MessageSender, crop: InferenceSource["crop"]): Promise<InferenceSource> {
   const tabId = sender.tab?.id;
   const windowId = sender.tab?.windowId;
-  if (tabId === undefined || windowId === undefined || !crop) throw new Error("Viewport capture requires the sending tab");
+  const documentId = sender.documentId;
+  const expectedOrigin = urlOrigin(sender.url);
+  if (tabId === undefined || windowId === undefined || !crop || typeof documentId !== "string" || !expectedOrigin) {
+    throw new Error("Viewport capture requires the exact sending document");
+  }
   return viewportCaptureGate.run(async () => {
-    const before = (await chrome.tabs.query({ active: true, windowId }))[0];
-    if (before?.id !== tabId) throw new Error("Viewport capture is available only for the active tab");
-    const url = await chrome.tabs.captureVisibleTab(windowId, { format: "png" });
-    const after = (await chrome.tabs.query({ active: true, windowId }))[0];
-    if (after?.id !== tabId) throw new Error("The active tab changed during viewport capture");
+    const url = await captureForExactDocument({
+      tabId,
+      expectedOrigin,
+      before: async () => (await chrome.tabs.query({ active: true, windowId }))[0] ?? {},
+      confirmDocument: () => confirmCaptureDocument(tabId, documentId, expectedOrigin),
+      capture: () => chrome.tabs.captureVisibleTab(windowId, { format: "png" }),
+      after: async () => (await chrome.tabs.query({ active: true, windowId }))[0] ?? {},
+    });
     if (url.length > MAX_LOCAL_IMAGE_CHARACTERS || !url.toLowerCase().startsWith("data:image/png")) {
       throw new Error("Captured viewport exceeds the local image budget");
     }
@@ -140,7 +167,8 @@ async function handleMessage(message: RuntimeMessage, sender: chrome.runtime.Mes
       if (!validRequestId(message.requestId)) return inferenceFailure("invalid-request", "Inference request ID is invalid");
       const renderedPixels = validRenderedPixels(message.source);
       const viewportCrop = isObject(message.source) && message.source.kind === "viewport-crop" &&
-        validViewportCrop(message.source.crop) && contentSender(sender);
+        validViewportCrop(message.source.crop) && contentSender(sender) &&
+        typeof sender.documentId === "string" && typeof sender.url === "string";
       if (!renderedPixels && !viewportCrop) {
         return inferenceFailure(message.requestId, "Inference accepts only local rendered pixels or an active-tab viewport crop");
       }

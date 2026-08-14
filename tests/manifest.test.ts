@@ -25,4 +25,21 @@ describe("extension manifest", () => {
     expect(policy).not.toMatch(/https?:/);
     expect(policy).not.toMatch(/(?:^|\s)'unsafe-eval'/);
   });
+
+  it("blocks extension-page network and image beacons outside the package", async () => {
+    const source = await readFile("src/static/manifest.json", "utf8");
+    const manifest = JSON.parse(source) as Manifest;
+    const policy = manifest.content_security_policy?.extension_pages ?? "";
+    for (const directive of [
+      "default-src 'self'",
+      "object-src 'none'",
+      "connect-src 'self' data: blob:",
+      "img-src 'self' data: blob:",
+      "style-src 'self' 'unsafe-inline'",
+      "worker-src 'self'",
+    ]) {
+      expect(policy).toContain(directive);
+    }
+    expect(policy).not.toMatch(/https?:/u);
+  });
 });

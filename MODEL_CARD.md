@@ -1,52 +1,64 @@
-# Model card
+# ProofLens model card
 
 ## Model
 
-ProofLens uses a frozen Community Forensics ViT-S/16 backbone with a replacement linear classifier trained for current generator families and common web transformations.
+ProofLens packages one FP32 ONNX ViT-S/16 image classifier with a 384-dimensional hidden representation and one synthetic-image logit. Inference happens inside the Chrome extension. There is no remote model call, local server, second detector, metadata heuristic, or hash lookup.
 
-- Packaged artifact: `weights/prooflens-cf384.onnx`
-- Format: ONNX FP32
-- Parameters changed from upstream: classifier weight `[1,384]` and bias only
-- Packaged SHA-256: `29545a1da0cfe2bf0149448334fd45a21f48074c57296db3b84437dd66f80a43`
-- Upstream: [CommunityForensics DeepfakeDet-ViT](https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT)
-- Corrected upstream revision: `ac6ee457bea904a373065754107451793b56db00`
-- Upstream artifact SHA-256: `a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1`
-- License: MIT
+The frozen backbone comes from the corrected CommunityForensics DeepfakeDet-ViT revision `ac6ee457bea904a373065754107451793b56db00`. Its exact upstream ONNX SHA-256 is `a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1`; the model license is MIT. The Community Forensics training reported 2.7 million generated images from 4,803 generators paired with 2.7 million real images, or 5.4 million examples total.
 
-The underlying [Community Forensics paper](https://arxiv.org/abs/2411.04125) reports training across millions of outputs and thousands of generators. ProofLens uses the corrected 2026 model configuration rather than older cached or legacy exports.
+ProofLens freezes that backbone and trains only `classifier.weight [1,384]` and `classifier.bias [1]`. The shipped artifact is 87,442,080 bytes with SHA-256 `941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c`. Independent ONNX comparison found changes in exactly those two initializers; the other 198 initializer digests, graph nodes, inputs, outputs, and opsets match the pinned upstream structure.
 
-## Input and preprocessing
+## ProofLens head-training data
 
-Decode the displayed RGB image with EXIF orientation applied by the browser, then resize it without changing aspect ratio until its shortest edge is 440 pixels. Take the 384×384 center crop and scale its RGB bytes to `[0,1]`. Normalize the channels with mean `[0.48145466, 0.4578275, 0.40821073]` and standard deviation `[0.26862954, 0.26130258, 0.27577711]`, transpose to planar NCHW float32, and run `pixel_values` → `logits`.
+The replacement head was trained on 103,600 unique public images and 114,400 feature views:
+
+- 50,000 DiffusionDB synthetic images, revision `fb620fbe49fa4420e0734bd9c0df11f51176b61f`, CC0-1.0;
+- 1,200 Qwen Image Bench synthetic images across 15 current generator versions, revision `d2493deb153b020cf169c7e3f57d15e4dd697038`, Apache-2.0;
+- 50,000 Open Images V7 train images, CC BY 2.0;
+- 1,200 Open Images V7 modern-split images, CC BY 2.0;
+- 1,200 DOCCI train images, revision `a0a43eaf34676ffd008fb6565dd8c2ba00d09100`, CC BY 4.0.
+
+The two 50,000-image strata are configured for one original view. Each modern image is configured for original, screenshot, JPEG-resize, and heavy double-JPEG views. Source-balanced loss gives each class half the objective and equal weight to each named source within that class.
+
+The pixel-free corpus packet preserves source revisions, selection rules, 103,600 IDs and byte hashes, 50,000 Open Images attribution records, exact train/evaluation exclusions, and reviewed perceptual-near-match evidence without redistributing pixels. Training freshly extracted and covered all 103,600 images and all 114,400 configured views. All 25 candidate configurations were valid; validation selected weight decay `0.1` and upstream-head blend `0.85`. The training summary, candidate grid, calibration, and classifier-only comparison are checked by `npm run check:large-training-evidence`. See `benchmark/large/DATASET_CARD.md`.
+
+## Input contract
+
+Apply EXIF orientation and convert to RGB. Preserve aspect ratio while resizing the shortest edge to 440 pixels with bicubic resampling, take the 384×384 center crop, scale RGB to `[0,1]`, normalize with mean `[0.48145466, 0.4578275, 0.40821073]` and standard deviation `[0.26862954, 0.26130258, 0.27577711]`, then transpose to NCHW float32. The ONNX interface is `pixel_values [N,3,384,384] → logits [N,1]`.
 
 ## Output and calibration
 
-The graph returns one synthetic-image logit. ProofLens displays:
+Validation selects a single global raw-logit boundary over every distinct decision partition. The extension adds one frozen intercept so that boundary displays as **65.0/100**. Scores at least 65.0 are labeled `Likely AI`; lower scores are `Below flag threshold`.
 
-```text
-sigmoid(raw_logit + 0.30374610239790173)
-```
+This alignment is not probability calibration. A score of 65/100 does not mean a 65% chance that an image is synthetic. No site, source, file type, generator, or transformation receives a different threshold.
 
-The fixed classification is **likely AI-generated when displayed probability ≥ 0.65**. No site, source, file type, metadata, generator name, or transformation receives a different threshold.
+## Evaluation boundary
+
+Validation contains 300 Open Images photographs and 300 synthetic images from GLM-Image and HunyuanImage-3.0. It is the only split used for candidate and threshold selection.
+
+| Validation view | Balanced accuracy | Non-AI recall | Synthetic recall | Worst synthetic-family recall |
+|---|---:|---:|---:|---:|
+| Original | 95.00% | 95.67% | 94.33% | 88.67% |
+| Screenshot | 96.33% | 99.33% | 93.33% | 86.67% |
+| JPEG 75 | 94.50% | 94.67% | 94.33% | 88.67% |
+| Heavy double-JPEG | 94.50% | 97.33% | 91.67% | 84.00% |
+
+These figures come from the canonical validation evaluator and are selection results, not an untouched estimate of generalization.
+
+The untouched confirmatory set contains 300 Kling v2.1 images and 300 Library of Congress FSA/OWI color photographs. Its generator version, real source, prompt groups, IDs, and bytes are excluded from training and validation. It is scored once after model/calibration freeze under four transformations. The separate 319-row web-negative challenge reuses those 300 Library of Congress rows and adds 19 expert-created Chartography images; it is not an independent estimate.
+
+No confirmatory result is stated until the canonical evidence exists and all predeclared confidence gates pass. See `BENCHMARK.md`.
 
 ## Intended use
 
-ProofLens provides a local screening hint for ordinary webpage images. It may help a person decide which images deserve closer inspection.
-
-It is not intended to:
-
-- prove that an image is authentic or synthetic;
-- identify a generator, author, or copyright owner;
-- make moderation, employment, legal, financial, or safety decisions without human review;
-- classify medical or scientific imagery outside the evaluated distribution.
+ProofLens is a local screening hint for ordinary webpage images. It can help a person decide what deserves closer inspection. It does not prove origin or authenticity, identify a generator or author, or justify moderation, employment, legal, financial, medical, or safety decisions without independent human evidence.
 
 ## Known limitations
 
-- New generators and post-processing can shift performance.
-- Real illustrations, unusual camera pipelines, screenshots, or heavily edited photographs may be false positives.
-- Cropping can remove useful evidence; center crop is fixed for reproducibility and latency.
-- The public test is sample-disjoint but shares its six synthetic families and real source with validation.
-- The browser’s canvas resampling is not bit-identical to Pillow bicubic. A 60-image WebGPU diagnostic showed 98.33% decision agreement with the reference evaluator at the frozen cutoff.
-- An unavailable badge means the pixels could not be acquired or decoded. It is not a low AI score.
-
-See [BENCHMARK.md](BENCHMARK.md) for measured class recalls, transformation results, and confidence intervals.
+- New generators and transformations can shift performance.
+- DiffusionDB adds scale but overrepresents an older Stable Diffusion era.
+- Open Images, DOCCI, and historical Library of Congress photographs do not span every real-web visual type.
+- Illustrations, CGI, memes, charts, scans, UI screenshots, heavily edited photos, and unusual camera pipelines can produce false positives.
+- A fixed center crop can discard useful evidence.
+- Browser canvas resampling is not bit-identical to Pillow; the post-score parity test measures this gap.
+- `Unavailable` means the pixels could not be acquired or decoded. It is not a low AI score.

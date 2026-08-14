@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "selection": "Pre-confirmatory validation QA fixtures: deterministic maximum-margin synthetic and real items at fixed weights/calibration",
+  "modelSha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+  "calibrationSha256": "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c",
+  "validationManifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+  "validationCompletionSha256": "fad994bcfe1bccc763172d75260ae3f98d29fd99d8925eb87640ec2b7e67c7d8",
+  "originalPredictionsSha256": "846e8325ec224e55b2a65fb06b56b817d656656ab7594c1a1682f7e1a7a644d3",
+  "minimumLikelyAiScore": 0.8,
+  "maximumBelowThresholdScore": 0.45,
+  "items": [
+    {
+      "role": "likely-ai",
+      "id": "qwen-image-bench:d2493deb153b020cf169c7e3f57d15e4dd697038:HunyuanImage-3.0:000054_08081038.png",
+      "source": "HunyuanImage-3.0",
+      "label": 1,
+      "groupId": "000054",
+      "asset": "likely-ai.png",
+      "assetSha256": "89b7ea82459075bbc8c249b1a525993e805a57dc4a10b7233eb2e051f988611a",
+      "referenceLogit": 12.488986015319824,
+      "referenceRawProbability": 0.9999961853027344,
+      "referenceDisplayScore": 0.9999991775205656,
+      "provenance": {
+        "dataset": "Qwen/Qwen-Image-Bench",
+        "datasetRevision": "d2493deb153b020cf169c7e3f57d15e4dd697038",
+        "license": "Apache-2.0",
+        "source": "HunyuanImage-3.0"
+      }
+    },
+    {
+      "role": "below-threshold",
+      "id": "open-images:v7-validation-cvdf:validation:6f34d599f8a37eb0",
+      "source": "open-images",
+      "label": 0,
+      "groupId": "6f34d599f8a37eb0",
+      "asset": "below-threshold.jpg",
+      "assetSha256": "3eca74773c9ee456b504aaa378f36ca70cc543a7ccf5c536ca23e7c5836c11c6",
+      "referenceLogit": -15.533430099487305,
+      "referenceRawProbability": 1.7943902719252947e-07,
+      "referenceDisplayScore": 8.220411347191923e-07,
+      "provenance": {
+        "imageId": "6f34d599f8a37eb0",
+        "split": "validation",
+        "license": "https://creativecommons.org/licenses/by/2.0/",
+        "author": "alainlm",
+        "authorProfileUrl": "https://www.flickr.com/people/alainlm/",
+        "title": "M\u00e9duses, Oceanopolis, Brest",
+        "originalUrl": "https://c6.staticflickr.com/3/2431/3548073223_3554072e21_o.jpg",
+        "landingUrl": "https://www.flickr.com/photos/alainlm/3548073223/",
+        "rotation": ""
+      }
+    }
+  ]
+}

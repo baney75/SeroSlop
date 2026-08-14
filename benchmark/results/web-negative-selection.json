@@ -1,0 +1,17 @@
+{
+  "confirmatoryTestManifestSha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
+  "counts": {
+    "chartographyExpertCreated": 19,
+    "confirmatoryReal": 300,
+    "confirmatorySynthetic": 300,
+    "confirmatoryTotal": 600,
+    "libraryOfCongressHistoricalPhotos": 300,
+    "webNegativeTotal": 319
+  },
+  "manifestSha256": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824",
+  "planRecipeSha256": "431dde1bdb0fe7924d72429571db24653250ce7b55f5a487325819cff244dc60",
+  "planSha256": "3b2ddc647feaf60faaae159a7bc9a5dd5fc3f9ec788ed1fb70b7fb8e73cb281b",
+  "recipeSha256": "431dde1bdb0fe7924d72429571db24653250ce7b55f5a487325819cff244dc60",
+  "reviewSha256": "7c9bd83d68dfacbe7ec0fe207b5428e202b19fbcc0b52bb98256e13fbfe1d6c6",
+  "schemaVersion": 1
+}

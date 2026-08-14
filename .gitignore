@@ -1,4 +1,5 @@
 node_modules/
+.verify-venv/
 dist/
 release/
 benchmark/data/

@@ -9,8 +9,8 @@ from pathlib import Path
 import shutil
 
 
-EXPECTED_TEST_MANIFEST_SHA256 = "cd4d09fbb59d695ebc0cc4dc96f0dd17caea9e0e8865d7658c6100ef723e977f"
-EXPECTED_PREDICTIONS_SHA256 = "47a237f2ee70a128b3be2b88641ad3f2bed8bdb6622443c0bd31511914f2a2e2"
+EXPECTED_TEST_MANIFEST_SHA256 = "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae"
+SEED = 20260813
 
 
 def digest(path: Path) -> str:
@@ -25,14 +25,23 @@ def json_lines(path: Path) -> list[dict[str, object]]:
     return [json.loads(line) for line in path.read_text().splitlines() if line]
 
 
+def selection_priority(identifier: str) -> str:
+    return hashlib.sha256(f"{SEED}:browser-parity:{identifier}".encode()).hexdigest()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-root", type=Path, default=Path("benchmark/data/modern-head"))
+    parser.add_argument("--data-root", type=Path, default=Path("benchmark/data"))
     parser.add_argument("--test-manifest", type=Path, default=Path("benchmark/manifests/test.jsonl"))
     parser.add_argument(
         "--predictions",
         type=Path,
-        default=Path("benchmark/predictions/cf384-rehead-sealed-test-original-predictions.jsonl"),
+        default=Path("benchmark/evidence/evaluation/confirmatory/prooflens-confirmatory-test-original-predictions.jsonl"),
+    )
+    parser.add_argument(
+        "--bootstrap",
+        type=Path,
+        default=Path("benchmark/evidence/evaluation/confirmatory/bootstrap.json"),
     )
     parser.add_argument("--ids", type=Path, default=Path("benchmark/manifests/parity-ids.json"))
     parser.add_argument("--output-dir", type=Path, default=Path("benchmark/data/browser-parity"))
@@ -40,14 +49,24 @@ def main() -> None:
 
     if digest(args.test_manifest) != EXPECTED_TEST_MANIFEST_SHA256:
         raise ValueError("Parity preparation requires the frozen test manifest")
-    if digest(args.predictions) != EXPECTED_PREDICTIONS_SHA256:
-        raise ValueError("Parity preparation requires the frozen original predictions")
+    bootstrap = json.loads(args.bootstrap.read_text())
+    if digest(args.predictions) != bootstrap.get("variants", {}).get("original", {}).get("predictionsSha256"):
+        raise ValueError("Parity preparation requires the bootstrap-bound original predictions")
 
     items = {str(row["id"]): row for row in json_lines(args.test_manifest)}
     predictions = {str(row["id"]): row for row in json_lines(args.predictions)}
     selected_ids = json.loads(args.ids.read_text())
     if not isinstance(selected_ids, list) or len(selected_ids) != 60 or len(set(selected_ids)) != 60:
         raise ValueError("Parity IDs must contain exactly 60 unique items")
+    expected_ids: list[str] = []
+    for label in (0, 1):
+        candidates = sorted(
+            (row for row in items.values() if int(row["label"]) == label),
+            key=lambda row: (selection_priority(str(row["id"])), str(row["id"])),
+        )
+        expected_ids.extend(str(row["id"]) for row in candidates[:30])
+    if selected_ids != expected_ids:
+        raise ValueError("Parity IDs are not the deterministic 30-per-class selection")
 
     images_dir = args.output_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
@@ -77,7 +96,7 @@ def main() -> None:
         source: sum(row["source"] == source for row in rows)
         for source in sorted({str(row["source"]) for row in rows if int(row["label"]) == 1})
     }
-    if real_count != 30 or set(source_counts.values()) != {5} or len(source_counts) != 6:
+    if real_count != 30 or source_counts != {"kling_v2_1": 30}:
         raise ValueError(f"Unexpected parity balance: real={real_count}, synthetic={source_counts}")
     manifest = args.output_dir / "manifest.json"
     manifest.write_text(json.dumps(rows, indent=2) + "\n")

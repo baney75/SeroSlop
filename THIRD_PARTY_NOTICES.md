@@ -34,12 +34,15 @@ ProofLens’s initial Manifest V3 service-worker/offscreen structure, setup flow
 
 ProofLens changes the model and preprocessing, classifier head, calibration, WebGPU/WASM fallback, content-hash cache, local-only pixel acquisition, CSS composite scanning, stale-result handling, persisted-model revalidation, hostile-page bounds, tests, and benchmark evidence.
 
-## Evaluation datasets
+## Training and evaluation datasets
 
 Dataset pixels are not redistributed in this repository or release archive.
 
 - Qwen Image Bench: Apache-2.0
-- Open Images V7 selected images: CC BY 2.0; attribution is generated beside a local reconstruction
+- DiffusionDB 2M at revision `fb620fbe49fa4420e0734bd9c0df11f51176b61f`: CC0-1.0
+- Open Images V7 selected images: CC BY 2.0. The 1,500 modern-split attributions are committed in `benchmark/manifests/open-images-attribution.json`; the 50,000 large-corpus attributions are committed without pixels in `benchmark/evidence/large/open-images-attribution.jsonl.gz`.
 - DOCCI selected training images: CC BY 4.0; selected public example IDs are committed in `benchmark/manifests/docci-attribution.json`
+- Library of Congress FSA/OWI color photographs: public domain with no known restrictions on publication; exact catalog IDs, rights statements, image hashes, and photographers are frozen in the benchmark plan. Collection rights: https://www.loc.gov/collections/fsa-owi-color-photographs/about-this-collection/rights-and-access/
+- Chartography at revision `a0156216330b52452b1da68b58ffcc0a53be3984`: CC BY 4.0. Only the 19 rows marked `Expert-created` are used, and their exact IDs and hashes are frozen in `benchmark/manifests/web-negative-chartography.jsonl`.
 
 ProofLens itself is licensed under the root `LICENSE`.

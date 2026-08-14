@@ -16,10 +16,11 @@
       dl { display: grid; grid-template-columns: 1fr auto; gap: 8px 20px; }
       dt { color: #586174; } dd { margin: 0; font-weight: 650; }
       .hash { font: 12px/1.35 ui-monospace, monospace; max-width: 390px; overflow-wrap: anywhere; }
-      progress { display: block; height: 12px; margin: 18px 0; width: 100%; }
+      progress { display: block; height: 12px; margin: 18px 0 8px; width: 100%; }
+      .progress-text { color: #586174; font-size: 13px; margin: 0 0 18px; }
       button { background: #5b5ee5; border: 0; border-radius: 9px; color: white; cursor: pointer; font: inherit; font-weight: 750; padding: 12px 18px; }
       button:disabled { cursor: default; opacity: .55; }
-      @media (prefers-color-scheme: dark) { body { background: #11131c; color: #f6f7fb; } .card { background: #1a1e2a; border-color: #343a4a; } .privacy { background: #163c31; color: #c5fae7; } dt { color: #b0b8cb; } }
+      @media (prefers-color-scheme: dark) { body { background: #11131c; color: #f6f7fb; } .card { background: #1a1e2a; border-color: #343a4a; } .privacy { background: #163c31; color: #c5fae7; } dt, .progress-text { color: #b0b8cb; } }
     </style>
   </head>
   <body>
@@ -31,9 +32,10 @@
         <h2 id="setup-state">Checking setup…</h2>
         <p id="setup-detail">Looking for the verified local model.</p>
         <progress id="setup-progress" value="0" max="100" aria-label="Model preparation progress"></progress>
+        <p id="setup-progress-text" class="progress-text">0.0 MB verified</p>
         <button id="prepare-model" type="button" disabled>Prepare verified model</button>
         <h2>Model</h2>
-        <dl><dt>Name</dt><dd id="model-name"></dd><dt>Packaged size</dt><dd id="model-size"></dd><dt>SHA-256</dt><dd id="model-hash" class="hash"></dd><dt>Decision threshold</dt><dd>65% AI likelihood (inclusive)</dd></dl>
+        <dl><dt>Name</dt><dd id="model-name"></dd><dt>Packaged size</dt><dd id="model-size"></dd><dt>SHA-256</dt><dd id="model-hash" class="hash"></dd><dt>Decision threshold</dt><dd>AI score 65.0/100 (inclusive)</dd></dl>
       </div>
     </main>
     <script src="setup.js"></script>
