@@ -17,6 +17,8 @@ const MAX_ELEMENTS_PER_SCAN = 5_000;
 const MAX_CONCURRENT_ANALYSES = 1;
 const MAX_MUTATIONS_PER_CALLBACK = 1_000;
 const MAX_PENDING_MUTATION_ROOTS = 256;
+const MUTATION_BUDGET_WINDOW_MS = 1_000;
+const MAX_MUTATION_UNITS_PER_WINDOW = 256;
 const FULL_SCAN_INTERVAL_MS = 1_000;
 const CSS_RECONCILIATION_INTERVAL_MS = 1_000;
 const MAX_CSS_RECONCILIATION_RECORDS = 512;
@@ -30,6 +32,7 @@ interface TargetRecord extends TargetDescriptor {
   flagged: boolean;
   unavailable: boolean;
   acceptedResultCount: number;
+  needsReconciliation: boolean;
   requestId?: string;
 }
 
@@ -50,6 +53,13 @@ let captureHidingOverlay = false;
 let scanPasses = 0;
 let lastScanVisited = 0;
 let fullDocumentScanRequired = false;
+let mutationWindowStartedAt = performance.now();
+let mutationUnitsInWindow = 0;
+let maxObservedMutationUnitsInWindow = 0;
+let mutationBudgetOverflows = 0;
+let mutationOverflowHandledInWindow = false;
+let synchronousMutationReconciliations = 0;
+let mutationCallbackActive = false;
 
 const overlayHost = document.createElement("div");
 const overlayStyles = {
@@ -163,8 +173,16 @@ function updateBadge(record: TargetRecord, label: string, detail: string): void 
   reportStats();
 }
 
+function removePendingRecord(record: TargetRecord): void {
+  pendingRecordSet.delete(record);
+  for (let index = pendingRecords.length - 1; index >= 0; index -= 1) {
+    if (pendingRecords[index] === record) pendingRecords.splice(index, 1);
+  }
+}
+
 function resetRecord(record: TargetRecord, detail = "Waiting for this image to enter the viewport"): void {
   record.requestId = undefined;
+  record.needsReconciliation = false;
   record.state = "queued";
   record.flagged = false;
   record.unavailable = false;
@@ -178,11 +196,35 @@ function resetRecord(record: TargetRecord, detail = "Waiting for this image to e
 function removeRecord(record: TargetRecord): void {
   record.requestId = undefined;
   record.badge.remove();
-  pendingRecordSet.delete(record);
+  removePendingRecord(record);
   records.delete(record);
 }
 
+function invalidateRecordForDeferredSync(record: TargetRecord): void {
+  record.requestId = undefined;
+  if (record.needsReconciliation) return;
+  record.needsReconciliation = true;
+  record.state = "queued";
+  record.flagged = false;
+  record.unavailable = false;
+  delete record.badge.dataset.classification;
+  delete record.badge.dataset.provider;
+  removePendingRecord(record);
+  updateBadge(record, "ProofLens · refreshing", "The displayed image changed; bounded reconciliation is pending");
+}
+
+function invalidateElementForDeferredSync(element: HTMLElement): void {
+  for (const record of recordsByElement.get(element)?.values() ?? []) {
+    invalidateRecordForDeferredSync(record);
+  }
+}
+
+function invalidateAllRecordsForDeferredSync(): void {
+  for (const record of records) invalidateRecordForDeferredSync(record);
+}
+
 function syncElement(element: HTMLElement): void {
+  if (mutationCallbackActive) synchronousMutationReconciliations += 1;
   if (element === overlayHost || overlayHost.contains(element)) return;
   const descriptors = descriptorsFor(element);
   let slots = recordsByElement.get(element);
@@ -202,7 +244,7 @@ function syncElement(element: HTMLElement): void {
   for (const descriptor of descriptors) {
     const existing = slots.get(descriptor.slot);
     if (existing) {
-      if (existing.source !== descriptor.source) {
+      if (existing.source !== descriptor.source || existing.needsReconciliation) {
         existing.source = descriptor.source;
         resetRecord(existing, "The displayed image changed; analysis was restarted");
       }
@@ -217,6 +259,7 @@ function syncElement(element: HTMLElement): void {
       flagged: false,
       unavailable: false,
       acceptedResultCount: 0,
+      needsReconciliation: false,
     };
     slots.set(descriptor.slot, record);
     records.add(record);
@@ -276,6 +319,32 @@ function queueMutationRoot(root: HTMLElement): void {
   }
   pendingMutationRoots.add(root);
   scheduleBoundedScan();
+}
+
+function refreshMutationBudgetWindow(now = performance.now()): void {
+  if (now - mutationWindowStartedAt < MUTATION_BUDGET_WINDOW_MS) return;
+  mutationWindowStartedAt = now;
+  mutationUnitsInWindow = 0;
+  mutationOverflowHandledInWindow = false;
+}
+
+function consumeMutationUnit(): boolean {
+  refreshMutationBudgetWindow();
+  if (mutationUnitsInWindow >= MAX_MUTATION_UNITS_PER_WINDOW) return false;
+  mutationUnitsInWindow += 1;
+  maxObservedMutationUnitsInWindow = Math.max(maxObservedMutationUnitsInWindow, mutationUnitsInWindow);
+  return true;
+}
+
+function handleMutationBudgetOverflow(): void {
+  if (!mutationOverflowHandledInWindow) {
+    mutationOverflowHandledInWindow = true;
+    mutationBudgetOverflows += 1;
+    // Any skipped record might be the source mutation for an in-flight result.
+    // Invalidate every admitted record once, without forcing synchronous style work.
+    invalidateAllRecordsForDeferredSync();
+  }
+  scheduleFullScan();
 }
 
 function scheduleFullScan(): void {
@@ -371,7 +440,7 @@ function nearViewport(record: TargetRecord): boolean {
 }
 
 function queueAnalysis(record: TargetRecord): void {
-  if (!enabled || record.state !== "queued" || pendingRecordSet.has(record) || !eligible(record) || !nearViewport(record)) return;
+  if (!enabled || record.needsReconciliation || record.state !== "queued" || pendingRecordSet.has(record) || !eligible(record) || !nearViewport(record)) return;
   if (pendingRecords.length >= MAX_PENDING_ANALYSES) return;
   pendingRecordSet.add(record);
   pendingRecords.push(record);
@@ -382,7 +451,7 @@ function refillPendingAnalyses(): void {
   if (!enabled) return;
   for (const record of records) {
     if (pendingRecords.length >= MAX_PENDING_ANALYSES) break;
-    if (record.state === "queued" && !pendingRecordSet.has(record) && eligible(record) && nearViewport(record)) {
+    if (!record.needsReconciliation && record.state === "queued" && !pendingRecordSet.has(record) && eligible(record) && nearViewport(record)) {
       pendingRecordSet.add(record);
       pendingRecords.push(record);
     }
@@ -396,7 +465,7 @@ function pumpAnalysisQueue(): void {
     const record = pendingRecords.shift();
     if (!record) return;
     pendingRecordSet.delete(record);
-    if (record.state !== "queued" || !eligible(record) || !nearViewport(record)) continue;
+    if (record.needsReconciliation || record.state !== "queued" || !eligible(record) || !nearViewport(record)) continue;
     activeAnalyses += 1;
     void analyze(record).finally(() => {
       activeAnalyses -= 1;
@@ -427,7 +496,7 @@ async function sendInference(requestId: string, source: PageInferenceSource): Pr
 }
 
 async function analyze(record: TargetRecord): Promise<void> {
-  if (!enabled || record.state === "analyzing" || !eligible(record)) return;
+  if (!enabled || record.needsReconciliation || record.state === "analyzing" || !eligible(record)) return;
   record.state = "analyzing";
   record.flagged = false;
   record.unavailable = false;
@@ -545,60 +614,61 @@ function scheduleOverlayRepair(): void {
 }
 
 const mutationObserver = new MutationObserver((mutations) => {
-  let fullScanRequired = false;
+  let needsFullScan = false;
   let processedMutations = 0;
   let processedNodes = 0;
-  for (const mutation of mutations) {
-    if (processedMutations >= MAX_MUTATIONS_PER_CALLBACK) {
-      fullScanRequired = true;
-      break;
-    }
-    processedMutations += 1;
-    if (mutation.type === "attributes" && mutation.target instanceof HTMLElement) {
-      if (mutation.target === overlayHost) scheduleOverlayRepair();
-      else {
-        // Reconcile admitted targets synchronously. The throttled tree scan is
-        // still needed for newly exposed descendants, but must not leave an
-        // in-flight result valid after style/class/source changes.
-        syncElement(mutation.target);
-        queueMutationRoot(mutation.target);
-      }
-      if (mutation.target instanceof HTMLSourceElement) {
-        const image = mutation.target.parentElement?.querySelector("img");
-        if (image) {
-          syncElement(image);
-          queueMutationRoot(image);
-        }
-      }
-    }
-    for (const node of mutation.removedNodes) {
-      if (processedNodes >= MAX_MUTATIONS_PER_CALLBACK) {
-        fullScanRequired = true;
+  mutationCallbackActive = true;
+  try {
+    for (const mutation of mutations) {
+      if (processedMutations >= MAX_MUTATIONS_PER_CALLBACK || !consumeMutationUnit()) {
+        needsFullScan = true;
+        handleMutationBudgetOverflow();
         break;
       }
-      processedNodes += 1;
-      if (!(node instanceof HTMLElement)) continue;
-      for (const [element, slots] of recordsByElement) {
-        if (element === node || node.contains(element)) {
-          for (const record of slots.values()) removeRecord(record);
-          intersectionObserver.unobserve(element);
-          recordsByElement.delete(element);
-          fullScanRequired = true;
+      processedMutations += 1;
+      if (mutation.type === "attributes" && mutation.target instanceof HTMLElement) {
+        if (mutation.target === overlayHost) scheduleOverlayRepair();
+        else {
+          // Reject an in-flight result immediately, but defer computed-style work
+          // to the coalesced, per-window bounded scan.
+          invalidateElementForDeferredSync(mutation.target);
+          queueMutationRoot(mutation.target);
+        }
+        if (mutation.target instanceof HTMLSourceElement) {
+          const image = mutation.target.parentElement?.querySelector("img");
+          if (image) {
+            invalidateElementForDeferredSync(image);
+            queueMutationRoot(image);
+          }
         }
       }
-    }
-    for (const node of mutation.addedNodes) {
-      if (processedNodes >= MAX_MUTATIONS_PER_CALLBACK) {
-        fullScanRequired = true;
-        break;
+      for (const node of mutation.removedNodes) {
+        if (processedNodes >= MAX_MUTATIONS_PER_CALLBACK || !consumeMutationUnit()) {
+          needsFullScan = true;
+          handleMutationBudgetOverflow();
+          break;
+        }
+        processedNodes += 1;
+        if (node instanceof HTMLElement) needsFullScan = true;
       }
-      processedNodes += 1;
-      if (node instanceof HTMLElement) queueMutationRoot(node);
-      if (node instanceof HTMLStyleElement || node instanceof HTMLLinkElement) fullScanRequired = true;
+      if (needsFullScan && mutation.removedNodes.length) break;
+      for (const node of mutation.addedNodes) {
+        if (processedNodes >= MAX_MUTATIONS_PER_CALLBACK || !consumeMutationUnit()) {
+          needsFullScan = true;
+          handleMutationBudgetOverflow();
+          break;
+        }
+        processedNodes += 1;
+        if (node instanceof HTMLElement) queueMutationRoot(node);
+        if (node instanceof HTMLStyleElement || node instanceof HTMLLinkElement) needsFullScan = true;
+      }
+      if (needsFullScan && processedNodes >= MAX_MUTATIONS_PER_CALLBACK) break;
     }
+  } finally {
+    mutationCallbackActive = false;
   }
   if (!overlayHost.isConnected) scheduleOverlayRepair();
-  if (fullScanRequired) scheduleFullScan();
+  if (needsFullScan) scheduleFullScan();
   schedulePositions();
 });
 
@@ -632,6 +702,12 @@ chrome.runtime.onMessage.addListener((
       maxElementsPerScan: MAX_ELEMENTS_PER_SCAN,
       pendingMutationRoots: pendingMutationRoots.size,
       maxPendingMutationRoots: MAX_PENDING_MUTATION_ROOTS,
+      mutationBudgetWindowMs: MUTATION_BUDGET_WINDOW_MS,
+      maxMutationUnitsPerWindow: MAX_MUTATION_UNITS_PER_WINDOW,
+      mutationUnitsInWindow,
+      maxObservedMutationUnitsInWindow,
+      mutationBudgetOverflows,
+      synchronousMutationReconciliations,
       fullScanIntervalMs: FULL_SCAN_INTERVAL_MS,
       cssReconciliationIntervalMs: CSS_RECONCILIATION_INTERVAL_MS,
       maxCssReconciliationRecords: MAX_CSS_RECONCILIATION_RECORDS,
@@ -676,9 +752,9 @@ chrome.runtime.onMessage.addListener((
 document.addEventListener(
   "load",
   (event) => {
-    if (event.target instanceof HTMLImageElement) {
-      syncElement(event.target);
-      for (const record of recordsByElement.get(event.target)?.values() ?? []) queueAnalysis(record);
+    if (event.isTrusted && event.target instanceof HTMLImageElement) {
+      invalidateElementForDeferredSync(event.target);
+      queueMutationRoot(event.target);
     }
   },
   true,

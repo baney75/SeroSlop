@@ -443,9 +443,10 @@ try {
     throw new Error(`Hostile-page admission was not bounded: ${JSON.stringify(bounded)}`);
   }
   const scanPassesBeforeChurn = bounded.scanPasses;
+  const mutationOverflowsBeforeChurn = bounded.mutationBudgetOverflows;
   await page.evaluate(() => {
     const target = document.querySelector("#normal");
-    for (let index = 0; index < 500; index += 1) target?.setAttribute("data-prooflens-churn", String(index));
+    for (let index = 0; index < 500; index += 1) target?.setAttribute("class", `prooflens-churn-${index}`);
     for (let rootIndex = 0; rootIndex < 20; rootIndex += 1) {
       const root = document.createElement("section");
       root.dataset.prooflensHostileRoot = "true";
@@ -456,7 +457,11 @@ try {
   await page.waitForTimeout(1_250);
   const churned = await contentSnapshot(statusPage, tabId);
   if (churned.scanPasses - scanPassesBeforeChurn > 2 || churned.lastScanVisited > churned.maxElementsPerScan ||
-    churned.pendingMutationRoots > churned.maxPendingMutationRoots) {
+    churned.pendingMutationRoots > churned.maxPendingMutationRoots ||
+    churned.mutationBudgetWindowMs !== 1_000 || churned.maxMutationUnitsPerWindow !== 256 ||
+    churned.maxObservedMutationUnitsInWindow > churned.maxMutationUnitsPerWindow ||
+    churned.mutationBudgetOverflows <= mutationOverflowsBeforeChurn ||
+    churned.synchronousMutationReconciliations !== 0) {
     throw new Error(`Hostile mutation traversal exceeded its aggregate budget: ${JSON.stringify(churned)}`);
   }
   await page.evaluate(() => document.querySelectorAll("[data-prooflens-hostile-root]").forEach((root) => root.remove()));
@@ -526,6 +531,11 @@ try {
       scanPassesDuringChurn: churned.scanPasses - scanPassesBeforeChurn,
       maxElementsPerScan: churned.maxElementsPerScan,
       maxPendingMutationRoots: churned.maxPendingMutationRoots,
+      mutationBudgetWindowMs: churned.mutationBudgetWindowMs,
+      maxMutationUnitsPerWindow: churned.maxMutationUnitsPerWindow,
+      maxObservedMutationUnitsInWindow: churned.maxObservedMutationUnitsInWindow,
+      mutationBudgetOverflows: churned.mutationBudgetOverflows,
+      synchronousMutationReconciliations: churned.synchronousMutationReconciliations,
       cssReconciliationIntervalMs: bounded.cssReconciliationIntervalMs,
       maxCssReconciliationRecords: bounded.maxCssReconciliationRecords,
       replacementRecords: replaced.recordCount,
