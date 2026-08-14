@@ -1,4 +1,4 @@
-/* global clearInterval, document, setInterval, window */
+/* global clearInterval, clearTimeout, document, setInterval, setTimeout, window */
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -14,6 +14,7 @@ const profilePath = await mkdtemp(path.join(os.tmpdir(), "prooflens-chrome-"));
 const artifactsPath = path.resolve("artifacts");
 await mkdir(artifactsPath, { recursive: true });
 const modelSha256 = "29545a1da0cfe2bf0149448334fd45a21f48074c57296db3b84437dd66f80a43";
+const watchdogMs = 20 * 60_000;
 const testedGitHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const testedGitTree = execFileSync("git", ["rev-parse", "HEAD^{tree}"], { encoding: "utf8" }).trim();
 const trackedSourceWorktreeDirty = Boolean(execFileSync(
@@ -21,6 +22,17 @@ const trackedSourceWorktreeDirty = Boolean(execFileSync(
   ["status", "--porcelain", "--untracked-files=no", "--", ".", ":(exclude)artifacts/**"],
   { encoding: "utf8" },
 ).trim());
+let currentStage = "bootstrap";
+const watchdog = setTimeout(() => {
+  console.error(`Chrome E2E watchdog expired after ${watchdogMs}ms at stage: ${currentStage}`);
+  process.exit(1);
+}, watchdogMs);
+watchdog.unref();
+
+function stage(name) {
+  currentStage = name;
+  console.log(`Chrome E2E stage: ${name}`);
+}
 
 function svgData(background, accent, label) {
   const source = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="${background}"/><circle cx="205" cy="190" r="115" fill="${accent}"/><path d="M0 430L170 285l130 105 100-90 240 130" fill="#263552"/><text x="22" y="42" font-family="sans-serif" font-size="24" fill="white">${label}</text></svg>`;
@@ -74,7 +86,6 @@ async function launch() {
     : [];
   return chromium.launchPersistentContext(profilePath, {
     headless: false,
-    reducedMotion: "reduce",
     ignoreDefaultArgs: expectedProvider === "wasm" ? ["--enable-unsafe-swiftshader"] : [],
     args: [
       `--disable-extensions-except=${extensionPath}`,
@@ -106,17 +117,21 @@ const diagnostics = [];
 const postCutoffNetworkRequests = [];
 let setupProgressAccessibleName = false;
 try {
+  stage("initial browser launch");
   context = await launch();
   let worker = await extensionWorker(context);
   const extensionId = new URL(worker.url()).host;
   const setup = await context.newPage();
+  stage("model setup");
   await setup.goto(`chrome-extension://${extensionId}/setup.html`);
   await setup.getByRole("progressbar", { name: "Model preparation progress" }).waitFor();
   setupProgressAccessibleName = true;
   await setup.getByRole("heading", { name: "Offline ready" }).waitFor({ timeout: 300_000 });
   await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}.png`), fullPage: true });
+  stage("initial browser close");
   await context.close();
 
+  stage("restart browser launch");
   context = await launch();
   worker = await extensionWorker(context);
   const restartedExtensionId = new URL(worker.url()).host;
@@ -128,6 +143,7 @@ try {
   statusPage.on("console", (message) => popupDiagnostics.push(`console:${message.type()}:${message.text()}`));
   statusPage.on("pageerror", (error) => popupDiagnostics.push(`pageerror:${error.message}`));
   await statusPage.goto(`chrome-extension://${extensionId}/popup.html`);
+  stage("restart persistence check");
   try {
     await statusPage.locator("#model-status").filter({ hasText: "Offline ready" }).waitFor({ timeout: 60_000 });
   } catch (error) {
@@ -141,6 +157,8 @@ try {
   await statusPage.screenshot({ path: path.join(artifactsPath, `popup-${expectedProvider}.png`), fullPage: true });
   await worker.evaluate((origin) => chrome.storage.local.set({ disabledOrigins: [origin] }), pageOrigin);
   const page = await context.newPage();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  stage("fixture load");
   await page.goto(pageUrl);
   await page.locator("#normal").waitFor();
   await page.waitForFunction(() => [...document.images].every((image) => image.complete));
@@ -164,6 +182,7 @@ try {
   );
   await page.evaluate(() => window.addDynamicFixture());
 
+  stage("initial offline inference");
   let progressBusy = false;
   const progressTimer = setInterval(async () => {
     if (progressBusy) return;
@@ -229,6 +248,7 @@ try {
   // request is in flight, then change its source to one that cannot be read.
   // The lifetime acceptance counter proves the old valid response was never
   // displayed, even transiently, after invalidation.
+  stage("CSS stale-response race");
   await page.evaluate((source) => {
     const target = document.createElement("div");
     target.id = "css-race";
@@ -294,6 +314,7 @@ try {
 
   // CSSOM-only mutation regression: no DOM attribute mutation occurs; the
   // bounded periodic reconciliation must still notice and reanalyze it.
+  stage("CSSOM reconciliation");
   await page.evaluate(() => {
     const style = document.querySelector("style");
     if (!style?.sheet) throw new Error("CSSOM fixture missing");
@@ -358,6 +379,7 @@ try {
   }
   await page.screenshot({ path: path.join(artifactsPath, `chrome-e2e-${expectedProvider}.png`), fullPage: true });
 
+  stage("overlay recovery");
   const closedShadowRoot = await page.evaluate(() => {
     const host = document.querySelector("#prooflens-overlay");
     if (!host) return false;
@@ -372,6 +394,7 @@ try {
     throw new Error(`Overlay removal was not recovered: ${JSON.stringify(repairedOverlay)}`);
   }
 
+  stage("hostile-page bounds");
   await page.evaluate((source) => {
     const holder = document.createElement("div");
     holder.id = "prooflens-stress-fixture";
@@ -483,9 +506,12 @@ try {
     },
   };
   await writeFile(path.join(artifactsPath, `chrome-e2e-${expectedProvider}.json`), `${JSON.stringify(evidence, null, 2)}\n`);
+  stage("complete");
   console.log(JSON.stringify(evidence, null, 2));
 } finally {
+  stage("cleanup");
   await context?.close().catch(() => undefined);
   await closeServer().catch(() => undefined);
   await rm(profilePath, { recursive: true, force: true });
+  clearTimeout(watchdog);
 }
