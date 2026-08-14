@@ -34,6 +34,20 @@ function stage(name) {
   console.log(`Chrome E2E stage: ${name}`);
 }
 
+async function withTimeout(promise, timeoutMs, label) {
+  let timeout;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function svgData(background, accent, label) {
   const source = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="${background}"/><circle cx="205" cy="190" r="115" fill="${accent}"/><path d="M0 430L170 285l130 105 100-90 240 130" fill="#263552"/><text x="22" y="42" font-family="sans-serif" font-size="24" fill="white">${label}</text></svg>`;
   return `data:image/svg+xml,${encodeURIComponent(source)}`;
@@ -61,11 +75,15 @@ const html = `<!doctype html>
 
 const server = createServer((request, response) => {
   if (request.url === "/") {
-    response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      connection: "close",
+    });
     response.end(html);
     return;
   }
-  response.writeHead(404).end();
+  response.writeHead(404, { connection: "close" }).end();
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 let serverOpen = true;
@@ -76,8 +94,10 @@ const pageOrigin = new URL(pageUrl).origin;
 
 async function closeServer() {
   if (!serverOpen) return;
-  await new Promise((resolve) => server.close(resolve));
   serverOpen = false;
+  const closing = new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  server.closeAllConnections();
+  await withTimeout(closing, 5_000, "fixture server shutdown");
 }
 
 async function launch() {
@@ -158,29 +178,35 @@ try {
   await worker.evaluate((origin) => chrome.storage.local.set({ disabledOrigins: [origin] }), pageOrigin);
   const page = await context.newPage();
   await page.emulateMedia({ reducedMotion: "reduce" });
-  stage("fixture load");
-  await page.goto(pageUrl);
-  await page.locator("#normal").waitFor();
-  await page.waitForFunction(() => [...document.images].every((image) => image.complete));
+  stage("fixture navigation");
+  await page.goto(pageUrl, { waitUntil: "load", timeout: 30_000 });
+  stage("fixture image readiness");
+  await page.locator("#normal").waitFor({ timeout: 30_000 });
+  await page.waitForFunction(() => [...document.images].every((image) => image.complete), undefined, { timeout: 30_000 });
+  stage("fixture server shutdown");
   await closeServer();
-  await context.setOffline(true);
+  stage("fixture offline transition");
+  await withTimeout(context.setOffline(true), 10_000, "browser offline transition");
   context.on("request", (request) => {
     if (/^https?:/u.test(request.url())) postCutoffNetworkRequests.push(request.url());
   });
 
-  const tabId = await worker.evaluate(async (url) => {
+  stage("fixture tab discovery");
+  const tabId = await withTimeout(worker.evaluate(async (url) => {
     const tabs = await chrome.tabs.query({ url });
     return tabs[0]?.id;
-  }, pageUrl);
+  }, pageUrl), 10_000, "fixture tab discovery");
   if (typeof tabId !== "number") throw new Error("Could not identify offline test tab");
-  await worker.evaluate(
+  stage("fixture analysis enable");
+  await withTimeout(worker.evaluate(
     async (id) => {
       await chrome.storage.local.set({ disabledOrigins: [] });
       await chrome.tabs.sendMessage(id, { type: "PL_SITE_STATE_CHANGED", enabled: true });
     },
     tabId,
-  );
-  await page.evaluate(() => window.addDynamicFixture());
+  ), 30_000, "fixture analysis enable");
+  stage("dynamic fixture admission");
+  await withTimeout(page.evaluate(() => window.addDynamicFixture()), 10_000, "dynamic fixture admission");
 
   stage("initial offline inference");
   let progressBusy = false;
