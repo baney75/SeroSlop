@@ -14,7 +14,7 @@ The deterministic preparation code is under `benchmark/modern/`.
 - Validation: 300 synthetic images from six generator families excluded from training, plus 300 disjoint Open Images photographs. Validation selected one of 25 predeclared regularization/upstream-blend candidates and one global threshold alignment.
 - Test: 300 further synthetic images from those six held-out families plus 300 further Open Images photographs. It is sample-disjoint and was evaluated once after the artifact and calibration were frozen. It is not generator-family-disjoint from validation; that limitation is reported rather than hidden.
 
-The preparation scripts reject duplicate image hashes across selected splits. Originals and every transformed derivative remain in the same split. No separate private or competitor-audit image set influenced selection.
+The preparation scripts reject duplicate image hashes across selected splits. Originals and every transformed derivative remain in the same split. Model selection used only the published split protocol described here.
 
 ## Frozen artifacts
 
