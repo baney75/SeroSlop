@@ -436,25 +436,30 @@ try {
   let overflowRaceReanalysis;
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const current = await contentSnapshot(statusPage, tabId);
-    const target = cssBadge(current.badges);
     if (current.mutationBudgetOverflows > overflowRaceBaseline.mutationBudgetOverflows &&
-      !current.mutationOverflowRecoveryPending && target?.state === "analyzing") {
+      !current.mutationOverflowRecoveryPending && current.pendingDeferredReconciliations === 0) {
       overflowRaceReanalysis = current;
       break;
     }
     await page.waitForTimeout(5);
   }
-  if (!overflowRaceReanalysis) throw new Error("First overflow did not enter bounded CSS reanalysis");
+  if (!overflowRaceReanalysis) throw new Error("First overflow did not complete bounded reconciliation");
   await page.evaluate(() => {
     const target = document.querySelector("#css-background");
     if (!target) throw new Error("Overflow race CSS target missing");
     target.style.backgroundImage = "url(\"file:///prooflens-second-overflow.png\")";
   });
   let secondOverflowInvalidated;
+  let secondOverflowAcceptedAtInvalidation;
   for (let attempt = 0; attempt < 240; attempt += 1) {
     const current = await contentSnapshot(statusPage, tabId);
     const target = cssBadge(current.badges);
-    if ((target?.acceptedResultCount ?? 0) > overflowRaceAccepted) {
+    if (current.mutationBudgetOverflows >= overflowRaceBaseline.mutationBudgetOverflows + 2 &&
+      secondOverflowAcceptedAtInvalidation === undefined) {
+      secondOverflowAcceptedAtInvalidation = target?.acceptedResultCount;
+    }
+    if (typeof secondOverflowAcceptedAtInvalidation === "number" &&
+      (target?.acceptedResultCount ?? 0) > secondOverflowAcceptedAtInvalidation) {
       throw new Error(`Second overflow accepted a stale result: ${JSON.stringify(current)}`);
     }
     if (current.mutationBudgetOverflows >= overflowRaceBaseline.mutationBudgetOverflows + 2 &&
@@ -464,15 +469,17 @@ try {
     }
     await page.waitForTimeout(25);
   }
-  if (!secondOverflowInvalidated) throw new Error("Second same-window overflow did not invalidate the in-flight CSS result");
+  if (!secondOverflowInvalidated || typeof secondOverflowAcceptedAtInvalidation !== "number") {
+    throw new Error("Second same-window overflow did not invalidate the CSS result epoch");
+  }
   await page.evaluate(() => document.querySelector("#css-background")?.style.removeProperty("background-image"));
   for (let attempt = 0; attempt < 240; attempt += 1) {
     const target = cssBadge(await badgeSnapshot(statusPage, tabId));
-    if (target?.state === "complete" && target.acceptedResultCount === overflowRaceAccepted + 1) break;
+    if (target?.state === "complete" && target.acceptedResultCount === secondOverflowAcceptedAtInvalidation + 1) break;
     await page.waitForTimeout(25);
   }
   const restoredOverflowRace = cssBadge(await badgeSnapshot(statusPage, tabId));
-  if (restoredOverflowRace?.state !== "complete" || restoredOverflowRace.acceptedResultCount !== overflowRaceAccepted + 1) {
+  if (restoredOverflowRace?.state !== "complete" || restoredOverflowRace.acceptedResultCount !== secondOverflowAcceptedAtInvalidation + 1) {
     throw new Error(`Overflow race CSS target did not recover exactly once: ${JSON.stringify(restoredOverflowRace)}`);
   }
 
@@ -624,7 +631,7 @@ try {
     cssomBackgroundReconciled: cssBadge(cssomInvalidated)?.acceptedResultCount === 1 && cssBadge(reanalyzed)?.acceptedResultCount === 2,
     repeatedOverflowStaleResponseRejected:
       secondOverflowInvalidated.mutationBudgetOverflows >= overflowRaceBaseline.mutationBudgetOverflows + 2 &&
-      cssBadge(secondOverflowInvalidated.badges)?.acceptedResultCount === overflowRaceAccepted,
+      cssBadge(secondOverflowInvalidated.badges)?.acceptedResultCount === secondOverflowAcceptedAtInvalidation,
     narrowViewport: { width: 480, height: 720, visibleLabels: visibleNarrowLabels },
     closedShadowRoot,
     overlayRemovalRecovered: true,
