@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "protocol": "confirmatory",
+  "modelSha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+  "manifestSha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
+  "calibrationSha256": "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c",
+  "files": {
+    "prooflens-confirmatory-test-original-predictions.jsonl": "9ff3e21b9a72679eb693fd0a814ff9b2842fa8a4c7db5e4a01cbe715414155ba",
+    "prooflens-confirmatory-test-screenshot-predictions.jsonl": "2624273ec9ab16c3e52effb94e37fbec4d531db1266f2f5299919ba0a4e6dd50",
+    "prooflens-confirmatory-test-social-q75-predictions.jsonl": "cbab5297f908c63036e93239a2eff4223e5ac61a302a014e66b6537a14fa2700",
+    "prooflens-confirmatory-test-social-heavy-predictions.jsonl": "05b0d315eef07854c9cc738c9073f55fdd4e103249e330ab07b248a6acb866fc",
+    "prooflens-confirmatory-test-summary.json": "f029f60bec58532d57e5889ca4be42533aaf7b2a06586c715db80357d165aa02"
+  }
+}

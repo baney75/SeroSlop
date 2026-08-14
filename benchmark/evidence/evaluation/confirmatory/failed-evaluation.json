@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "status": "failed-numeric-contract",
+  "acceptanceEligible": false,
+  "holdoutConsumed": true,
+  "recordedAt": "2026-08-14T22:57:19Z",
+  "sourceCommit": "17124df0bf390c2c2c27583ae81f06b65ead2e3f",
+  "freezeCommit": "2757a4ff267d580a7dd8ad4918885441fa887f1b",
+  "modelSha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+  "manifestSha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
+  "calibrationSha256": "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c",
+  "runtime": {
+    "executionProvider": "cpu",
+    "providers": [
+      "CPUExecutionProvider"
+    ],
+    "batchSize": 16,
+    "numpy": "2.2.6",
+    "onnxRuntime": "1.22.0",
+    "pillow": "11.3.0"
+  },
+  "evaluationCommand": [
+    "benchmark/.venv/bin/python",
+    "benchmark/evaluate.py",
+    "--model",
+    "weights/prooflens-cf384.onnx",
+    "--expected-model-sha256",
+    "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+    "--data-root",
+    "benchmark/data",
+    "--manifest",
+    "benchmark/manifests/test.jsonl",
+    "--expected-manifest-sha256",
+    "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
+    "--output-dir",
+    "benchmark/evidence/evaluation/confirmatory",
+    "--protocol",
+    "confirmatory",
+    "--batch-size",
+    "16",
+    "--execution-provider",
+    "cpu",
+    "--calibration",
+    "benchmark/evidence/large/calibration.json",
+    "--expected-calibration-sha256",
+    "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c"
+  ],
+  "files": {
+    "prooflens-confirmatory-test-complete.json": "445e76cc73159dd25964bbec262b2f38ea450054544908230b47bedc0a83b8be",
+    "prooflens-confirmatory-test-original-predictions.jsonl": "9ff3e21b9a72679eb693fd0a814ff9b2842fa8a4c7db5e4a01cbe715414155ba",
+    "prooflens-confirmatory-test-screenshot-predictions.jsonl": "2624273ec9ab16c3e52effb94e37fbec4d531db1266f2f5299919ba0a4e6dd50",
+    "prooflens-confirmatory-test-social-heavy-predictions.jsonl": "05b0d315eef07854c9cc738c9073f55fdd4e103249e330ab07b248a6acb866fc",
+    "prooflens-confirmatory-test-social-q75-predictions.jsonl": "cbab5297f908c63036e93239a2eff4223e5ac61a302a014e66b6537a14fa2700",
+    "prooflens-confirmatory-test-summary.json": "f029f60bec58532d57e5889ca4be42533aaf7b2a06586c715db80357d165aa02"
+  },
+  "numericContract": {
+    "rows": 2400,
+    "violations": 2231,
+    "tolerance": 2e-12,
+    "maxAbsoluteError": 8.045291666203269e-8,
+    "firstViolation": {
+      "file": "prooflens-confirmatory-test-original-predictions.jsonl",
+      "line": 1,
+      "id": "loc-fsa-owi-color:2017877343",
+      "logit": -4.073137283325195,
+      "recordedRawProbability": 0.016738932579755783,
+      "binary64Sigmoid": 0.016738933987024644,
+      "absoluteError": 1.4072688604704897e-9
+    }
+  },
+  "failure": {
+    "stage": "bootstrap-preflight",
+    "message": "Prediction probability does not equal sigmoid(logit)",
+    "rootCause": "The evaluator applied NumPy exp to float32 ONNX logits before assigning into a float64 result. The frozen verifier correctly recomputed binary64 sigmoid.",
+    "bootstrapPublished": false,
+    "webNegativeInferenceStarted": false
+  },
+  "pointEstimateUse": "Diagnostic disclosure only. These point estimates are never release-acceptance evidence and cannot be used to alter the model, threshold, preprocessing, gates, or replacement-holdout selection."
+}
