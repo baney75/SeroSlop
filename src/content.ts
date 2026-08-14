@@ -19,6 +19,7 @@ const MAX_MUTATIONS_PER_CALLBACK = 1_000;
 const MAX_PENDING_MUTATION_ROOTS = 256;
 const MUTATION_BUDGET_WINDOW_MS = 1_000;
 const MAX_MUTATION_UNITS_PER_WINDOW = 256;
+const MAX_DEFERRED_RECONCILIATIONS_PER_PASS = 64;
 const FULL_SCAN_INTERVAL_MS = 1_000;
 const CSS_RECONCILIATION_INTERVAL_MS = 1_000;
 const MAX_CSS_RECONCILIATION_RECORDS = 512;
@@ -33,6 +34,7 @@ interface TargetRecord extends TargetDescriptor {
   unavailable: boolean;
   acceptedResultCount: number;
   needsReconciliation: boolean;
+  reconciledMutationEpoch: number;
   requestId?: string;
 }
 
@@ -41,6 +43,7 @@ const records = new Set<TargetRecord>();
 const pendingRecords: TargetRecord[] = [];
 const pendingRecordSet = new Set<TargetRecord>();
 const pendingMutationRoots = new Set<HTMLElement>();
+const pendingDeferredReconciliationElements = new Set<HTMLElement>();
 let enabled = true;
 let labelsVisible = true;
 let activeAnalyses = 0;
@@ -57,7 +60,8 @@ let mutationWindowStartedAt = performance.now();
 let mutationUnitsInWindow = 0;
 let maxObservedMutationUnitsInWindow = 0;
 let mutationBudgetOverflows = 0;
-let mutationOverflowHandledInWindow = false;
+let mutationInvalidationEpoch = 0;
+let mutationOverflowRecoveryPending = false;
 let synchronousMutationReconciliations = 0;
 let mutationCallbackActive = false;
 
@@ -158,7 +162,7 @@ function makeBadge(): HTMLDivElement {
   badge.textContent = "ProofLens · queued";
   badge.setAttribute("aria-label", "ProofLens image analysis queued");
   badge.dataset.state = "queued";
-  badge.hidden = !labelsVisible;
+  badge.hidden = !labelsVisible || mutationOverflowRecoveryPending;
   shadow.append(badge);
   return badge;
 }
@@ -168,7 +172,7 @@ function updateBadge(record: TargetRecord, label: string, detail: string): void 
   record.badge.textContent = label;
   record.badge.title = detail;
   record.badge.setAttribute("aria-label", `${label}. ${detail}`);
-  record.badge.hidden = !labelsVisible || !enabled;
+  record.badge.hidden = !labelsVisible || !enabled || mutationOverflowRecoveryPending;
   schedulePositions();
   reportStats();
 }
@@ -183,6 +187,7 @@ function removePendingRecord(record: TargetRecord): void {
 function resetRecord(record: TargetRecord, detail = "Waiting for this image to enter the viewport"): void {
   record.requestId = undefined;
   record.needsReconciliation = false;
+  record.reconciledMutationEpoch = mutationInvalidationEpoch;
   record.state = "queued";
   record.flagged = false;
   record.unavailable = false;
@@ -214,13 +219,22 @@ function invalidateRecordForDeferredSync(record: TargetRecord): void {
 }
 
 function invalidateElementForDeferredSync(element: HTMLElement): void {
+  let admitted = false;
   for (const record of recordsByElement.get(element)?.values() ?? []) {
+    admitted = true;
     invalidateRecordForDeferredSync(record);
+  }
+  if (admitted) {
+    pendingDeferredReconciliationElements.add(element);
+    scheduleBoundedScan();
   }
 }
 
 function invalidateAllRecordsForDeferredSync(): void {
-  for (const record of records) invalidateRecordForDeferredSync(record);
+  for (const record of records) {
+    invalidateRecordForDeferredSync(record);
+    pendingDeferredReconciliationElements.add(record.element);
+  }
 }
 
 function syncElement(element: HTMLElement): void {
@@ -260,6 +274,7 @@ function syncElement(element: HTMLElement): void {
       unavailable: false,
       acceptedResultCount: 0,
       needsReconciliation: false,
+      reconciledMutationEpoch: mutationInvalidationEpoch,
     };
     slots.set(descriptor.slot, record);
     records.add(record);
@@ -325,7 +340,6 @@ function refreshMutationBudgetWindow(now = performance.now()): void {
   if (now - mutationWindowStartedAt < MUTATION_BUDGET_WINDOW_MS) return;
   mutationWindowStartedAt = now;
   mutationUnitsInWindow = 0;
-  mutationOverflowHandledInWindow = false;
 }
 
 function consumeMutationUnit(): boolean {
@@ -337,14 +351,29 @@ function consumeMutationUnit(): boolean {
 }
 
 function handleMutationBudgetOverflow(): void {
-  if (!mutationOverflowHandledInWindow) {
-    mutationOverflowHandledInWindow = true;
-    mutationBudgetOverflows += 1;
+  mutationInvalidationEpoch += 1;
+  mutationBudgetOverflows += 1;
+  if (!mutationOverflowRecoveryPending) {
+    mutationOverflowRecoveryPending = true;
     // Any skipped record might be the source mutation for an in-flight result.
     // Invalidate every admitted record once, without forcing synchronous style work.
     invalidateAllRecordsForDeferredSync();
   }
   scheduleFullScan();
+  schedulePositions();
+}
+
+function finishMutationOverflowRecoveryIfStable(): void {
+  if (!mutationOverflowRecoveryPending || pendingDeferredReconciliationElements.size) return;
+  for (const record of records) {
+    if (record.reconciledMutationEpoch === mutationInvalidationEpoch) continue;
+    invalidateRecordForDeferredSync(record);
+    pendingDeferredReconciliationElements.add(record.element);
+  }
+  if (pendingDeferredReconciliationElements.size) return;
+  mutationOverflowRecoveryPending = false;
+  schedulePositions();
+  pumpAnalysisQueue();
 }
 
 function scheduleFullScan(): void {
@@ -362,6 +391,13 @@ function scheduleBoundedScan(): void {
       lastFullScanAt = performance.now();
       scanPasses += 1;
       let visited = 0;
+      let reconciled = 0;
+      for (const element of pendingDeferredReconciliationElements) {
+        if (reconciled >= MAX_DEFERRED_RECONCILIATIONS_PER_PASS) break;
+        pendingDeferredReconciliationElements.delete(element);
+        if (recordsByElement.has(element)) syncElement(element);
+        reconciled += 1;
+      }
       for (const root of pendingMutationRoots) {
         if (visited >= MAX_ELEMENTS_PER_SCAN) break;
         pendingMutationRoots.delete(root);
@@ -372,7 +408,8 @@ function scheduleBoundedScan(): void {
         visited += scanWithinBudget(document, MAX_ELEMENTS_PER_SCAN - visited);
       }
       lastScanVisited = visited;
-      if (pendingMutationRoots.size || fullDocumentScanRequired) scheduleBoundedScan();
+      finishMutationOverflowRecoveryIfStable();
+      if (pendingDeferredReconciliationElements.size || pendingMutationRoots.size || fullDocumentScanRequired) scheduleBoundedScan();
     });
   };
   if (delay > 0) fullScanTimer = window.setTimeout(scheduleFrame, delay);
@@ -440,7 +477,7 @@ function nearViewport(record: TargetRecord): boolean {
 }
 
 function queueAnalysis(record: TargetRecord): void {
-  if (!enabled || record.needsReconciliation || record.state !== "queued" || pendingRecordSet.has(record) || !eligible(record) || !nearViewport(record)) return;
+  if (!enabled || mutationOverflowRecoveryPending || record.needsReconciliation || record.state !== "queued" || pendingRecordSet.has(record) || !eligible(record) || !nearViewport(record)) return;
   if (pendingRecords.length >= MAX_PENDING_ANALYSES) return;
   pendingRecordSet.add(record);
   pendingRecords.push(record);
@@ -448,7 +485,7 @@ function queueAnalysis(record: TargetRecord): void {
 }
 
 function refillPendingAnalyses(): void {
-  if (!enabled) return;
+  if (!enabled || mutationOverflowRecoveryPending) return;
   for (const record of records) {
     if (pendingRecords.length >= MAX_PENDING_ANALYSES) break;
     if (!record.needsReconciliation && record.state === "queued" && !pendingRecordSet.has(record) && eligible(record) && nearViewport(record)) {
@@ -459,7 +496,7 @@ function refillPendingAnalyses(): void {
 }
 
 function pumpAnalysisQueue(): void {
-  if (activeAnalyses >= MAX_CONCURRENT_ANALYSES || !enabled) return;
+  if (activeAnalyses >= MAX_CONCURRENT_ANALYSES || !enabled || mutationOverflowRecoveryPending) return;
   refillPendingAnalyses();
   while (pendingRecords.length) {
     const record = pendingRecords.shift();
@@ -502,6 +539,7 @@ async function analyze(record: TargetRecord): Promise<void> {
   record.unavailable = false;
   const requestId = crypto.randomUUID();
   const expectedSource = record.source;
+  const expectedMutationEpoch = mutationInvalidationEpoch;
   record.requestId = requestId;
   updateBadge(record, "ProofLens · analyzing", "Analysis runs privately on this device");
 
@@ -509,6 +547,10 @@ async function analyze(record: TargetRecord): Promise<void> {
     const source = inferenceSource(record);
     if (!source) throw new Error("Rendered pixels are unavailable");
     const response = await sendInference(requestId, source);
+    if (expectedMutationEpoch !== mutationInvalidationEpoch) {
+      invalidateElementForDeferredSync(record.element);
+      return;
+    }
     if (record.requestId !== requestId || record.source !== expectedSource) return;
     if (!response || response.requestId !== requestId) throw new Error("Inference response did not match its request");
     if (!response.ok || !response.result) {
@@ -574,7 +616,7 @@ function positionBadges(): void {
     const visible = rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
     let stack = 0;
     for (const record of slots.values()) {
-      record.badge.hidden = !visible || !enabled || !labelsVisible;
+      record.badge.hidden = !visible || !enabled || !labelsVisible || mutationOverflowRecoveryPending;
       if (!visible) continue;
       const width = record.badge.offsetWidth || 180;
       const height = record.badge.offsetHeight || 30;
@@ -702,11 +744,16 @@ chrome.runtime.onMessage.addListener((
       maxElementsPerScan: MAX_ELEMENTS_PER_SCAN,
       pendingMutationRoots: pendingMutationRoots.size,
       maxPendingMutationRoots: MAX_PENDING_MUTATION_ROOTS,
+      pendingDeferredReconciliations: pendingDeferredReconciliationElements.size,
+      maxDeferredReconciliations: MAX_TARGETS_PER_DOCUMENT,
+      maxDeferredReconciliationsPerPass: MAX_DEFERRED_RECONCILIATIONS_PER_PASS,
       mutationBudgetWindowMs: MUTATION_BUDGET_WINDOW_MS,
       maxMutationUnitsPerWindow: MAX_MUTATION_UNITS_PER_WINDOW,
       mutationUnitsInWindow,
       maxObservedMutationUnitsInWindow,
       mutationBudgetOverflows,
+      mutationInvalidationEpoch,
+      mutationOverflowRecoveryPending,
       synchronousMutationReconciliations,
       fullScanIntervalMs: FULL_SCAN_INTERVAL_MS,
       cssReconciliationIntervalMs: CSS_RECONCILIATION_INTERVAL_MS,
@@ -719,7 +766,7 @@ chrome.runtime.onMessage.addListener((
   }
   if (message.type === "PL_SITE_STATE_CHANGED" && typeof message.enabled === "boolean") {
     enabled = message.enabled;
-    for (const record of records) record.badge.hidden = !enabled || !labelsVisible;
+    for (const record of records) record.badge.hidden = !enabled || !labelsVisible || mutationOverflowRecoveryPending;
     if (enabled) {
       scan();
       pumpAnalysisQueue();
@@ -739,7 +786,7 @@ chrome.runtime.onMessage.addListener((
   }
   if (message.type === "PL_LABEL_VISIBILITY" && typeof message.visible === "boolean") {
     labelsVisible = message.visible;
-    for (const record of records) record.badge.hidden = !enabled || !labelsVisible;
+    for (const record of records) record.badge.hidden = !enabled || !labelsVisible || mutationOverflowRecoveryPending;
   }
   if (message.type === "PL_RESCAN" || message.type === "PL_MODEL_READY") {
     for (const record of records) resetRecord(record, "Queued for fresh local analysis");

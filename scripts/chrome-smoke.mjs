@@ -420,25 +420,110 @@ try {
     throw new Error(`Overlay removal was not recovered: ${JSON.stringify(repairedOverlay)}`);
   }
 
+  // Exhaust the mutation budget, let the admitted targets reconcile, then
+  // mutate a CSS source again before the one-second budget window resets.
+  // The second overflow must advance the invalidation epoch and reject the
+  // response that was in flight after the first recovery.
+  stage("repeated overflow stale-response race");
+  await page.waitForTimeout(1_100);
+  const overflowRaceBaseline = await contentSnapshot(statusPage, tabId);
+  const overflowRaceAccepted = cssBadge(overflowRaceBaseline.badges)?.acceptedResultCount;
+  if (typeof overflowRaceAccepted !== "number") throw new Error("Overflow race CSS target was not admitted");
+  await page.evaluate(() => {
+    const target = document.querySelector("#normal");
+    for (let index = 0; index < 500; index += 1) target?.setAttribute("class", `prooflens-overflow-prime-${index}`);
+  });
+  let overflowRaceReanalysis;
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const current = await contentSnapshot(statusPage, tabId);
+    const target = cssBadge(current.badges);
+    if (current.mutationBudgetOverflows > overflowRaceBaseline.mutationBudgetOverflows &&
+      !current.mutationOverflowRecoveryPending && target?.state === "analyzing") {
+      overflowRaceReanalysis = current;
+      break;
+    }
+    await page.waitForTimeout(5);
+  }
+  if (!overflowRaceReanalysis) throw new Error("First overflow did not enter bounded CSS reanalysis");
+  await page.evaluate(() => {
+    const target = document.querySelector("#css-background");
+    if (!target) throw new Error("Overflow race CSS target missing");
+    target.style.backgroundImage = "url(\"file:///prooflens-second-overflow.png\")";
+  });
+  let secondOverflowInvalidated;
+  for (let attempt = 0; attempt < 240; attempt += 1) {
+    const current = await contentSnapshot(statusPage, tabId);
+    const target = cssBadge(current.badges);
+    if ((target?.acceptedResultCount ?? 0) > overflowRaceAccepted) {
+      throw new Error(`Second overflow accepted a stale result: ${JSON.stringify(current)}`);
+    }
+    if (current.mutationBudgetOverflows >= overflowRaceBaseline.mutationBudgetOverflows + 2 &&
+      !current.mutationOverflowRecoveryPending && target?.state === "unavailable") {
+      secondOverflowInvalidated = current;
+      break;
+    }
+    await page.waitForTimeout(25);
+  }
+  if (!secondOverflowInvalidated) throw new Error("Second same-window overflow did not invalidate the in-flight CSS result");
+  await page.evaluate(() => document.querySelector("#css-background")?.style.removeProperty("background-image"));
+  for (let attempt = 0; attempt < 240; attempt += 1) {
+    const target = cssBadge(await badgeSnapshot(statusPage, tabId));
+    if (target?.state === "complete" && target.acceptedResultCount === overflowRaceAccepted + 1) break;
+    await page.waitForTimeout(25);
+  }
+  const restoredOverflowRace = cssBadge(await badgeSnapshot(statusPage, tabId));
+  if (restoredOverflowRace?.state !== "complete" || restoredOverflowRace.acceptedResultCount !== overflowRaceAccepted + 1) {
+    throw new Error(`Overflow race CSS target did not recover exactly once: ${JSON.stringify(restoredOverflowRace)}`);
+  }
+
   stage("hostile-page bounds");
   await page.evaluate((source) => {
+    const deep = document.createElement("section");
+    deep.id = "prooflens-deep-fixture";
+    deep.hidden = true;
+    for (let index = 0; index < 5_200; index += 1) deep.append(document.createElement("span"));
     const holder = document.createElement("div");
     holder.id = "prooflens-stress-fixture";
-    holder.style.cssText = "position:fixed;inset:0;display:grid;grid-template-columns:repeat(32,64px);overflow:hidden;background:white;z-index:-1";
-    for (let index = 0; index < 700; index += 1) {
+    holder.style.cssText = "position:absolute;left:-100000px;top:0;display:grid;grid-template-columns:repeat(32,64px);background:white";
+    for (let index = 0; index < 505; index += 1) {
       const image = document.createElement("img");
       image.width = 64;
       image.height = 64;
       image.src = source;
       holder.append(image);
     }
-    document.body.append(holder);
+    document.body.append(deep, holder);
   }, fixtureA);
-  await page.waitForTimeout(1_500);
-  const bounded = await contentSnapshot(statusPage, tabId);
+  let preLate;
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    preLate = await contentSnapshot(statusPage, tabId);
+    if (preLate.recordCount === 511) break;
+    await page.waitForTimeout(50);
+  }
+  if (preLate?.recordCount !== 511) throw new Error(`Deep fixture did not admit the bounded stress set: ${JSON.stringify(preLate)}`);
+  await page.evaluate((source) => {
+    const image = document.createElement("img");
+    image.id = "late-after-5000";
+    image.alt = "late target after 5000 inert elements";
+    image.width = 640;
+    image.height = 480;
+    image.src = source;
+    image.style.cssText = "position:fixed;inset:12px auto auto 12px;width:320px;height:240px;z-index:1";
+    document.body.append(image);
+  }, fixtureB);
+  let bounded;
+  for (let attempt = 0; attempt < 240; attempt += 1) {
+    bounded = await contentSnapshot(statusPage, tabId);
+    const late = bounded.badges.find((badge) => badge.elementId === "late-after-5000");
+    if (bounded.recordCount === 512 && late?.state === "complete") break;
+    await page.waitForTimeout(50);
+  }
+  if (!bounded) throw new Error("Hostile-page snapshot was unavailable");
   if (bounded.recordCount > bounded.targetLimit || bounded.targetLimit !== 512 || bounded.pendingCount > 32 || bounded.activeAnalyses > 1 ||
     bounded.lastScanVisited > bounded.maxElementsPerScan || bounded.fullScanIntervalMs !== 1_000 ||
     bounded.pendingMutationRoots > bounded.maxPendingMutationRoots || bounded.maxPendingMutationRoots !== 256 ||
+    bounded.pendingDeferredReconciliations > bounded.maxDeferredReconciliations || bounded.maxDeferredReconciliations !== 512 ||
+    bounded.maxDeferredReconciliationsPerPass !== 64 ||
     bounded.cssReconciliationIntervalMs !== 1_000 || bounded.maxCssReconciliationRecords !== 512) {
     throw new Error(`Hostile-page admission was not bounded: ${JSON.stringify(bounded)}`);
   }
@@ -454,17 +539,34 @@ try {
       document.body.append(root);
     }
   });
-  await page.waitForTimeout(1_250);
-  const churned = await contentSnapshot(statusPage, tabId);
-  if (churned.scanPasses - scanPassesBeforeChurn > 2 || churned.lastScanVisited > churned.maxElementsPerScan ||
+  let churned;
+  let lateTargetEnteredRefreshing = false;
+  for (let attempt = 0; attempt < 480; attempt += 1) {
+    churned = await contentSnapshot(statusPage, tabId);
+    const late = churned.badges.find((badge) => badge.elementId === "late-after-5000");
+    if (late?.text?.includes("refreshing")) lateTargetEnteredRefreshing = true;
+    if (lateTargetEnteredRefreshing && !churned.mutationOverflowRecoveryPending &&
+      churned.pendingDeferredReconciliations === 0 && late?.state === "complete") break;
+    await page.waitForTimeout(50);
+  }
+  if (!churned) throw new Error("Hostile mutation recovery snapshot was unavailable");
+  const maxRecoveryPasses = Math.ceil(churned.maxDeferredReconciliations / churned.maxDeferredReconciliationsPerPass) + 3;
+  if (!lateTargetEnteredRefreshing || churned.scanPasses - scanPassesBeforeChurn > maxRecoveryPasses ||
+    churned.lastScanVisited > churned.maxElementsPerScan ||
     churned.pendingMutationRoots > churned.maxPendingMutationRoots ||
+    churned.pendingDeferredReconciliations !== 0 || churned.mutationOverflowRecoveryPending ||
     churned.mutationBudgetWindowMs !== 1_000 || churned.maxMutationUnitsPerWindow !== 256 ||
     churned.maxObservedMutationUnitsInWindow > churned.maxMutationUnitsPerWindow ||
     churned.mutationBudgetOverflows <= mutationOverflowsBeforeChurn ||
     churned.synchronousMutationReconciliations !== 0) {
     throw new Error(`Hostile mutation traversal exceeded its aggregate budget: ${JSON.stringify(churned)}`);
   }
-  await page.evaluate(() => document.querySelectorAll("[data-prooflens-hostile-root]").forEach((root) => root.remove()));
+  await page.evaluate(() => {
+    document.querySelectorAll("[data-prooflens-hostile-root]").forEach((root) => root.remove());
+    document.querySelector("#prooflens-deep-fixture")?.remove();
+    document.querySelector("#late-after-5000")?.remove();
+  });
+  await page.waitForTimeout(500);
   await worker.evaluate((id) => chrome.tabs.sendMessage(id, { type: "PL_SITE_STATE_CHANGED", enabled: false }), tabId);
   const replacementSource = fixtureB;
   await page.evaluate((source) => {
@@ -520,6 +622,9 @@ try {
     cssCompositeBackground: true,
     cssStaleResponseRejected: unavailableRace.acceptedResultCount === 0 && reanalyzedRace.acceptedResultCount === 1,
     cssomBackgroundReconciled: cssBadge(cssomInvalidated)?.acceptedResultCount === 1 && cssBadge(reanalyzed)?.acceptedResultCount === 2,
+    repeatedOverflowStaleResponseRejected:
+      secondOverflowInvalidated.mutationBudgetOverflows >= overflowRaceBaseline.mutationBudgetOverflows + 2 &&
+      cssBadge(secondOverflowInvalidated.badges)?.acceptedResultCount === overflowRaceAccepted,
     narrowViewport: { width: 480, height: 720, visibleLabels: visibleNarrowLabels },
     closedShadowRoot,
     overlayRemovalRecovered: true,
@@ -531,10 +636,16 @@ try {
       scanPassesDuringChurn: churned.scanPasses - scanPassesBeforeChurn,
       maxElementsPerScan: churned.maxElementsPerScan,
       maxPendingMutationRoots: churned.maxPendingMutationRoots,
+      lateTargetAfter5000Recovered: lateTargetEnteredRefreshing,
+      pendingDeferredReconciliations: churned.pendingDeferredReconciliations,
+      maxDeferredReconciliations: churned.maxDeferredReconciliations,
+      maxDeferredReconciliationsPerPass: churned.maxDeferredReconciliationsPerPass,
       mutationBudgetWindowMs: churned.mutationBudgetWindowMs,
       maxMutationUnitsPerWindow: churned.maxMutationUnitsPerWindow,
       maxObservedMutationUnitsInWindow: churned.maxObservedMutationUnitsInWindow,
       mutationBudgetOverflows: churned.mutationBudgetOverflows,
+      mutationInvalidationEpoch: churned.mutationInvalidationEpoch,
+      mutationOverflowRecoveryPending: churned.mutationOverflowRecoveryPending,
       synchronousMutationReconciliations: churned.synchronousMutationReconciliations,
       cssReconciliationIntervalMs: bounded.cssReconciliationIntervalMs,
       maxCssReconciliationRecords: bounded.maxCssReconciliationRecords,
