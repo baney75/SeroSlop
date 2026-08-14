@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 2,
+  "mode": "public pre-score source freeze before any confirmatory or web-negative inference",
+  "repository": "https://github.com/baney75/prooflens",
+  "branch": "main",
+  "sourceCommit": "0771a9422b552e2023e5150fb6c8b4238b811a74",
+  "sourceTree": "6b4575742ea847c747fe8bea216c3b2c7b357068",
+  "remoteObservedHead": "0771a9422b552e2023e5150fb6c8b4238b811a74",
+  "remoteVerifiedAt": "2026-08-14T21:49:11.978010Z",
+  "publicCommitUrl": "https://github.com/baney75/prooflens/commit/0771a9422b552e2023e5150fb6c8b4238b811a74",
+  "anonymousPublicProof": {
+    "method": "credential-free HTTPS git ls-remote plus unauthenticated raw byte match",
+    "head": "0771a9422b552e2023e5150fb6c8b4238b811a74",
+    "fileCommit": "0771a9422b552e2023e5150fb6c8b4238b811a74",
+    "file": "model-lock.json",
+    "fileSha256": "36b585b937346fe1200f8524bdb46d6f9cf1948772fd8139e9cf37087b9892c8",
+    "rawUrl": "https://raw.githubusercontent.com/baney75/prooflens/0771a9422b552e2023e5150fb6c8b4238b811a74/model-lock.json"
+  },
+  "allowedPostScorePaths": [
+    "artifacts/**",
+    "benchmark/evidence/evaluation/**",
+    "BENCHMARK.md",
+    "MODEL_CARD.md",
+    "README.md",
+    "docs/ACCEPTANCE.md"
+  ],
+  "immutableFilesSha256": {
+    "benchmark/bootstrap_ci.py": "757d5fbbda286a3af51b75d314ab0fba90acecb6ffc745a59332bdbe4bff0cb7",
+    "benchmark/bootstrap_fpr.py": "07eea0215146a001f56b1b1a10d1913e027907f1b8e194cd023295993e475b86",
+    "benchmark/evaluate.py": "dbea7ef4b0cdc3ad46fd71fd72f60f57fa9b37539737ee51ade794a8be3342e5",
+    "benchmark/evaluation_contract.py": "a5d524c12a2755b1adc629b7197ff22a804d3adc6917280f274cb3ad003b9801",
+    "benchmark/large/recipe.json": "b7e6c20edbe7e1398b030fa3b5b349cdf9d0da54253b8ef2dea8f29b8d89d4ec",
+    "benchmark/manifests/test.jsonl": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
+    "benchmark/manifests/validation.jsonl": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+    "benchmark/manifests/web-negative.jsonl": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824",
+    "benchmark/prediction_contract.py": "1cac37126fa8176c6d3b199817cca51bd89ea90a58694289a79ff92435c9ce29",
+    "benchmark/run_release_replay.py": "179200ebbca41d3279a9529279f33f3b3f08e39a4212a35fb2fe51dcbc1b63d7",
+    "benchmark/verify_evaluation_evidence.py": "13f632358233f81082cde5f36665076a855e6244b2e109712e9dc8ced7319312",
+    "benchmark/write_pre_score_freeze.py": "56722ce2fc02c19509c9f9260207d1adcc30744f2d12561b33b506939cbb202a",
+    "model-lock.json": "36b585b937346fe1200f8524bdb46d6f9cf1948772fd8139e9cf37087b9892c8",
+    "scripts/check-benchmark-evidence.mjs": "894f699ef2706177424c595ea0751897af6823638a1702adaba7bd2b789723e6",
+    "scripts/check-pre-score-freeze.mjs": "7be0ad7b64d17ccaf4fdb534e9f1e1743c8257b1c5092de47e36240e9e88a753",
+    "src/inference/calibration.ts": "da51b282ae4411e41a6a6949cf0005d6767984e6a7b65f6b8e6d5df073b37948",
+    "src/inference/detector.ts": "c603abfef596d1723c1d924a00069391846fb741e0cd8afa39fc9a98346fef51",
+    "src/shared/model-spec.ts": "bfbbd0ee6ff04e4049b8ae8e92ab9f5321ff186c247e7f02166f1e557da66475",
+    "weights/prooflens-cf384.onnx": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c"
+  }
+}
