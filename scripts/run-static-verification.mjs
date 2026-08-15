@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { classifyReleaseStage, FREEZE_PATH, LEGACY_FREEZE_PATH } from "./release-stage-policy.mjs";
 import { classifyM2Stage } from "./m2-stage-policy.mjs";
-import { classifyM3Stage, M3_PUBLICATION_LOCK_PATH } from "./m3-stage-policy.mjs";
+import { classifyM3Stage, M3_FAILURE_PATH, M3_PUBLICATION_LOCK_PATH } from "./m3-stage-policy.mjs";
 
 function git(arguments_) {
   return execFileSync("git", arguments_, { encoding: "utf8" }).trim();
@@ -13,6 +13,7 @@ const legacyRecoverySource = !freezeExists && existsSync(LEGACY_FREEZE_PATH);
 const m2SelectionExists = existsSync("benchmark/evidence/m2/selection-summary.json");
 const m2TrainingExists = existsSync("benchmark/evidence/m2/training-summary.json");
 const m3SelectionExists = existsSync("benchmark/evidence/m3/selection-summary.json");
+const m3FailureExists = existsSync(M3_FAILURE_PATH);
 const m3LockExists = existsSync(M3_PUBLICATION_LOCK_PATH);
 const m3TrainingExists = existsSync("benchmark/evidence/m3/training-summary.json");
 const head = git(["rev-parse", "HEAD"]);
@@ -28,10 +29,12 @@ const m2Stage = classifyM2Stage({
 });
 const effectiveStage = classifyM3Stage({
   selectionExists: m3SelectionExists,
+  failureExists: m3FailureExists,
   lockExists: m3LockExists,
   trainingExists: m3TrainingExists,
 }) ?? m2Stage ?? stage;
 const scripts = new Map([
+  ["m3-failed", "verify:m3-failed"],
   ["m3-source", "verify:m3-source"],
   ["m3-pinned", "verify:m3-pinned"],
   ["m3-final", "verify:m3-final"],

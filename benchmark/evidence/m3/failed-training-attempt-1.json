@@ -1,0 +1,457 @@
+{
+  "schemaVersion": 1,
+  "profile": "m3",
+  "attemptId": "m3-failed-training-attempt-1",
+  "stage": "m3-failed",
+  "source": {
+    "commit": "2e6de2187d1cff5aea48e57ad9a30f15541fc4df",
+    "tree": "a6ab771f27b1efd108caa0b08128118fd7465334",
+    "parent": "0adbd55d8cdc25ad3d20e773a315ec57d14c7973"
+  },
+  "inputBindings": {
+    "upstreamModelSha256": "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+    "trainerSha256": "6973877bd16d360c10622beb8c8048a8753229fdfd6226a6556427c8c00d365b",
+    "diagnosticGeneratorSha256": "429ba93e675f2ebf0b42fca4d50f3916021fc5abcb4cc6761be42afb5ec37746",
+    "recipeSha256": "df3537f308c413fb37ed8771bcc420ae735dfa52ca7f8434f9085a0aab91129c",
+    "selectionSummarySha256": "d79d37a52edec7d526e2466bfc4af224a1bae567d0215d774afd7871ba3aafad",
+    "selectorManifestSha256": "86b7b9119fc7a118ee8b0a85e1a6b7dce6635154b3eff49cc1197b9d40fca2ff",
+    "regressionManifestSha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93",
+    "commandArguments": [
+      "--model",
+      "weights/prooflens-cf384.onnx",
+      "--expected-model-sha256",
+      "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+      "--data-root",
+      "benchmark/data/m3-head",
+      "--train-manifest",
+      "benchmark/data/m3-head/train-manifest.jsonl",
+      "--validation-data-root",
+      "benchmark/data/m3-head",
+      "--validation-manifest",
+      "benchmark/evidence/m3/validation-manifest.jsonl",
+      "--regression-data-root",
+      "benchmark/data/m2-head",
+      "--regression-manifest",
+      "benchmark/evidence/m2/validation-manifest.jsonl",
+      "--recipe",
+      "benchmark/m3/recipe.json",
+      "--selection-summary",
+      "benchmark/evidence/m3/selection-summary.json",
+      "--single-view-source",
+      "diffusiondb-stable-diffusion",
+      "--single-view-source",
+      "open-images-train",
+      "--execution-provider",
+      "cpu",
+      "--batch-size",
+      "24",
+      "--feature-shard-images",
+      "2000",
+      "--reextract-cached-features",
+      "--output-dir",
+      "benchmark/candidates/prooflens-cf384-m3"
+    ]
+  },
+  "operatorObservation": {
+    "evidenceClass": "operator-observed",
+    "exitCode": 1,
+    "terminalExceptionType": "RuntimeError",
+    "terminalMessage": "No trained candidate",
+    "durableStdoutCaptured": false,
+    "limitation": "The original console stream was not preserved; the post-failure diagnostic is separate evidence."
+  },
+  "cacheSnapshot": {
+    "evidenceClass": "captured-local-artifact-inventory",
+    "root": "benchmark/candidates/prooflens-cf384-m3",
+    "runId": "447053b4b6f924488653d237e2372230",
+    "marker": {
+      "path": "benchmark/candidates/prooflens-cf384-m3/fresh-feature-run.json",
+      "sha256": "4560e455d813e371856093566651ac6cc96769f761f746d210eb026d6329b916",
+      "bytes": 1258,
+      "state": "extracting",
+      "payload": {
+        "schemaVersion": 1,
+        "runId": "447053b4b6f924488653d237e2372230",
+        "state": "extracting",
+        "context": {
+          "pipelineVersion": 9,
+          "featureExtractorContract": "cf384-static-batch24-preprocess-v1",
+          "upstreamModelSha256": "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+          "trainManifestSha256": "a0cb9994018b44fa958e312816460b15b5fbab43d489e75b1a9f5647bd70d261",
+          "validationManifestSha256": "86b7b9119fc7a118ee8b0a85e1a6b7dce6635154b3eff49cc1197b9d40fca2ff",
+          "regressionManifestSha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93",
+          "regressionDataRoot": "benchmark/data/m2-head",
+          "regressionFeatureViews": 3600,
+          "selectionSummarySha256": "d79d37a52edec7d526e2466bfc4af224a1bae567d0215d774afd7871ba3aafad",
+          "featureBatchSize": 24,
+          "featureShardImages": 2000,
+          "singleViewTrainingSources": [
+            "diffusiondb-stable-diffusion",
+            "open-images-train"
+          ],
+          "featureConfigurationHashes": {
+            "training": "6befc0c3ef1d751da8fa96b3a8beab7954178f10c22cb8d85d7df2a4fe635600",
+            "validation": "d4cf589cc427a08948b34b0d7a3059e04b6f38b1f8cbb458768c6f180bdcd42b",
+            "regression": "d4cf589cc427a08948b34b0d7a3059e04b6f38b1f8cbb458768c6f180bdcd42b"
+          }
+        }
+      }
+    },
+    "fileCount": 59,
+    "totalBytes": 286698318,
+    "inventory": [
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/feature-model.onnx",
+        "bytes": 87442097,
+        "sha256": "515a9c450a76c2e30741750c5d4adf2d702cbe24df55fd05d12d4c1147e7e59f"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/regression-00000.npz",
+        "bytes": 5139001,
+        "sha256": "c1f822c737249c9c621c0193024a0a5a05149849fe2f710919ddf24b8f94ef79"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00000.npz",
+        "bytes": 2856771,
+        "sha256": "2b706207d7a5b4bf2ea8b7f9e2fbf964a5bd26e23d71dc0a4702008d202f7ced"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00001.npz",
+        "bytes": 2856534,
+        "sha256": "17835df45b5a9ff7c468f235f30936373dace584c6a1be1bf17646ddb76351de"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00002.npz",
+        "bytes": 2856554,
+        "sha256": "3c2c9fe586a7a07a82adb354c20850f829f18202e7faa95f416af49a51f48f24"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00003.npz",
+        "bytes": 2856649,
+        "sha256": "6701764c17a8e072539d00dfb07e865acbe12fb824226f2a4766343d64df8306"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00004.npz",
+        "bytes": 2856880,
+        "sha256": "bcab52a042ce3d6d6e6fcc08ebbb4dfe5ef1d799b1e0bb84fdf27dace0b57e4d"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00005.npz",
+        "bytes": 2856602,
+        "sha256": "b80c0a178aaca1aee251dd045b8720c06274783af17b411503233de583c1d3b9"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00006.npz",
+        "bytes": 2856627,
+        "sha256": "46c64a439489e2285dafd696b60903a1ca6fc567cd81be83be2ca865a2068390"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00007.npz",
+        "bytes": 2856972,
+        "sha256": "ade77c7b90271c2d88e4c9765d39acf5cdbd555bd5be011ac8766ccacbbb1d7a"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00008.npz",
+        "bytes": 2856325,
+        "sha256": "2591d16a2d608467f3a8452ca1168b84e904704dc6c8530817381e50754f852a"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00009.npz",
+        "bytes": 2856770,
+        "sha256": "15623dbcbbf1ec95a74c83feb8cc86334140cd9ea4672459953de4a883a0325b"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00010.npz",
+        "bytes": 2856824,
+        "sha256": "cd2b15c2d7ae2ba2904027128538e17f74e2686c93bb85da2f588c451e77a4f8"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00011.npz",
+        "bytes": 2856455,
+        "sha256": "1f2aba75778c7ac755640b59302a08150b2fe768b421e865fb730fca8cc500ed"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00012.npz",
+        "bytes": 2856431,
+        "sha256": "d39e79c28ed729a8a0d605110234992d9cfb3536ddaffad5bd8957c9e7f2a1bf"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00013.npz",
+        "bytes": 2856404,
+        "sha256": "805a85819ad4f0fc5b2e1763606ca3a819ab435f99a812608cf5b91ddaf259a7"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00014.npz",
+        "bytes": 2856707,
+        "sha256": "542bafa6d6fa474ed2fae8ed7f8be14318ff11bdd17c322e857086242347de31"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00015.npz",
+        "bytes": 2856610,
+        "sha256": "f8dd89aeca5995e398542bd0ffb4403b891a1af4dbe4442c524857e41f7c6f9d"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00016.npz",
+        "bytes": 2856579,
+        "sha256": "843242bd699095d9eb8e2a509090b3638943428ef1c93cd04d420ffa4c457196"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00017.npz",
+        "bytes": 2856579,
+        "sha256": "9fc1c9de9134d519e0b9b5d9b02810eb00e08f6b3642e59dce50d564401deade"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00018.npz",
+        "bytes": 2856669,
+        "sha256": "1e0c737716a3e732e1be12c80241e1df3a39c397ec6ba07c602dfb9613131ddd"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00019.npz",
+        "bytes": 2856893,
+        "sha256": "445769de046725e398e62111ce5244452a628ee22c7c8ec139e221fe38616a72"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00020.npz",
+        "bytes": 2856797,
+        "sha256": "51eefc89e22ab4b1c273bdd9f07e411453de6f1c1a4f39dfd9c8cc5c1c9e55e9"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00021.npz",
+        "bytes": 2856665,
+        "sha256": "057df460a12153d5ac37341e554a53a9b2d412e53ed864d2c27965883bc4c0a6"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00022.npz",
+        "bytes": 2856385,
+        "sha256": "799df150d6e64ba259122826223027c09bc350cb7578ef5bda29bbc616150758"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00023.npz",
+        "bytes": 2856497,
+        "sha256": "fe6258936b03109fff975e94f9fa38e7bb44f23806a412cf9f3341ce79f4c207"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00024.npz",
+        "bytes": 2856810,
+        "sha256": "22383c67b0f09e690206f39c3fcdb56f0ec8d7c24d9ced4ff0d75d2e2b5a6c69"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00025.npz",
+        "bytes": 7995433,
+        "sha256": "3b4e6ce1b48ac99928ecb5adda30748f249983a3f8a4170da6aafeefcbac01bd"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00026.npz",
+        "bytes": 2856976,
+        "sha256": "87d115d309a40c395e715772eb39d92c05bbd97ba429adcf4ab8c314a3dcbfe2"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00027.npz",
+        "bytes": 2857225,
+        "sha256": "8c20e290f00a30968b40bf664a1667cd594493cf79b1a7b3eafaa3fa314b09ad"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00028.npz",
+        "bytes": 2856822,
+        "sha256": "a622197b5afd66fd8e8d8f49d2f6deeedf8cafcab4e4133d509ea0f5078e46c5"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00029.npz",
+        "bytes": 2857041,
+        "sha256": "c068f9b3fce6c86bbe3e73bc7bceab5d3d8676e89844eb176562f3f83b376e58"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00030.npz",
+        "bytes": 2856971,
+        "sha256": "dd88bbde0b4aa3baaf718faa5676523cb0f92055efd9b1683b3865ef33dd3e5e"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00031.npz",
+        "bytes": 2857370,
+        "sha256": "edc5a706f2973bb88b0099eb72470c3610d6e6229058bc36d419a0eb86715724"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00032.npz",
+        "bytes": 2857197,
+        "sha256": "5931e2885be564af24829a94c6ed564c267c6e2ccdbda970f59cd72e23d94597"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00033.npz",
+        "bytes": 2857099,
+        "sha256": "678a4dd667f9912d9165e81974e80b2219452d7c28598ecb2bdc7b663789fb0d"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00034.npz",
+        "bytes": 2856572,
+        "sha256": "3bfb9c2dd1145041c76d6bbf5dcb54d19c731b238992864e4a00fa0f61a62dc3"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00035.npz",
+        "bytes": 2857106,
+        "sha256": "288279a2ff6f8b100a977f9d903d0250259ad9b52ee672d7506ab5dfc52c608c"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00036.npz",
+        "bytes": 2857089,
+        "sha256": "50a66d67f036aa970c86743b9fa7d45eb3783ca3199d4120fe791df4d18d75d0"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00037.npz",
+        "bytes": 2857012,
+        "sha256": "962fabafaa47b70b00a0f3dc0caf4d13b5212ea6a363345c9f9f9c48cb3cb461"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00038.npz",
+        "bytes": 2856896,
+        "sha256": "287b2fe393788a6aca5425ca990378a15bb826f178b9a1f8d4163427cbbda51b"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00039.npz",
+        "bytes": 2857083,
+        "sha256": "d5e68ee31e6d751e5c823df59c1ff42195886d410c54ed603b1f29a80d845794"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00040.npz",
+        "bytes": 2857100,
+        "sha256": "0acae438366f182285c3295fcf437f792e281ded6229a1a32bea5ff8af1bdfc5"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00041.npz",
+        "bytes": 2857302,
+        "sha256": "d11fbdf11681969b5340363f5ee2507b26bae87a5fa23e82077029339bf946a9"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00042.npz",
+        "bytes": 2856972,
+        "sha256": "7f6498fb83a254a8b6f92e957b3c30a16f05b8f9160822b5ea9282f93bd108d8"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00043.npz",
+        "bytes": 2857101,
+        "sha256": "b7f08975832f0de19df6fab0ba5864f050b4105e4373a9b0885752ca413619da"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00044.npz",
+        "bytes": 2857290,
+        "sha256": "bb34950c5509281062a28cb7c7e4d3ec43468225090814eb9e8e1498c7bc3876"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00045.npz",
+        "bytes": 2857047,
+        "sha256": "bf3dbda1e8cb8c740ecbdd6c1ceca392747023f84ee86bd4a6937cd4cae24db5"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00046.npz",
+        "bytes": 2856954,
+        "sha256": "b341a64b1b3afc8c90fa84ff8e35b364a64473dd41f939bf7e3e85968aac1889"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00047.npz",
+        "bytes": 2856871,
+        "sha256": "9fe01de8df3bed32c9ce0d4f1efa671d56aad64d0e16512b432886fe39bf97b3"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00048.npz",
+        "bytes": 2857452,
+        "sha256": "eb056a8afdadfa5ccba3639dcd1794bf40b9900a68ea62d0f9802b84189fcbb3"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00049.npz",
+        "bytes": 2857102,
+        "sha256": "1ff2ae3598b7d73ea90ad1fd57842da667dc72923d5655354109310cabea5587"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00050.npz",
+        "bytes": 6282152,
+        "sha256": "c289f40b4955c2d4abae299df5f5e7ca6f3e4fbceb4b6be476acb2cd28cb1a85"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00051.npz",
+        "bytes": 11421607,
+        "sha256": "99bad5fb8d7a3f53131fb5d4c93f2e91e4396cb0e78dedfdefea64fe3a6e6896"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00052.npz",
+        "bytes": 11421853,
+        "sha256": "610bb1527ffbee91f61a11e373629690cdfe135142108c1345f30def38a57b50"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00053.npz",
+        "bytes": 11419796,
+        "sha256": "16a9cddf683d8945dec6923302c380ba4867484e390251da555cf15571aad0d6"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/train-00054.npz",
+        "bytes": 2160747,
+        "sha256": "103fa6d761a090bc28477b60679db5a64f2d528db073cd08c51ac1bd9bb94984"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/features/validation-00000.npz",
+        "bytes": 3428735,
+        "sha256": "576b77cfb764eaaa2b0bc10f2199b785afcffca603a790df5b46163ef001cafe"
+      },
+      {
+        "path": "benchmark/candidates/prooflens-cf384-m3/fresh-feature-run.json",
+        "bytes": 1258,
+        "sha256": "4560e455d813e371856093566651ac6cc96769f761f746d210eb026d6329b916"
+      }
+    ],
+    "persistenceRequired": false
+  },
+  "diagnostic": {
+    "path": "benchmark/evidence/m3/failed-selector-diagnostic-1.json",
+    "sha256": "1238ae1cf341ce257c2e3e9f5e44cd499ac62b3a37e47010d3522e8f2f018eb5",
+    "method": "post-failure deterministic refit from captured cached features",
+    "candidateCount": 25,
+    "feasibleCandidateCount": 0,
+    "allFrozenSelectorCandidatesInfeasible": true,
+    "originalConsoleReplacement": false
+  },
+  "absence": {
+    "candidateSelectionCompleted": false,
+    "candidateOutputsAbsent": [
+      "benchmark/candidates/prooflens-cf384-m3/model.onnx",
+      "benchmark/candidates/prooflens-cf384-m3/calibration.json",
+      "benchmark/candidates/prooflens-cf384-m3/candidate-grid.json",
+      "benchmark/candidates/prooflens-cf384-m3/validation-summary.json"
+    ],
+    "publicationOutputsAbsent": [
+      "benchmark/evidence/m3/publication-lock.json",
+      "benchmark/evidence/m3/calibration.json",
+      "benchmark/evidence/m3/candidate-grid.json",
+      "benchmark/evidence/m3/finalization-receipt.json",
+      "benchmark/evidence/m3/model-comparison.json",
+      "benchmark/evidence/m3/training-summary.json"
+    ],
+    "successfulCandidateOutputsPresent": false,
+    "publicationLockPresent": false,
+    "successfulM3PublicationEvidencePresent": false,
+    "h3AcceptedAsInput": false,
+    "trackedH3ScoreArtifactsPresent": false
+  },
+  "h3Observation": {
+    "evidenceClass": "operator-observed",
+    "h3PixelsReadOrScored": false,
+    "machineVerifiableBoundary": "The canonical command and diagnostic accept no H3 input, and no tracked H3 score artifact exists."
+  },
+  "shippedModel": {
+    "path": "weights/prooflens-cf384.onnx",
+    "sha256": "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+    "bytes": 87442080,
+    "retained": true
+  },
+  "decision": {
+    "status": "terminal-frozen-selector-failure",
+    "selectedCandidate": null,
+    "thresholdChanged": false,
+    "gatesChanged": false,
+    "modelPublished": false,
+    "nextAttemptMayReuseThisSelectorForSelection": false
+  },
+  "limitations": [
+    "The original process stdout was not retained as a durable file; its exit details are operator-observed rather than machine-verifiable.",
+    "The post-failure diagnostic replays the frozen fit and threshold search from exact cached feature bytes; it is not the original process log.",
+    "The ignored feature caches may be removed after their hashes and the diagnostic result are committed.",
+    "This failed development attempt is not acceptance evidence and says nothing about a future H3 result."
+  ]
+}

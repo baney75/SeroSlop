@@ -27,7 +27,9 @@ import {
 } from "./m2-training-contract.mjs";
 import {
   M3_BASE_COMMIT,
+  M3_FAILURE_EXPECTED,
   M3_LOCK_EXPECTED,
+  M3_SOURCE_COMMIT,
   M3_SOURCE_EXPECTED,
 } from "./m3-stage-policy.mjs";
 
@@ -64,18 +66,17 @@ requireCondition(git(["status", "--porcelain=v1", "--untracked-files=all"]) === 
   "M2 final verification requires a completely clean repository");
 const head = git(["rev-parse", "HEAD"]);
 const headParent = git(["rev-parse", "HEAD^"]);
-const m3SourceHead = headParent === M3_BASE_COMMIT &&
+const frozenM3Source = git(["rev-parse", `${M3_SOURCE_COMMIT}^`]) === M3_BASE_COMMIT &&
+  matchesExpectedRows(rowsForCommit(M3_SOURCE_COMMIT), M3_SOURCE_EXPECTED);
+const m3SourceHead = head === M3_SOURCE_COMMIT && headParent === M3_BASE_COMMIT &&
   matchesExpectedRows(rowsForCommit(head), M3_SOURCE_EXPECTED);
-const m3PinnedSource = !m3SourceHead && headParent !== M3_BASE_COMMIT
-  ? headParent
-  : null;
-const m3PinnedHead = m3PinnedSource !== null &&
-  git(["rev-parse", `${m3PinnedSource}^`]) === M3_BASE_COMMIT &&
-  matchesExpectedRows(rowsForCommit(m3PinnedSource), M3_SOURCE_EXPECTED) &&
+const m3PinnedHead = frozenM3Source && headParent === M3_SOURCE_COMMIT &&
   matchesExpectedRows(rowsForCommit(head), M3_LOCK_EXPECTED);
-requireCondition(head === M3_BASE_COMMIT || m3SourceHead || m3PinnedHead,
-  "M2 historical verification only permits the frozen M2 head or exact M3 source/lock descendants");
-const m2EvidenceHead = (m3SourceHead || m3PinnedHead) ? M3_BASE_COMMIT : head;
+const m3FailureHead = frozenM3Source && headParent === M3_SOURCE_COMMIT &&
+  matchesExpectedRows(rowsForCommit(head), M3_FAILURE_EXPECTED);
+requireCondition(head === M3_BASE_COMMIT || m3SourceHead || m3PinnedHead || m3FailureHead,
+  "M2 historical verification only permits the frozen M2 head or exact M3 source/lock/failure descendants");
+const m2EvidenceHead = (m3SourceHead || m3PinnedHead || m3FailureHead) ? M3_BASE_COMMIT : head;
 const m2EvidenceRows = rowsForCommit(m2EvidenceHead);
 const fixtureRecovery = m2EvidenceHead !== M2_PUBLICATION_COMMIT &&
   git(["rev-parse", `${m2EvidenceHead}^`]) === M2_PUBLICATION_COMMIT &&
