@@ -17,26 +17,29 @@ assert.equal(classifyReleaseStage({ freezeExists: true, head: freeze, freezeComm
 assert.equal(classifyReleaseStage({ freezeExists: true, head: final, freezeCommit: freeze }), "final");
 assert.equal(classifyReleaseStage({ freezeExists: false, head: final, freezeCommit: freeze }), "final");
 assert.throws(() => classifyReleaseStage({ freezeExists: true, head: freeze }), /unique committed addition/u);
-assert.equal(isProhibitedPreScorePath("artifacts/browser-parity.json"), true);
-assert.equal(isProhibitedPreScorePath("benchmark/evidence/evaluation/confirmatory/predictions.jsonl"), true);
-assert.equal(isProhibitedPreScorePath("benchmark/evidence/evaluation/web-negative/wilson.json"), true);
-assert.equal(isProhibitedPreScorePath("benchmark/evidence/evaluation/replay-verification.json"), true);
-assert.equal(isProhibitedPreScorePath("benchmark/evidence/evaluation/pre-score-freeze-v3.json"), true);
-assert.equal(isProhibitedPreScorePath("artifacts/chrome-e2e-wasm.json"), false);
+assert.equal(isProhibitedPreScorePath("artifacts/chrome-e2e-wasm.json"), true);
+assert.equal(isProhibitedPreScorePath("benchmark/evidence/evaluation/confirmatory-v2/predictions.jsonl"), true);
+assert.equal(isProhibitedPreScorePath("benchmark/evidence/evaluation/web-negative-v2/wilson.json"), true);
+assert.equal(isProhibitedPreScorePath("benchmark/evidence/evaluation/replay-verification-v2.json"), true);
+assert.equal(isProhibitedPreScorePath("benchmark/evidence/evaluation/confirmatory/failed-evaluation.json"), false);
 assert.equal(isProhibitedPreScorePath("benchmark/evidence/evaluation/validation/summary.json"), false);
 assert.equal(isUnexpectedFreezeReceipt("benchmark/evidence/evaluation/pre-score-freeze.json"), false);
 assert.equal(isUnexpectedFreezeReceipt("benchmark/evidence/evaluation/pre-score-freeze-v2.json"), false);
+assert.equal(isUnexpectedFreezeReceipt("benchmark/evidence/evaluation/pre-score-freeze-v3.json"), false);
+assert.equal(isUnexpectedFreezeReceipt("benchmark/evidence/evaluation/pre-score-freeze-v4.json"), true);
 assert.equal(isUnexpectedFreezeReceipt("benchmark/evidence/evaluation/pre-score-freezes/alternate.json"), true);
 assert.deepEqual(freezeReceiptAdditions([
   "benchmark/evidence/evaluation/pre-score-freeze.json",
   "benchmark/evidence/evaluation/pre-score-freeze-v2.json",
   "benchmark/evidence/evaluation/pre-score-freeze-v3.json",
-  "benchmark/evidence/evaluation/pre-score-freeze-v3.json",
+  "benchmark/evidence/evaluation/pre-score-freeze-v4.json",
+  "benchmark/evidence/evaluation/pre-score-freeze-v4.json",
   "README.md",
 ]), [
   "benchmark/evidence/evaluation/pre-score-freeze-v2.json",
   "benchmark/evidence/evaluation/pre-score-freeze-v3.json",
+  "benchmark/evidence/evaluation/pre-score-freeze-v4.json",
   "benchmark/evidence/evaluation/pre-score-freeze.json",
 ]);
 
-console.log(JSON.stringify({ cases: 17, policy: "pass" }));
+console.log(JSON.stringify({ cases: 18, policy: "pass" }));

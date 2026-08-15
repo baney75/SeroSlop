@@ -21,12 +21,14 @@
 | Per-image score | one-decimal 0–100 model score; failure is `unavailable` | unit and browser-state assertions |
 | Fixed threshold | inclusive score `>= 65.0/100`; one validation-frozen intercept | boundary tests and final calibration lock |
 | Large realistic local model training | frozen 5.4M-example upstream backbone; replacement head trained on 103,600 unique public images / 114,400 views | corpus packet, trainer summary, grid, coverage, classifier-only ONNX proof |
-| Accuracy | every confirmatory view must have lower 95% BA, real recall, and synthetic recall at least 75%; Kling recall at least 60% | one-time frozen predictions and recomputed bootstrap |
-| False-positive robustness | every web-negative view must have Wilson upper 95% FPR at most 10% overall and 20% per source | frozen 319-row challenge and recomputed intervals |
+| Accuracy | No current acceptance result. The original Kling/Library holdout is consumed and acceptance-ineligible after its numeric-contract failure. Any release claim requires every replacement-v2 view to clear the frozen lower-95% gates and Infinity point recall to reach 60%. | public V3 receipt, frozen replacement predictions, and recomputed bootstrap |
+| False-positive robustness | No current acceptance result. The unscored 319-row replacement slice uses StockImages rows disjoint from confirmation rows but is not an independent source-population estimate. | frozen replacement predictions and recomputed Wilson intervals |
 | Reproducible delivery | lockfile, model lock, fixed UTC ZIP timestamps, stage-aware pre-score/final CI | with `benchmark/verify-requirements.txt` installed in the active verification venv: `npm ci && npm run verify:static`, cross-time-zone byte equality, checksum |
 | Predictions came from the shipped model | frozen local pixels and packaged ONNX | `npm run verify:release` performs byte-identical inference replay before pixel cleanup |
 | Easy and safe controls | saved site toggle, page-temporary labels, perceptible re-scan, no pointer interception, target-associated chips with honest collision hiding | interaction/geometry E2E and inspected screenshots |
 
 ## Revision conditions
 
-Rework is mandatory for any model/hash mismatch, missing corpus attribution, split leakage, incomplete threshold search, failed confidence gate, material class/source collapse, network activity after cutoff, fabricated score, stale-result race, inaccessible control, misleading probability language, non-reproducible archive, or fixed-head reviewer finding. Passing checks is evidence, not proof of the maintainer’s private result.
+Rework is mandatory for any model/hash mismatch, missing corpus attribution, split leakage, incomplete threshold search, failed confidence gate, material class/source collapse, network activity after cutoff, fabricated score, stale-result race, inaccessible control, misleading probability language, non-reproducible archive, or fixed-head reviewer finding.
+
+This repository makes no claim about the bounty maintainer’s private score, acceptance decision, or payment.

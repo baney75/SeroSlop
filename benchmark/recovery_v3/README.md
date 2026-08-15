@@ -20,10 +20,10 @@ benchmark/.venv/bin/python benchmark/recovery_v3/verify.py
 The tracked packet is:
 
 - `benchmark/manifests/test-v2.jsonl`: 600 replacement confirmation rows;
-- `benchmark/manifests/web-negative-v2.jsonl`: 319 independent negative rows;
+- `benchmark/manifests/web-negative-v2.jsonl`: 319 row-, byte-, and dHash-disjoint false-positive rows; not an independent source-population estimate;
 - `benchmark/manifests/historical-perceptual-exclusions-v1.json.gz`: one byte-bound dHash and source group for all 106,019 historical exclusions;
 - `benchmark/manifests/replacement-v2-selection.json`: source locks, counts, digests, and every rejected candidate;
 - `benchmark/manifests/replacement-v2-perceptual-review.json`: the zero-exception dHash policy;
 - `benchmark/manifests/replacement-v2-attribution.json`: dataset revisions, licenses, and citations.
 
-No ProofLens model, threshold, or prediction is an input to this selection. The replacement evaluator remains unauthorized until the later public source and receipt-only freeze commits both pass.
+No ProofLens model, threshold, or prediction is an input to this selection. The committed V2 receipt records the boundary before the failed v1 run. Replacement scoring remains unauthorized until the A4 binary64 recovery source and its receipt-only V3 child both pass locally, on public GitHub Actions, and through anonymous exact-head checks.

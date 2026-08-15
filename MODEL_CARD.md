@@ -45,9 +45,11 @@ Validation contains 300 Open Images photographs and 300 synthetic images from GL
 
 These figures come from the canonical validation evaluator and are selection results, not an untouched estimate of generalization.
 
-The untouched confirmatory set contains 300 Kling v2.1 images and 300 Library of Congress FSA/OWI color photographs. Its generator version, real source, prompt groups, IDs, and bytes are excluded from training and validation. It is scored once after model/calibration freeze under four transformations. The separate 319-row web-negative challenge reuses those 300 Library of Congress rows and adds 19 expert-created Chartography images; it is not an independent estimate.
+The original Kling v2.1/Library of Congress confirmatory set was scored once and is consumed. Its stored predictions failed the binary64 numeric contract before bootstrap and are permanently marked `acceptanceEligible: false`; they are not release evidence.
 
-No confirmatory result is stated until the canonical evidence exists and all predeclared confidence gates pass. See `BENCHMARK.md`.
+The unscored score-blind replacement contains 300 Coxy7 Infinity images and 300 KoalaAI StockImages-CC0 photographs. Its 319-row false-positive slice is row-, byte-, and dHash-disjoint from the real confirmation slice but shares the StockImages source corpus, so it is not an independent source-population estimate. Dataset cards at the pinned revisions report CC BY 4.0 and CC0-1.0. Those are source-reported license statements, not independent rights clearance; `benchmark/manifests/replacement-v2-attribution.json` preserves authors, links, and the rights caveat.
+
+No current acceptance result exists. See `BENCHMARK.md` for the immutable v1 failure, replacement hashes, and public authorization boundary.
 
 ## Intended use
 
@@ -57,7 +59,7 @@ ProofLens is a local screening hint for ordinary webpage images. It can help a p
 
 - New generators and transformations can shift performance.
 - DiffusionDB adds scale but overrepresents an older Stable Diffusion era.
-- Open Images, DOCCI, and historical Library of Congress photographs do not span every real-web visual type.
+- Open Images, DOCCI, Library of Congress, and StockImages photographs do not span every real-web visual type.
 - Illustrations, CGI, memes, charts, scans, UI screenshots, heavily edited photos, and unusual camera pipelines can produce false positives.
 - A fixed center crop can discard useful evidence.
 - Browser canvas resampling is not bit-identical to Pillow; the post-score parity test measures this gap.

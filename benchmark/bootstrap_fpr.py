@@ -87,7 +87,11 @@ def main() -> None:
             ):
                 raise ValueError(f"Prediction row is stale or malformed: {row.get('id')}")
             try:
-                require_logit_probability_consistency(logit, probability)
+                require_logit_probability_consistency(
+                    logit,
+                    probability,
+                    decision_threshold=args.raw_threshold,
+                )
             except ValueError as error:
                 raise ValueError(f"Prediction row is stale or malformed: {row.get('id')}") from error
         seen_variants.add(variant)

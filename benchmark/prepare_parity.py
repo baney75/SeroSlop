@@ -9,7 +9,8 @@ from pathlib import Path
 import shutil
 
 
-EXPECTED_TEST_MANIFEST_SHA256 = "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae"
+EXPECTED_TEST_MANIFEST_SHA256 = "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8"
+EXPECTED_PARITY_IDS_SHA256 = "0f0e72ac4bd91549af10a76c494138b6cf0c22328d904134b67be82d79badf99"
 SEED = 20260813
 
 
@@ -31,30 +32,57 @@ def selection_priority(identifier: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-root", type=Path, default=Path("benchmark/data"))
-    parser.add_argument("--test-manifest", type=Path, default=Path("benchmark/manifests/test.jsonl"))
+    parser.add_argument("--data-root", type=Path, default=Path("benchmark/data/replacement-v2"))
+    parser.add_argument("--test-manifest", type=Path, default=Path("benchmark/manifests/test-v2.jsonl"))
     parser.add_argument(
         "--predictions",
         type=Path,
-        default=Path("benchmark/evidence/evaluation/confirmatory/prooflens-confirmatory-test-original-predictions.jsonl"),
+        default=Path("benchmark/evidence/evaluation/confirmatory-v2/prooflens-confirmatory-v2-original-predictions.jsonl"),
     )
     parser.add_argument(
         "--bootstrap",
         type=Path,
-        default=Path("benchmark/evidence/evaluation/confirmatory/bootstrap.json"),
+        default=Path("benchmark/evidence/evaluation/confirmatory-v2/bootstrap.json"),
     )
-    parser.add_argument("--ids", type=Path, default=Path("benchmark/manifests/parity-ids.json"))
-    parser.add_argument("--output-dir", type=Path, default=Path("benchmark/data/browser-parity"))
+    parser.add_argument("--ids", type=Path, default=Path("benchmark/manifests/parity-ids-v2.json"))
+    parser.add_argument("--output-dir", type=Path, default=Path("benchmark/data/browser-parity-v2"))
     args = parser.parse_args()
 
     if digest(args.test_manifest) != EXPECTED_TEST_MANIFEST_SHA256:
-        raise ValueError("Parity preparation requires the frozen test manifest")
+        raise ValueError("Parity preparation requires the frozen replacement-v2 test manifest")
     bootstrap = json.loads(args.bootstrap.read_text())
-    if digest(args.predictions) != bootstrap.get("variants", {}).get("original", {}).get("predictionsSha256"):
+    if (
+        bootstrap.get("schemaVersion") != 3
+        or bootstrap.get("manifestSha256") != EXPECTED_TEST_MANIFEST_SHA256
+        or digest(args.predictions)
+        != bootstrap.get("variants", {}).get("original", {}).get("predictionsSha256")
+    ):
         raise ValueError("Parity preparation requires the bootstrap-bound original predictions")
 
-    items = {str(row["id"]): row for row in json_lines(args.test_manifest)}
-    predictions = {str(row["id"]): row for row in json_lines(args.predictions)}
+    item_rows = json_lines(args.test_manifest)
+    prediction_rows = json_lines(args.predictions)
+    item_ids = [str(row["id"]) for row in item_rows]
+    prediction_ids = [str(row.get("id")) for row in prediction_rows]
+    if (
+        len(item_rows) != 600
+        or len(set(item_ids)) != 600
+        or len(prediction_rows) != 600
+        or len(set(prediction_ids)) != 600
+        or set(prediction_ids) != set(item_ids)
+    ):
+        raise ValueError("Parity preparation requires exact one-to-one replacement-v2 predictions")
+    items = {str(row["id"]): row for row in item_rows}
+    predictions = {str(row["id"]): row for row in prediction_rows}
+    for identifier, prediction in predictions.items():
+        item = items[identifier]
+        if (
+            prediction.get("variant") != "original"
+            or int(prediction.get("label", -1)) != int(item["label"])
+            or str(prediction.get("source")) != str(item["source"])
+        ):
+            raise ValueError(f"Parity prediction is stale or malformed: {identifier}")
+    if digest(args.ids) != EXPECTED_PARITY_IDS_SHA256:
+        raise ValueError("Parity IDs differ from the pre-score replacement-v2 selection")
     selected_ids = json.loads(args.ids.read_text())
     if not isinstance(selected_ids, list) or len(selected_ids) != 60 or len(set(selected_ids)) != 60:
         raise ValueError("Parity IDs must contain exactly 60 unique items")
@@ -96,7 +124,7 @@ def main() -> None:
         source: sum(row["source"] == source for row in rows)
         for source in sorted({str(row["source"]) for row in rows if int(row["label"]) == 1})
     }
-    if real_count != 30 or source_counts != {"kling_v2_1": 30}:
+    if real_count != 30 or source_counts != {"coxy7-infinity": 30}:
         raise ValueError(f"Unexpected parity balance: real={real_count}, synthetic={source_counts}")
     manifest = args.output_dir / "manifest.json"
     manifest.write_text(json.dumps(rows, indent=2) + "\n")

@@ -1,12 +1,18 @@
 # Benchmark protocol and evidence
 
-This file freezes the evaluation design before the confirmatory images are scored. The shipped model, validation-selected threshold, preprocessing, corpus, acceptance gates, runtime, and output paths become immutable before the confirmatory run. Any post-score runtime defect requires a new untouched holdout and a new public freeze before source changes; the observed confirmatory set may never become a tuning set. The two pre-score recoveries described below change only authorization/verifier code and their documentation/tests. They do not change those frozen scientific or extension-runtime inputs.
+## Evaluation status
+
+The original Kling v2.1/Library of Congress holdout was scored once and is consumed. Its predictions failed the frozen numeric contract before bootstrap: the evaluator applied `np.exp` to float32 logits, while the independent contract recomputed binary64 sigmoid. The immutable failure record reports 2,231 violations across 2,400 rows and marks the packet `acceptanceEligible: false`. No v1 bootstrap was published and v1 web-negative inference never started. Those point estimates are diagnostic only and may not guide the model, threshold, preprocessing, gates, or replacement selection.
+
+The score-blind replacement packet under `benchmark/recovery_v3/` has not been scored. It uses 300 Coxy7 Infinity images and 300 KoalaAI StockImages-CC0 photographs for confirmation, plus 319 different StockImages rows for false-positive testing. The false-positive slice is row-, byte-, and dHash-disjoint from the confirmation slice but shares its real-image source corpus, so it is not an independent source-population estimate.
+
+The A4 repair converts logits to binary64 before sigmoid, gives the replacement protocols new canonical names and output paths, and strengthens the publication contract. It does not change model bytes, calibration, threshold, preprocessing, statistical gates, training data, or extension runtime. Replacement inference remains unauthorized until A4 and its receipt-only V3 child are both public and green.
 
 ## Model-selection boundary
 
-The Community Forensics ViT-S/16 backbone is frozen. Training changes only its `384 → 1` classifier weight and bias. The upstream backbone was trained on 5.4 million total images arranged as 2.7 million real/synthetic pairs and spanning 4,803 generators. ProofLens trains the replacement head on 103,600 unique public images:
+The Community Forensics ViT-S/16 backbone is frozen. Training changes only its `384 → 1` classifier weight and bias. The upstream backbone was trained on 5.4 million paired real/synthetic images spanning 4,803 generators. ProofLens trained the replacement head on 103,600 unique public images:
 
-| Training source | Class | Images | Views used for head training |
+| Training source | Class | Images | Feature views |
 |---|---|---:|---:|
 | DiffusionDB, pinned Stable Diffusion corpus | synthetic | 50,000 | 50,000 |
 | Qwen Image Bench, 15 current generator versions | synthetic | 1,200 | 4,800 |
@@ -15,90 +21,91 @@ The Community Forensics ViT-S/16 backbone is frozen. Training changes only its `
 | DOCCI train | non-AI | 1,200 | 4,800 |
 | **Total** | **51,200 synthetic / 52,400 non-AI** | **103,600** | **114,400** |
 
-The four modern views are original, social screenshot, JPEG-75 resize, and heavy double-JPEG. Source-balanced loss gives each class half of the objective and each named source an equal share within its class. A 25-candidate grid varies only weight decay and upstream-head blending. Validation selects the lexicographically best worst-case result and searches every distinct logit decision boundary; the test is never accepted by the trainer.
+The modern images use original, screenshot, JPEG-75 resize, and heavy double-JPEG views. Source-balanced loss gives each class half of the objective and each named source an equal share inside its class. A 25-candidate grid varies only weight decay and upstream-head blending. Validation selects the lexicographically best worst-case result and searches every distinct logit decision partition; training code cannot read a confirmatory manifest.
 
-The pixel-free corpus packet is under `benchmark/evidence/large/`. It pins 85 DiffusionDB archives, 55,000 Open Images candidates, all selected IDs and byte hashes, 50,000 Open Images attributions, and EXIF-oriented dHash evidence. Training has zero ID or byte overlap with validation, test, or the 19-image Chartography exclusion. Every dHash pair at Hamming distance 8 or lower is either rejected or recorded as visually distinct.
+Fresh extraction covered all 103,600 images and 114,400 configured views. All 25 candidates passed the validation gates; the selected head uses weight decay `0.1` and upstream blend `0.85`. The finalized ONNX SHA-256 is `941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c`. Independent comparison against the pinned upstream artifact found only `classifier.weight` and `classifier.bias` changed; 198 other initializers and the graph contract match.
 
-Fresh extraction covered all 103,600 images and 114,400 configured feature views. All 25 candidates passed the validation gates; the selected head uses weight decay `0.1` and upstream blend `0.85`. The finalized ONNX SHA-256 is `941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c`. Independent comparison against the pinned upstream bytes found only `classifier.weight` and `classifier.bias` changed; 198 other initializers and the graph contract are unchanged.
+The pixel-free training packet under `benchmark/evidence/large/` pins source locks, 103,600 IDs and byte hashes, 50,000 Open Images attribution records, and EXIF-oriented dHash review. Training has zero ID or byte overlap with the frozen evaluation exclusions. Every training/evaluation dHash pair at Hamming distance 8 or lower was rejected or reviewed as visually distinct.
 
 ## Frozen splits
 
-| Split | Synthetic | Non-AI | Purpose | SHA-256 |
+| Split | Synthetic | Non-AI | Role | SHA-256 |
 |---|---|---|---|---|
-| Training manifest | 1,200 current-generator images | 2,400 Open Images/DOCCI images | modern stratum included in the 103,600-image head corpus | `03b88b3804244018fbdf532b2b7d451db91dad7c3229c9013ee4ede9fa798015` |
+| Training manifest | 1,200 current-generator images | 2,400 Open Images/DOCCI images | modern stratum inside the 103,600-image corpus | `03b88b3804244018fbdf532b2b7d451db91dad7c3229c9013ee4ede9fa798015` |
 | Validation | 150 GLM-Image + 150 HunyuanImage-3.0 | 300 Open Images | candidate and threshold selection only | `41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b` |
-| Confirmatory test | 300 Kling v2.1 | 300 Library of Congress FSA/OWI photographs | one-time final accuracy estimate | `28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae` |
-| Web-negative challenge | none | the same 300 Library of Congress rows + 19 expert-created Chartography rows | false-positive stress check | `ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824` |
+| Historical consumed v1 confirmation | 300 Kling v2.1 | 300 Library of Congress FSA/OWI photographs | failed numeric-contract diagnostic; never acceptance evidence | `28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae` |
+| Historical unrun v1 web-negative | none | 300 Library of Congress + 19 Chartography | frozen but never inferred | `ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824` |
+| Replacement-v2 confirmation | 300 Coxy7 Infinity | 300 KoalaAI StockImages-CC0 | unscored release confirmation | `773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8` |
+| Replacement-v2 web-negative | none | 319 different StockImages-CC0 rows | unscored false-positive sample; same real source corpus | `6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9` |
 
-Generator versions, real sources, synthetic prompt groups, IDs, and image bytes are disjoint across training, validation, and confirmatory test. The web-negative challenge deliberately reuses all 300 confirmatory real rows. It is therefore a targeted extension of the real-side analysis, not an independent 319-image estimate.
+The replacement selection excludes all 106,019 historical training/evaluation IDs, bytes, source groups, and dHashes. It also rejects cross-protocol overlaps. The tracked packet contains 248 deterministic rejects and no retained dHash match at Hamming distance 8 or lower. Fixed dataset cards report CC BY 4.0 for Coxy7 and CC0-1.0 for StockImages; these are source-reported license statements, not independent rights clearance. Pixels remain outside Git.
 
-## Frozen decision and acceptance rules
+## Decision and acceptance rules
 
-Validation emits one intercept that aligns its selected raw-logit threshold to the extension’s fixed display threshold of **65.0/100**. The inclusive decision is `display score >= 65.0`. This is a model score, not a calibrated probability.
+Validation emits one intercept that aligns its selected raw-logit boundary to the fixed display threshold of **65.0/100**. The inclusive decision is `display score >= 65.0`. The display value is a model score, not a calibrated probability.
 
-All evaluation uses the exact shipped FP32 ONNX and all four predeclared views. The confirmatory test passes only if every view satisfies:
+All release evaluation uses the shipped FP32 ONNX and four views: original, screenshot, JPEG-75 resize, and heavy double-JPEG. Replacement confirmation passes only if every view has:
 
 - lower 95% class-stratified bootstrap bound for balanced accuracy at least 75%;
 - lower 95% bound for non-AI recall at least 75%;
 - lower 95% bound for synthetic recall at least 75%;
-- Kling v2.1 point recall at least 60%.
+- Infinity point recall at least 60%.
 
-The bootstrap uses 20,000 one-image-cluster replicates, seed `20260813`, and a variant-and-class-derived RNG. Verification recomputes every interval from the committed predictions.
+The bootstrap uses 20,000 one-image-cluster replicates, seed `20260813`, and variant/class-derived random streams. Static verification reruns the interval calculation from the committed prediction rows.
 
-The web-negative challenge passes only if every view has a Wilson 95% upper bound on false-positive rate of at most 10% overall and at most 20% for each named source.
+Replacement web-negative passes only if every view has a Wilson 95% upper false-positive bound of at most 10% overall and at most 20% for each named source. These gate values remain byte-bound to `benchmark/large/recipe.json`; the replacement packet changes the held-out population, not the acceptance bar.
 
-The exact gates and post-score policy are machine-readable in `benchmark/large/recipe.json`. `benchmark/evaluate.py` validates the model, manifest, calibration, source/class allocation, every image hash, provider, output absence, and all four variants before creating an inference session. It stages all files and publishes a completion marker last. Existing canonical evidence cannot be overwritten.
+## Append-only public lineage
 
-## Predeclared execution order
+| Stage | Commit | Public result | Meaning |
+|---|---|---|---|
+| A | `0771a9422b552e2023e5150fb6c8b4238b811a74` | [passed](https://github.com/baney75/prooflens/actions/runs/31843811845) | original source freeze |
+| B | `2bd0c4757f6059c57879414a5dba77629d66460e` | [failed](https://github.com/baney75/prooflens/actions/runs/31844088383) | receipt-only; Node verifier hit `ENOBUFS` before inference |
+| A2 | `99861df575854511c685d7b8f90acdc7ed4e5923` | [failed](https://github.com/baney75/prooflens/actions/runs/31846361076) | copied evaluator imported absent inference dependencies before its guard |
+| A3 | `17124df0bf390c2c2c27583ae81f06b65ead2e3f` | [passed](https://github.com/baney75/prooflens/actions/runs/31847256279) | dependency loading moved behind authorization |
+| B2 | `2757a4ff267d580a7dd8ad4918885441fa887f1b` | [passed](https://github.com/baney75/prooflens/actions/runs/31847694896) | V2 receipt-only public boundary |
+| F1 | `45400803a19b967c8cae0bbf4817fe984aea349a` | [failed](https://github.com/baney75/prooflens/actions/runs/31848762781) | consumed v1 packet disclosed as numeric-contract failure |
+| P3 | `baaf3eb0b7a22f635d2ec6a3cb2496b9e76313b8` | [failed](https://github.com/baney75/prooflens/actions/runs/31853385690) | score-blind replacement packet; old stage policy correctly rejected its new paths |
 
-1. Complete head training and validation selection.
-2. Run `benchmark/finalize_training_evidence.py`; independently prove that only `classifier.weight` and `classifier.bias` changed.
-3. Evaluate validation and select two high-margin Chrome UI fixtures from validation only.
-4. Commit and push the clean model, calibration, corpus, evaluator, gates, runtime, and validation evidence to public `main` as source commit A. Public A is `0771a9422b552e2023e5150fb6c8b4238b811a74`; its stage-aware pre-score run passed with every confirmatory, web-negative, replay, and browser-parity artifact absent.
-5. Preserve legacy receipt-only commit B, `2bd0c4757f6059c57879414a5dba77629d66460e`. Its legacy verifier stopped with `ENOBUFS` while trying to buffer the 87,442,080-byte model, before the evaluator ran. The legacy receipt remains byte-identical and cannot authorize sealed inference.
-6. Preserve first recovery source A2, `99861df575854511c685d7b8f90acdc7ed4e5923`, the direct child of B. Its exact 16-path diff fixed streaming and lineage enforcement, but [Actions run 31846361076](https://github.com/baney75/prooflens/actions/runs/31846361076) failed because its pre-input regression imported ONNX Runtime before reaching the V2 guard in a pixel-free CI environment that installs only NumPy. No V2 receipt or sealed output existed.
-7. Commit A3 as A2's direct child. Its exact nine-path diff moves ONNX Runtime and Pillow loading behind the V2 authorization guard and updates only the recovery contract, tests, and these two documents. Model, calibration, manifests, preprocessing, metrics, gates, bootstrap code, and extension runtime remain unchanged. Push A3 and require local, exact-head GitHub Actions, authenticated remote, and anonymous public checks to pass.
-8. Run `benchmark/write_pre_score_freeze.py` from clean public A3. Commit **only** `benchmark/evidence/evaluation/pre-score-freeze-v2.json` as B2, push it, and require the same local, public CI, authenticated, anonymous head, and raw-byte checks to pass. V1 and the failed A2 source always fail closed.
-9. Run the confirmatory protocol once, then its deterministic bootstrap.
-10. Run the web-negative protocol once, then its Wilson intervals.
-11. Run `npm run verify:release` to replay the immutable evaluator and require byte-identical outputs. This is a reproducibility check, never a tuning step.
-12. Run browser parity and clean-profile WebGPU/WASM E2E without changing the frozen model contract.
+A4 must be P3’s direct child and change exactly the 23 numeric/protocol/test/documentation paths declared in `benchmark/evaluation_contract.py`. Its public `quality` push run must complete successfully. Only then may `benchmark/write_pre_score_freeze.py` add `pre-score-freeze-v3.json` in a receipt-only direct child. The evaluator independently queries the credential-free GitHub Actions API and requires that exact V3 head’s `quality` push run to be `completed/success` before importing ONNX Runtime or Pillow or reading model/pixel inputs.
 
-`benchmark/verify_evaluation_evidence.py` performs the local pixel-and-ONNX replay before corpus cleanup. Its committed receipt records exact commands and file hashes for reproducibility; it is not a cryptographic attestation that those commands ran. `npm run verify:static` is stage-aware: at recovery source A3 and freeze-only B2 it requires all post-score outputs to be absent, and on every descendant of B2 it requires the complete final pixel-free packet. `npm run verify:release` additionally observes the full local replay and fails when the frozen pixels are absent. Public A preserves the frozen model/evaluation inputs, failed B preserves the original receipt and failure boundary, failed A2 preserves the first recovery and CI boundary, A3 contains only the declared dependency-ordering recovery, and B2 publicly anchors the exact V2 receipt before confirmatory inference. The final checker requires this lineage, both immutable receipt files, a clean worktree, and only evaluation evidence, result documentation, and browser artifacts after A3.
+Git history and public CI establish the recorded boundary. They cannot prove that nobody viewed or processed pixels outside this repository workflow.
 
-The canonical evaluator shape is:
+## Canonical replacement execution
+
+After A4 and V3 are public and green, run replacement confirmation exactly once:
 
 ```bash
 benchmark/.venv/bin/python benchmark/evaluate.py \
   --model weights/prooflens-cf384.onnx \
   --expected-model-sha256 941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c \
-  --data-root benchmark/data \
-  --manifest benchmark/manifests/test.jsonl \
-  --expected-manifest-sha256 28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae \
-  --output-dir benchmark/evidence/evaluation/confirmatory \
-  --protocol confirmatory \
+  --data-root benchmark/data/replacement-v2 \
+  --manifest benchmark/manifests/test-v2.jsonl \
+  --expected-manifest-sha256 773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8 \
+  --output-dir benchmark/evidence/evaluation/confirmatory-v2 \
+  --protocol confirmatory-v2 \
   --batch-size 16 \
   --execution-provider cpu \
   --calibration benchmark/evidence/large/calibration.json \
   --expected-calibration-sha256 607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c
 ```
 
-Validation uses `--protocol validation`, its frozen manifest and `benchmark/data/modern-head`; web-negative uses `--protocol web-negative`, its frozen manifest and `benchmark/data/web-negative`.
+Then run `benchmark/bootstrap_ci.py` with all four canonical prediction files. Run `web-negative-v2` once against `benchmark/manifests/web-negative-v2.jsonl`, then `benchmark/bootstrap_fpr.py`. Existing or partial canonical output fails before dependency or input loading.
 
-## Results status
+`npm run verify:release` replays only replacement-v2 confirmation, web-negative, bootstrap, and Wilson evidence byte-for-byte. It does not replay legacy validation or the consumed v1 packet because those stored probabilities preserve the disclosed float32 representation. The replay receipt records exact commands and hashes; it is a reproducibility record, not a cryptographic attestation that commands ran.
 
-Head training, finalization, and canonical validation are complete. Validation balanced accuracy is 95.00% on originals, 96.33% on screenshots, and 94.50% on both JPEG stress views. The weakest class recall across those views is 91.67%; the weakest named synthetic-family recall is 84.00%. These are validation-selected results, not the final estimate.
+## Current results
 
-No confirmatory or web-negative score is reported in this pre-score protocol revision. Their canonical output directories are intentionally absent. Public source A passed; legacy receipt-only B and recovery source A2 each failed before inference and remain unchanged. Results will be added only after second recovery source A3 and receipt-only B2 both pass their local, public CI, and anonymous exact-head gates.
+Head training, finalization, and validation are complete. Validation balanced accuracy is 95.00% on originals, 96.33% on screenshots, and 94.50% on both JPEG stress views. The weakest class recall is 91.67%; the weakest named synthetic-family recall is 84.00%. These are selection results.
 
-Public results cannot establish the bounty maintainer’s private benchmark score. They establish a reproducible local evidence bar and expose class-specific failure instead of hiding it inside a single average.
+There is no current acceptance result. V1 is consumed and acceptance-ineligible; replacement-v2 remains unscored. Public repository evidence does not establish the bounty maintainer’s private score, acceptance decision, or payment.
 
 ## Browser evidence
 
-The post-score browser diagnostic uses a deterministic 30-real/30-synthetic confirmatory subset selected before scoring. Its pixels and reference probabilities are materialized only after the canonical confirmatory completion and bootstrap exist; `artifacts/browser-parity.json` is forbidden from both public pre-score commits. The diagnostic must run the packaged extension in a clean profile while offline, agree with the frozen reference decisions at least 95%, achieve at least 75% balanced accuracy on that diagnostic subset, and stay within the frozen probability-difference limits. It is diagnostic evidence only: any runtime defect blocks this release and requires a new untouched holdout plus a new public freeze before source changes.
+`benchmark/manifests/parity-ids-v2.json` fixes a prediction-blind 30-real/30-Infinity subset before replacement scoring. After the canonical completion and bootstrap exist, `prepare_parity.py` materializes those exact local pixels and reference scores. The packaged extension must run them in a clean offline profile with at least 95% decision agreement, at least 75% diagnostic balanced accuracy, and the frozen probability-difference limits.
 
-The full Chrome E2E separately proves model persistence across restart, determinate setup progress, no post-cutoff HTTP(S) requests, WebGPU and forced-WASM inference, actual high/low model states from validation fixtures, confirmed saved and temporary control behavior (including injected delivery failures), a completed re-scan, explicit unavailable output, responsive/CSS targets, stale-result rejection, hostile-page bounds, and target-associated narrow/1.5×-scale label geometry. Exterior labels cannot cross another tracked target or drift away from their declared side; a chip with no honest placement is not rendered. GitHub Actions gates the portable forced-WASM run; WebGPU is a fixed-head local platform gate whose source-, model-, and archive-bound receipt is committed and checked statically because hosted-runner GPU availability is not stable. Automation exercises the production popup document in an extension-page tab; it does not claim to test Chrome’s toolbar-popup window lifecycle.
+The full Chrome E2E separately proves setup progress, model persistence after restart, zero post-cutoff HTTP(S) requests, WebGPU and forced-WASM inference, actual high/low validation fixtures, honest saved/temporary control failures, completed re-scan work, unavailable output, responsive/CSS targets, stale-result rejection, hostile-page bounds, and target-associated geometry at a narrow 1.5× scale. GitHub Actions gates forced WASM. WebGPU is a fixed-head local gate because hosted-runner GPU availability is not stable. Automation opens the production popup document in an extension-page tab; it does not claim Chrome toolbar-window lifecycle coverage.
 
 ## Reproduction limits
 
-Dataset pixels are excluded from Git. Public IDs, revisions, byte hashes, licenses, attribution, selection code, predictions, and aggregate evidence are committed. Full reconstruction requires roughly 106 GB for the large corpus plus the source archives. DiffusionDB adds breadth but is dominated by an older Stable Diffusion generation era; the smaller current-generator stratum does not represent every future model. Library of Congress photographs are an unusually well-proven real source, not a complete sample of today’s web. The 19 Chartography rows broaden false-positive coverage but are too small to support a standalone population claim.
+Dataset pixels are excluded from Git. Public IDs, revisions, byte hashes, source-reported licenses, attribution, selection code, predictions, and aggregate evidence are committed. Full reconstruction requires about 106 GB plus source archives. DiffusionDB supplies scale but overrepresents an older Stable Diffusion era. Validation covers two modern generator families, and replacement confirmation covers one unseen family; neither represents every future generator. StockImages is one real-photo corpus, not the full ordinary web. Illustrations, CGI, charts, memes, screenshots, scans, and edited photographs remain important false-positive risks.

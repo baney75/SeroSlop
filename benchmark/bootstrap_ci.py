@@ -32,7 +32,11 @@ def quantile(values: list[float], probability: float) -> float:
     return ordered[lower] * (1 - fraction) + ordered[upper] * fraction
 
 
-def prediction_rows(path: Path, manifest_by_id: dict[str, dict[str, object]]) -> tuple[str, list[dict[str, object]]]:
+def prediction_rows(
+    path: Path,
+    manifest_by_id: dict[str, dict[str, object]],
+    threshold: float = 0.5,
+) -> tuple[str, list[dict[str, object]]]:
     rows = [json.loads(line) for line in path.read_text().splitlines() if line]
     variants = {str(row.get("variant")) for row in rows}
     if len(variants) != 1:
@@ -57,7 +61,7 @@ def prediction_rows(path: Path, manifest_by_id: dict[str, dict[str, object]]) ->
         ):
             raise ValueError(f"Prediction row is stale or malformed: {row.get('id')}")
         try:
-            require_logit_probability_consistency(logit, probability)
+            require_logit_probability_consistency(logit, probability, decision_threshold=threshold)
         except ValueError as error:
             raise ValueError(f"Prediction row is stale or malformed: {row.get('id')}") from error
     return variant, rows
@@ -110,7 +114,7 @@ def calculate(
 
     parsed: dict[str, tuple[Path, list[dict[str, object]]]] = {}
     for path in prediction_paths:
-        variant, rows = prediction_rows(path, manifest_by_id)
+        variant, rows = prediction_rows(path, manifest_by_id, threshold)
         if variant in parsed:
             raise ValueError(f"Duplicate prediction variant: {variant}")
         parsed[variant] = (path, rows)

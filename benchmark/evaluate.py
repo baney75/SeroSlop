@@ -21,7 +21,11 @@ import tempfile
 
 import numpy as np
 
-from evaluation_contract import require_canonical_output_directory, require_public_pre_score_freeze
+from evaluation_contract import (
+    require_canonical_output_directory,
+    require_canonical_repository_path,
+    require_public_pre_score_freeze,
+)
 
 
 SEED = 20260813
@@ -31,29 +35,30 @@ RESIZE_SHORT_EDGE = 440
 MEAN = np.asarray((0.48145466, 0.4578275, 0.40821073), dtype=np.float32)
 STD = np.asarray((0.26862954, 0.26130258, 0.27577711), dtype=np.float32)
 VARIANTS = ("original", "screenshot", "social-q75", "social-heavy")
+MODEL_PATH = "weights/prooflens-cf384.onnx"
+MODEL_SHA256 = "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c"
+CALIBRATION_PATH = "benchmark/evidence/large/calibration.json"
+CALIBRATION_SHA256 = "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c"
+VALIDATION_MANIFEST_SHA256 = "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b"
 PROTOCOLS = {
-    "validation": {
-        "name": "prooflens-validation",
-        "manifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+    "confirmatory-v2": {
+        "name": "prooflens-confirmatory-v2",
+        "manifest": "benchmark/manifests/test-v2.jsonl",
+        "dataRoot": "benchmark/data/replacement-v2",
+        "manifestSha256": "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8",
         "items": 600,
         "labels": {0: 300, 1: 300},
-        "sources": {"GLM-Image": 150, "HunyuanImage-3.0": 150, "open-images": 300},
+        "sources": {"coxy7-infinity": 300, "stockimages-cc0": 300},
         "negativeOnly": False,
     },
-    "confirmatory": {
-        "name": "prooflens-confirmatory-test",
-        "manifestSha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
-        "items": 600,
-        "labels": {0: 300, 1: 300},
-        "sources": {"kling_v2_1": 300, "library-of-congress-fsa-owi-color": 300},
-        "negativeOnly": False,
-    },
-    "web-negative": {
-        "name": "prooflens-web-negative",
-        "manifestSha256": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824",
+    "web-negative-v2": {
+        "name": "prooflens-web-negative-v2",
+        "manifest": "benchmark/manifests/web-negative-v2.jsonl",
+        "dataRoot": "benchmark/data/replacement-v2",
+        "manifestSha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9",
         "items": 319,
         "labels": {0: 319},
-        "sources": {"chartography-expert-created": 19, "library-of-congress-fsa-owi-color": 300},
+        "sources": {"stockimages-cc0": 319},
         "negativeOnly": True,
     },
 }
@@ -105,7 +110,15 @@ def load_manifest(path: Path, data_root: Path) -> list[Item]:
         if not line:
             continue
         row = json.loads(line)
-        image_path = data_root / str(row["path"])
+        relative = Path(str(row["path"]))
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"Manifest path escapes its data root: {row['id']}")
+        image_path = data_root / relative
+        cursor = data_root
+        for component in relative.parts:
+            cursor /= component
+            if cursor.is_symlink():
+                raise ValueError(f"Manifest path traverses a symlink: {row['id']}")
         try:
             image_path.resolve().relative_to(data_root.resolve())
         except ValueError as error:
@@ -217,10 +230,11 @@ def preprocess(item: Item, variant: str) -> np.ndarray:
 
 
 def sigmoid(value: np.ndarray) -> np.ndarray:
-    positive = value >= 0
-    result = np.empty_like(value, dtype=np.float64)
-    result[positive] = 1.0 / (1.0 + np.exp(-value[positive]))
-    exp_value = np.exp(value[~positive])
+    binary64 = np.asarray(value, dtype=np.float64)
+    positive = binary64 >= 0
+    result = np.empty_like(binary64, dtype=np.float64)
+    result[positive] = 1.0 / (1.0 + np.exp(-binary64[positive]))
+    exp_value = np.exp(binary64[~positive])
     result[~positive] = exp_value / (1.0 + exp_value)
     return result
 
@@ -313,15 +327,53 @@ def main() -> None:
         args.output_dir,
         repository_root=repository_root,
     )
+    args.model = require_canonical_repository_path(
+        args.model, Path(MODEL_PATH), repository_root=repository_root, label="model"
+    )
+    args.calibration = require_canonical_repository_path(
+        args.calibration, Path(CALIBRATION_PATH), repository_root=repository_root, label="calibration"
+    )
+    args.manifest = require_canonical_repository_path(
+        args.manifest, Path(str(protocol["manifest"])), repository_root=repository_root, label="manifest"
+    )
+    args.data_root = require_canonical_repository_path(
+        args.data_root, Path(str(protocol["dataRoot"])), repository_root=repository_root, label="data root"
+    )
     if args.batch_size < 1:
         raise ValueError("batch-size must be positive")
     if args.expected_manifest_sha256 != protocol["manifestSha256"]:
         raise ValueError(f"{args.protocol} requires its predeclared manifest SHA-256")
-    if args.protocol in {"confirmatory", "web-negative"}:
-        require_public_pre_score_freeze(
-            repository_root=repository_root,
-            allow_public_descendant=args.verify_existing,
+    if args.expected_model_sha256 != MODEL_SHA256:
+        raise ValueError("Replacement evaluation requires the shipped model SHA-256")
+    if args.expected_calibration_sha256 != CALIBRATION_SHA256:
+        raise ValueError("Replacement evaluation requires the frozen calibration SHA-256")
+
+    targets = [args.output_dir / f"{name}-{variant}-predictions.jsonl" for variant in VARIANTS]
+    targets.extend([
+        args.output_dir / f"{name}-summary.json",
+        args.output_dir / f"{name}-complete.json",
+    ])
+    existing = [target.exists() for target in targets]
+    unexpected = []
+    if args.output_dir.exists():
+        unexpected = sorted(
+            str(path.relative_to(args.output_dir))
+            for path in args.output_dir.rglob("*")
+            if path.is_file() and path not in targets
         )
+    if unexpected:
+        raise FileExistsError(f"Canonical output contains an unexpected or partial file: {unexpected[0]}")
+    if args.verify_existing:
+        if not all(existing):
+            raise FileNotFoundError("Verification mode requires every canonical output to exist")
+    elif any(existing):
+        raise FileExistsError("A canonical output already exists; refusing to overwrite frozen evidence")
+
+    require_public_pre_score_freeze(
+        repository_root=repository_root,
+        allow_public_descendant=args.verify_existing,
+        require_freeze_ci_success=True,
+    )
     load_inference_runtime()
     model_hash = file_digest(args.model)
     if model_hash != args.expected_model_sha256:
@@ -335,7 +387,7 @@ def main() -> None:
     calibration = json.loads(args.calibration.read_text())
     if calibration.get("modelSha256") != model_hash:
         raise ValueError("Calibration targets a different model")
-    if calibration.get("validationManifestSha256") != PROTOCOLS["validation"]["manifestSha256"]:
+    if calibration.get("validationManifestSha256") != VALIDATION_MANIFEST_SHA256:
         raise ValueError("Calibration is not bound to the frozen validation manifest")
     if calibration.get("slope") != 1 or calibration.get("displayThreshold") != DISPLAY_THRESHOLD:
         raise ValueError("Calibration contract changed")
@@ -352,18 +404,6 @@ def main() -> None:
     for item in items:
         if not item.path.is_file() or file_digest(item.path) != item.image_sha256:
             raise ValueError(f"Image integrity mismatch during preflight: {item.id}")
-
-    targets = [args.output_dir / f"{name}-{variant}-predictions.jsonl" for variant in VARIANTS]
-    targets.extend([
-        args.output_dir / f"{name}-summary.json",
-        args.output_dir / f"{name}-complete.json",
-    ])
-    existing = [target.exists() for target in targets]
-    if args.verify_existing:
-        if not all(existing):
-            raise FileNotFoundError("Verification mode requires every canonical output to exist")
-    elif any(existing):
-        raise FileExistsError("A canonical output already exists; refusing to overwrite frozen evidence")
 
     available_providers = set(ort.get_available_providers())
     if args.execution_provider == "cuda" and "CUDAExecutionProvider" not in available_providers:
@@ -399,7 +439,7 @@ def main() -> None:
         records_by_variant[variant] = records
 
     report = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "name": name,
         "protocol": args.protocol,
         "commitMarkerPublication": True,
@@ -413,6 +453,7 @@ def main() -> None:
             "numpy": np.__version__,
             "onnxRuntime": ort.__version__,
             "pillow": PILLOW_VERSION,
+            "probabilityArithmetic": "binary64 sigmoid from the recorded ONNX logit",
         },
         "threshold": {
             "display": DISPLAY_THRESHOLD,

@@ -1,53 +1,45 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { gunzipSync } from "node:zlib";
 import { pngDimensions, validateBrowserGeometryEvidence } from "./browser-geometry-contract.mjs";
 
 const VARIANTS = ["original", "screenshot", "social-q75", "social-heavy"];
-const EXPECTED_MANIFESTS = {
-  train: {
-    path: "benchmark/manifests/train.jsonl",
-    sha256: "03b88b3804244018fbdf532b2b7d451db91dad7c3229c9013ee4ede9fa798015",
-    rows: 3_600,
-  },
-  validation: {
-    path: "benchmark/manifests/validation.jsonl",
-    sha256: "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+const MODEL_PATH = "weights/prooflens-cf384.onnx";
+const CALIBRATION_PATH = "benchmark/evidence/large/calibration.json";
+const RECIPE_PATH = "benchmark/large/recipe.json";
+const FREEZE_PATH = "benchmark/evidence/evaluation/pre-score-freeze-v3.json";
+const REPLAY_PATH = "benchmark/evidence/evaluation/replay-verification-v2.json";
+const PARITY_IDS_PATH = "benchmark/manifests/parity-ids-v2.json";
+const HISTORICAL_INDEX_PATH = "benchmark/manifests/historical-perceptual-exclusions-v1.json.gz";
+const SELECTION_PATH = "benchmark/manifests/replacement-v2-selection.json";
+const EXPECTED = {
+  confirmatory: {
+    protocol: "confirmatory-v2",
+    manifest: "benchmark/manifests/test-v2.jsonl",
+    manifestSha256: "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8",
+    outputDir: "benchmark/evidence/evaluation/confirmatory-v2",
+    name: "prooflens-confirmatory-v2",
     rows: 600,
-  },
-  test: {
-    path: "benchmark/manifests/test.jsonl",
-    sha256: "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
-    rows: 600,
+    labels: { 0: 300, 1: 300 },
+    sources: { "coxy7-infinity": 300, "stockimages-cc0": 300 },
   },
   webNegative: {
-    path: "benchmark/manifests/web-negative.jsonl",
-    sha256: "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824",
+    protocol: "web-negative-v2",
+    manifest: "benchmark/manifests/web-negative-v2.jsonl",
+    manifestSha256: "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9",
+    outputDir: "benchmark/evidence/evaluation/web-negative-v2",
+    name: "prooflens-web-negative-v2",
     rows: 319,
+    labels: { 0: 319 },
+    sources: { "stockimages-cc0": 319 },
   },
 };
-const CONFIRMATORY_PREDICTIONS = Object.fromEntries(VARIANTS.map((variant) => [
-  variant,
-  `benchmark/evidence/evaluation/confirmatory/prooflens-confirmatory-test-${variant}-predictions.jsonl`,
-]));
-const WEB_NEGATIVE_PREDICTIONS = Object.fromEntries(VARIANTS.map((variant) => [
-  variant,
-  `benchmark/evidence/evaluation/web-negative/prooflens-web-negative-${variant}-predictions.jsonl`,
-]));
-const CONFIRMATORY_SUMMARY = "benchmark/evidence/evaluation/confirmatory/prooflens-confirmatory-test-summary.json";
-const CONFIRMATORY_COMPLETION = "benchmark/evidence/evaluation/confirmatory/prooflens-confirmatory-test-complete.json";
-const CONFIRMATORY_BOOTSTRAP = "benchmark/evidence/evaluation/confirmatory/bootstrap.json";
-const WEB_NEGATIVE_SUMMARY = "benchmark/evidence/evaluation/web-negative/prooflens-web-negative-summary.json";
-const WEB_NEGATIVE_COMPLETION = "benchmark/evidence/evaluation/web-negative/prooflens-web-negative-complete.json";
-const WEB_NEGATIVE_WILSON = "benchmark/evidence/evaluation/web-negative/wilson.json";
-const VALIDATION_PREDICTIONS = Object.fromEntries(VARIANTS.map((variant) => [
-  variant,
-  `benchmark/evidence/evaluation/validation/prooflens-validation-${variant}-predictions.jsonl`,
-]));
-const VALIDATION_SUMMARY = "benchmark/evidence/evaluation/validation/prooflens-validation-summary.json";
-const VALIDATION_COMPLETION = "benchmark/evidence/evaluation/validation/prooflens-validation-complete.json";
+const FAILED_ROOT = "benchmark/evidence/evaluation/confirmatory";
+const FAILED_RECEIPT = `${FAILED_ROOT}/failed-evaluation.json`;
 const CHROME_E2E = {
   wasm: "artifacts/chrome-e2e-wasm.json",
   webgpu: "artifacts/chrome-e2e-webgpu.json",
@@ -92,16 +84,17 @@ function sigmoid(logit) {
   return exponential / (1 + exponential);
 }
 
-function predictionIsNumericallyConsistent(row) {
+function predictionIsNumericallyConsistent(row, threshold) {
+  const expected = sigmoid(row.logit);
   return Number.isFinite(row.logit) && Number.isFinite(row.rawProbability) &&
     row.rawProbability >= 0 && row.rawProbability <= 1 &&
-    Math.abs(sigmoid(row.logit) - row.rawProbability) <= 2e-12;
+    Math.abs(expected - row.rawProbability) <= 2e-12 &&
+    (expected >= threshold) === (row.rawProbability >= threshold);
 }
 
 function countsBy(rows, field) {
   return Object.fromEntries([...new Set(rows.map((row) => String(row[field])))].sort().map((value) => [
-    value,
-    rows.filter((row) => String(row[field]) === value).length,
+    value, rows.filter((row) => String(row[field]) === value).length,
   ]));
 }
 
@@ -149,166 +142,88 @@ function priority(identifier) {
   return createHash("sha256").update(`20260813:browser-parity:${identifier}`).digest("hex");
 }
 
-const manifests = {};
-for (const [name, expected] of Object.entries(EXPECTED_MANIFESTS)) {
-  const bytes = await readFile(expected.path);
-  requireCondition(digest(bytes) === expected.sha256, `${expected.path} SHA-256 changed`);
-  const rows = parseJsonLines(bytes, expected.path);
-  requireCondition(rows.length === expected.rows, `${expected.path} row count changed`);
-  requireCondition(new Set(rows.map((row) => row.id)).size === rows.length,
-    `${expected.path} contains duplicate IDs`);
-  requireCondition(new Set(rows.map((row) => row.imageSha256)).size === rows.length,
-    `${expected.path} contains duplicate image bytes`);
-  manifests[name] = rows;
+function predictionPaths(config) {
+  return Object.fromEntries(VARIANTS.map((variant) => [
+    variant, `${config.outputDir}/${config.name}-${variant}-predictions.jsonl`,
+  ]));
 }
 
-const splitRows = [manifests.train, manifests.validation, manifests.test];
-const splitNames = ["train", "validation", "test"];
-for (const [index, rows] of splitRows.entries()) {
-  requireCondition(rows.every((row) => row.split === splitNames[index] && /^[a-f0-9]{64}$/u.test(row.imageSha256)),
-    `${splitNames[index]} manifest has invalid split/hash fields`);
-}
-for (let left = 0; left < splitRows.length; left += 1) {
-  for (let right = left + 1; right < splitRows.length; right += 1) {
-    const rightIds = new Set(splitRows[right].map((row) => row.id));
-    const rightHashes = new Set(splitRows[right].map((row) => row.imageSha256));
-    requireCondition(splitRows[left].every((row) => !rightIds.has(row.id) && !rightHashes.has(row.imageSha256)),
-      `${splitNames[left]} and ${splitNames[right]} overlap`);
-  }
-}
-
-const syntheticBySplit = Object.fromEntries(splitNames.map((name) => [name, manifests[name].filter((row) => row.label === 1)]));
-const expectedSynthetic = {
-  train: { rows: 1_200, groups: 80, groupSize: 15, sources: 15, sourceSize: 80 },
-  validation: { rows: 300, groups: 150, groupSize: 2, sources: 2, sourceSize: 150 },
-  test: { rows: 300, groups: 300, groupSize: 1, sources: 1, sourceSize: 300 },
-};
-const groupSets = {};
-const sourceSets = {};
-for (const name of splitNames) {
-  const rows = syntheticBySplit[name];
-  const groups = countsBy(rows, "groupId");
-  const sources = countsBy(rows, "source");
-  const expected = expectedSynthetic[name];
-  requireCondition(rows.length === expected.rows && Object.keys(groups).length === expected.groups &&
-    Object.values(groups).every((count) => count === expected.groupSize) &&
-    Object.keys(sources).length === expected.sources && Object.values(sources).every((count) => count === expected.sourceSize),
-  `${name} synthetic prompt/source allocation changed`);
-  groupSets[name] = new Set(Object.keys(groups));
-  sourceSets[name] = new Set(Object.keys(sources));
-}
-for (const [left, right] of [["train", "validation"], ["train", "test"], ["validation", "test"]]) {
-  requireCondition([...groupSets[left]].every((value) => !groupSets[right].has(value)),
-    `${left} and ${right} share a synthetic prompt group`);
-  requireCondition([...sourceSets[left]].every((value) => !sourceSets[right].has(value)),
-    `${left} and ${right} share a synthetic generator source`);
-}
-requireCondition(jsonEqual(countsBy(manifests.train.filter((row) => row.label === 0), "source"), {
-  "docci-train": 1_200, "open-images": 1_200,
-}) && jsonEqual(countsBy(manifests.validation.filter((row) => row.label === 0), "source"), {
-  "open-images": 300,
-}) && jsonEqual(countsBy(manifests.test.filter((row) => row.label === 0), "source"), {
-  "library-of-congress-fsa-owi-color": 300,
-}), "Real-source split allocation changed");
-requireCondition(jsonEqual(countsBy(syntheticBySplit.test, "source"), { kling_v2_1: 300 }),
-  "Confirmatory synthetic source changed");
-
-const webIds = new Set(manifests.webNegative.map((row) => row.id));
-const webHashes = new Set(manifests.webNegative.map((row) => row.imageSha256));
-const intentionalTestOverlap = manifests.test.filter((row) => webIds.has(row.id) && webHashes.has(row.imageSha256));
-requireCondition(intentionalTestOverlap.length === 300 && intentionalTestOverlap.every((row) =>
-  row.source === "library-of-congress-fsa-owi-color") &&
-  manifests.webNegative.filter((row) => row.source === "chartography-expert-created").length === 19,
-"Web-negative/test overlap is not exactly the disclosed 300 historical photographs");
-const trainAndValidationIds = new Set([...manifests.train, ...manifests.validation].map((row) => row.id));
-const trainAndValidationHashes = new Set([...manifests.train, ...manifests.validation].map((row) => row.imageSha256));
-requireCondition(manifests.webNegative.every((row) => !trainAndValidationIds.has(row.id) &&
-  !trainAndValidationHashes.has(row.imageSha256)), "Web-negative pixels leaked into training/validation");
-
-const legacyBytes = await readFile("benchmark/manifests/legacy-evaluation-exclusions.json");
-const legacy = JSON.parse(legacyBytes);
-const legacyIds = new Set(legacy.evaluationIds);
-const legacyHashes = new Set(legacy.evaluationImageSha256);
-const legacyGroups = new Set(legacy.qwenPromptGroups);
-requireCondition([...manifests.train, ...manifests.validation, ...manifests.test].every((row) =>
-  !legacyIds.has(row.id) && !legacyHashes.has(row.imageSha256) &&
-  (row.label !== 1 || !legacyGroups.has(row.groupId))), "Fresh splits overlap legacy evaluation evidence");
-const selection = JSON.parse(await readFile("benchmark/manifests/selection.json", "utf8"));
-requireCondition(selection.schemaVersion === 1 && selection.seed === 20_260_813 &&
-  selection.legacyEvaluationExclusions.sha256 === digest(legacyBytes) &&
-  selection.legacyEvaluationExclusions.overlapIds === 0 &&
-  selection.legacyEvaluationExclusions.overlapImageSha256 === 0 &&
-  jsonEqual([...selection.qwenImageBench.trainSources].sort(), [...sourceSets.train].sort()) &&
-  jsonEqual([...selection.qwenImageBench.validationSources].sort(), [...sourceSets.validation].sort()) &&
-  jsonEqual([...selection.qwenImageBench.testSources].sort(), [...sourceSets.test].sort()),
-"Modern selection evidence changed");
-
-const openImagesAttribution = JSON.parse(await readFile("benchmark/manifests/open-images-attribution.json", "utf8"));
-const modernOpenImages = [...manifests.train, ...manifests.validation].filter((row) => row.dataset === "Open Images V7");
-const attributionById = new Map(openImagesAttribution.map((row) => [row.imageId, row]));
-requireCondition(openImagesAttribution.length === 1_500 && attributionById.size === 1_500 &&
-  modernOpenImages.length === 1_500 && modernOpenImages.every((row) => {
-    const identifier = row.id.split(":").at(-1);
-    const attribution = attributionById.get(identifier);
-    return attribution?.license === "https://creativecommons.org/licenses/by/2.0/" &&
-      [attribution.author, attribution.title, attribution.landingUrl].every((value) =>
-        typeof value === "string" && value.length > 0);
-  }), "Modern Open Images attribution is incomplete");
-const docciAttribution = JSON.parse(await readFile("benchmark/manifests/docci-attribution.json", "utf8"));
-requireCondition(Array.isArray(docciAttribution.selectedExampleIds) &&
-  docciAttribution.selectedExampleIds.length === 1_200 &&
-  new Set(docciAttribution.selectedExampleIds).size === 1_200,
-"DOCCI attribution is incomplete");
-
-const webSelection = JSON.parse(await readFile("benchmark/results/web-negative-selection.json", "utf8"));
-const webPlanBytes = await readFile("benchmark/manifests/web-negative-plan.json");
-const webReviewBytes = await readFile("benchmark/manifests/web-negative-review.json");
-const webRecipeBytes = await readFile("benchmark/web-negative/recipe.json");
-const webPlan = JSON.parse(webPlanBytes);
-const webReview = JSON.parse(webReviewBytes);
-requireCondition(webSelection.schemaVersion === 1 &&
-  webSelection.confirmatoryTestManifestSha256 === EXPECTED_MANIFESTS.test.sha256 &&
-  webSelection.manifestSha256 === EXPECTED_MANIFESTS.webNegative.sha256 &&
-  webSelection.planSha256 === digest(webPlanBytes) && webSelection.reviewSha256 === digest(webReviewBytes) &&
-  webSelection.recipeSha256 === digest(webRecipeBytes) && webPlan.items.length === 300 &&
-  webReview.items.length === 300 && webReview.items.every((row) => row.decision === "include"),
-"Web-negative source/review evidence changed");
-
-const modelLock = JSON.parse(await readFile("model-lock.json", "utf8"));
-const shippedModelBytes = await readFile("weights/prooflens-cf384.onnx");
-requireCondition(digest(shippedModelBytes) === modelLock.sha256 && shippedModelBytes.length === modelLock.bytes,
-  "Packaged model bytes do not match model-lock.json");
-const calibrationBytes = await readFile("benchmark/evidence/large/calibration.json");
+const modelLockBytes = await readFile("model-lock.json");
+const modelLock = JSON.parse(modelLockBytes);
+const modelBytes = await readFile(MODEL_PATH);
+const calibrationBytes = await readFile(CALIBRATION_PATH);
 const calibration = JSON.parse(calibrationBytes);
+const recipeBytes = await readFile(RECIPE_PATH);
+const recipe = JSON.parse(recipeBytes);
+const freezeBytes = await readFile(FREEZE_PATH);
+const freeze = JSON.parse(freezeBytes);
+requireCondition(digest(modelBytes) === modelLock.sha256 && modelBytes.length === modelLock.bytes,
+  "Packaged model bytes do not match model-lock.json");
+requireCondition(digest(calibrationBytes) === modelLock.trainingEvidence?.calibrationSha256 &&
+  digest(recipeBytes) === modelLock.trainingEvidence?.recipeSha256 &&
+  calibration.modelSha256 === modelLock.sha256 && calibration.displayThreshold === 0.65 &&
+  calibration.slope === 1 && Number.isFinite(calibration.rawProbabilityThreshold) &&
+  calibration.rawProbabilityThreshold > 0 && calibration.rawProbabilityThreshold < 1,
+"Model, calibration, and training recipe bindings changed");
+requireCondition(freeze.schemaVersion === 4 && freeze.generation === 3 &&
+  freeze.replacementProtocol?.confirmatory?.manifestSha256 === EXPECTED.confirmatory.manifestSha256 &&
+  freeze.replacementProtocol?.webNegative?.manifestSha256 === EXPECTED.webNegative.manifestSha256,
+"V3 replacement protocol receipt changed");
 const rawThreshold = calibration.rawProbabilityThreshold;
-requireCondition(calibration.modelSha256 === modelLock.sha256 && calibration.displayThreshold === 0.65 &&
-  calibration.slope === 1 && typeof rawThreshold === "number" && rawThreshold > 0 && rawThreshold < 1 &&
-  modelLock.calibration.intercept === calibration.intercept &&
-  modelLock.calibration.validationThresholdLogit === calibration.validationThresholdLogit,
-"Model lock and frozen calibration disagree");
 
-const evaluationRecipe = JSON.parse(await readFile("benchmark/large/recipe.json", "utf8"));
-requireCondition(jsonEqual(evaluationRecipe.evaluationProtocols?.validation, {
-  name: "prooflens-validation",
-  manifest: EXPECTED_MANIFESTS.validation.path,
-  manifestSha256: EXPECTED_MANIFESTS.validation.sha256,
-  items: 600,
-  variants: VARIANTS,
-}) && evaluationRecipe.evaluationProtocols?.confirmatory?.name === "prooflens-confirmatory-test" &&
-  evaluationRecipe.evaluationProtocols.confirmatory.manifest === EXPECTED_MANIFESTS.test.path &&
-  evaluationRecipe.evaluationProtocols.confirmatory.manifestSha256 === EXPECTED_MANIFESTS.test.sha256 &&
-  evaluationRecipe.evaluationProtocols.confirmatory.items === 600 &&
-  jsonEqual(evaluationRecipe.evaluationProtocols.confirmatory.variants, VARIANTS) &&
-  evaluationRecipe.evaluationProtocols.confirmatory.postScorePolicy ===
-    "No model, threshold, preprocessing, corpus, gate, or runtime changes. Any runtime defect requires a new untouched holdout and a new public freeze before source changes." &&
-  evaluationRecipe.evaluationProtocols?.webNegative?.manifestSha256 === EXPECTED_MANIFESTS.webNegative.sha256 &&
-  evaluationRecipe.evaluationProtocols.webNegative.items === 319 &&
-  evaluationRecipe.evaluationProtocols.webNegative.sharesConfirmatoryRows === 300 &&
-  evaluationRecipe.evaluationProtocols.webNegative.independentEstimate === false &&
-  jsonEqual(evaluationRecipe.evaluationProtocols.webNegative.variants, VARIANTS),
-"Frozen evaluation protocol changed");
-const testGates = evaluationRecipe.testGates;
-const webNegativeGates = evaluationRecipe.webNegativeGates;
+const failed = JSON.parse(await readFile(FAILED_RECEIPT, "utf8"));
+requireCondition(failed.schemaVersion === 1 && failed.status === "failed-numeric-contract" &&
+  failed.acceptanceEligible === false && failed.holdoutConsumed === true &&
+  failed.modelSha256 === modelLock.sha256 && failed.calibrationSha256 === digest(calibrationBytes) &&
+  failed.numericContract?.rows === 2400 && failed.numericContract?.violations === 2231 &&
+  failed.numericContract?.tolerance === 2e-12 && failed.failure?.bootstrapPublished === false &&
+  failed.failure?.webNegativeInferenceStarted === false,
+"Consumed v1 failure disclosure changed or became acceptance-eligible");
+for (const [name, expectedHash] of Object.entries(failed.files)) {
+  requireCondition(digest(await readFile(`${FAILED_ROOT}/${name}`)) === expectedHash,
+    `Consumed v1 evidence changed: ${name}`);
+}
+requireCondition(!existsSync(`${FAILED_ROOT}/bootstrap.json`) &&
+  !existsSync("benchmark/evidence/evaluation/web-negative"),
+"The failed v1 run acquired acceptance intervals or web-negative output");
+
+const manifests = {};
+for (const [key, expected] of Object.entries(EXPECTED)) {
+  const bytes = await readFile(expected.manifest);
+  requireCondition(digest(bytes) === expected.manifestSha256, `${expected.manifest} SHA-256 changed`);
+  const rows = parseJsonLines(bytes, expected.manifest);
+  requireCondition(rows.length === expected.rows && new Set(rows.map((row) => row.id)).size === rows.length &&
+    new Set(rows.map((row) => row.imageSha256)).size === rows.length &&
+    jsonEqual(countsBy(rows, "label"), expected.labels) && jsonEqual(countsBy(rows, "source"), expected.sources),
+  `${expected.manifest} allocation changed`);
+  const expectedSplit = key === "confirmatory" ? "confirmatory-v2" : "web-negative-v2";
+  requireCondition(rows.every((row) => row.split === expectedSplit && /^[a-f0-9]{64}$/u.test(row.imageSha256) &&
+    /^[a-f0-9]{16}$/u.test(row.perceptualDhash64)), `${expected.manifest} fields changed`);
+  manifests[key] = rows;
+}
+const confirmIds = new Set(manifests.confirmatory.map((row) => row.id));
+const confirmHashes = new Set(manifests.confirmatory.map((row) => row.imageSha256));
+requireCondition(manifests.webNegative.every((row) => !confirmIds.has(row.id) && !confirmHashes.has(row.imageSha256)),
+  "Replacement confirmatory and web-negative pixels overlap");
+const historicalBytes = await readFile(HISTORICAL_INDEX_PATH);
+const historical = JSON.parse(gunzipSync(historicalBytes));
+const historicalIds = new Set(historical.items.map((row) => row.id));
+const historicalHashes = new Set(historical.items.map((row) => row.imageSha256));
+requireCondition(historical.schemaVersion === 1 && historical.items.length === 106_019 &&
+  historical.maximumHammingDistance === 8 && [...manifests.confirmatory, ...manifests.webNegative].every((row) =>
+    !historicalIds.has(row.id) && !historicalHashes.has(row.imageSha256)),
+"Replacement rows overlap the frozen historical index");
+const selectionBytes = await readFile(SELECTION_PATH);
+const selection = JSON.parse(selectionBytes);
+requireCondition(digest(selectionBytes) === "4417bf34db53993c2ccf459a18947c92a52118b85a6f740740d981bb8e223f3c" &&
+  selection.schemaVersion === 2 && selection.scoreBlindSelection === true &&
+  selection.observedV1ResultsUsed === false && selection.confirmatory.manifestSha256 === EXPECTED.confirmatory.manifestSha256 &&
+  selection.webNegative.manifestSha256 === EXPECTED.webNegative.manifestSha256 &&
+  selection.overlap?.retainedPerceptualMatches === 0,
+"Score-blind replacement selection evidence changed");
+
+const testGates = recipe.testGates;
+const webNegativeGates = recipe.webNegativeGates;
 requireCondition(testGates.method ===
   "Class-stratified one-image-cluster bootstrap with variant-derived deterministic RNG" &&
   testGates.confidenceLevel === 0.95 && testGates.seed === 20_260_813 && testGates.replicates === 20_000 &&
@@ -318,159 +233,119 @@ requireCondition(testGates.method ===
   webNegativeGates.confidenceLevel === 0.95 &&
   webNegativeGates.maximumOverallFalsePositiveRateUpper95 === 0.10 &&
   webNegativeGates.maximumPerSourceFalsePositiveRateUpper95 === 0.20,
-"Frozen statistical acceptance gates changed");
+"Frozen statistical gates changed");
 
-const validationSummary = JSON.parse(await readFile(VALIDATION_SUMMARY, "utf8"));
-const validationCompletion = JSON.parse(await readFile(VALIDATION_COMPLETION, "utf8"));
-requireCondition(validationSummary.schemaVersion === 2 && validationSummary.protocol === "validation" &&
-  validationSummary.model.sha256 === modelLock.sha256 && validationSummary.model.bytes === modelLock.bytes &&
-  validationSummary.dataset.sha256 === EXPECTED_MANIFESTS.validation.sha256 && validationSummary.dataset.items === 600 &&
-  validationSummary.threshold.raw === rawThreshold &&
-  validationSummary.threshold.calibrationSha256 === digest(calibrationBytes) &&
-  validationCompletion.schemaVersion === 1 && validationCompletion.protocol === "validation" &&
-  validationCompletion.modelSha256 === modelLock.sha256 &&
-  validationCompletion.manifestSha256 === EXPECTED_MANIFESTS.validation.sha256 &&
-  validationCompletion.calibrationSha256 === digest(calibrationBytes),
-"Validation evaluation input bindings changed");
-const validationById = new Map(manifests.validation.map((row) => [row.id, row]));
+const confirmPredictions = predictionPaths(EXPECTED.confirmatory);
+const confirmSummaryPath = `${EXPECTED.confirmatory.outputDir}/${EXPECTED.confirmatory.name}-summary.json`;
+const confirmCompletionPath = `${EXPECTED.confirmatory.outputDir}/${EXPECTED.confirmatory.name}-complete.json`;
+const confirmBootstrapPath = `${EXPECTED.confirmatory.outputDir}/bootstrap.json`;
+const confirmSummary = JSON.parse(await readFile(confirmSummaryPath, "utf8"));
+const confirmCompletion = JSON.parse(await readFile(confirmCompletionPath, "utf8"));
+const confirmBootstrap = JSON.parse(await readFile(confirmBootstrapPath, "utf8"));
+requireCondition(confirmSummary.schemaVersion === 3 && confirmSummary.protocol === EXPECTED.confirmatory.protocol &&
+  confirmSummary.runtime?.probabilityArithmetic === "binary64 sigmoid from the recorded ONNX logit" &&
+  confirmSummary.model.sha256 === modelLock.sha256 && confirmSummary.model.bytes === modelLock.bytes &&
+  confirmSummary.dataset.sha256 === EXPECTED.confirmatory.manifestSha256 && confirmSummary.dataset.items === 600 &&
+  confirmSummary.threshold.raw === rawThreshold && confirmSummary.threshold.calibrationSha256 === digest(calibrationBytes),
+"Replacement confirmatory summary binding changed");
+requireCondition(confirmCompletion.schemaVersion === 1 && confirmCompletion.protocol === EXPECTED.confirmatory.protocol &&
+  confirmCompletion.modelSha256 === modelLock.sha256 &&
+  confirmCompletion.manifestSha256 === EXPECTED.confirmatory.manifestSha256 &&
+  confirmCompletion.calibrationSha256 === digest(calibrationBytes),
+"Replacement confirmatory completion marker changed");
+requireCondition(confirmBootstrap.schemaVersion === 3 && confirmBootstrap.manifestSha256 === EXPECTED.confirmatory.manifestSha256 &&
+  confirmBootstrap.seed === testGates.seed && confirmBootstrap.replicates === testGates.replicates &&
+  confirmBootstrap.rawProbabilityThreshold === rawThreshold && confirmBootstrap.method === testGates.method,
+"Replacement confirmatory bootstrap contract changed");
+const confirmById = new Map(manifests.confirmatory.map((row) => [row.id, row]));
 for (const variant of VARIANTS) {
-  const file = VALIDATION_PREDICTIONS[variant];
+  const file = confirmPredictions[variant];
   const bytes = await readFile(file);
   const rows = parseJsonLines(bytes, file);
-  requireCondition(validationCompletion.files?.[path.basename(file)] === digest(bytes) &&
-    rows.length === 600 && new Set(rows.map((row) => row.id)).size === 600 && rows.every((row) => {
-      const item = validationById.get(row.id);
+  requireCondition(confirmCompletion.files?.[path.basename(file)] === digest(bytes) &&
+    confirmBootstrap.variants?.[variant]?.predictionsSha256 === digest(bytes) && rows.length === 600 &&
+    new Set(rows.map((row) => row.id)).size === 600 && rows.every((row) => {
+      const item = confirmById.get(row.id);
       return item && row.variant === variant && row.label === item.label && row.source === item.source &&
-        row.groupId === item.groupId && predictionIsNumericallyConsistent(row);
-    }), `${file} does not match the frozen validation manifest`);
-  requireCondition(jsonEqual(predictionMetrics(rows, rawThreshold), validationSummary.variants[variant]),
-    `${variant} validation metrics do not recompute`);
-}
-requireCondition(validationCompletion.files?.[path.basename(VALIDATION_SUMMARY)] === digest(await readFile(VALIDATION_SUMMARY)),
-  "Validation summary is not completion-marker-bound");
-
-const confirmatorySummary = JSON.parse(await readFile(CONFIRMATORY_SUMMARY, "utf8"));
-const confirmatoryCompletion = JSON.parse(await readFile(CONFIRMATORY_COMPLETION, "utf8"));
-const bootstrapBytes = await readFile(CONFIRMATORY_BOOTSTRAP);
-const bootstrap = JSON.parse(bootstrapBytes);
-requireCondition(confirmatorySummary.schemaVersion === 2 && confirmatorySummary.protocol === "confirmatory" &&
-  confirmatorySummary.commitMarkerPublication === true && confirmatorySummary.allVariantsRequired === true &&
-  confirmatorySummary.model.sha256 === modelLock.sha256 &&
-  confirmatorySummary.model.bytes === modelLock.bytes &&
-  confirmatorySummary.dataset.sha256 === EXPECTED_MANIFESTS.test.sha256 &&
-  confirmatorySummary.dataset.items === 600 && confirmatorySummary.threshold.display === 0.65 &&
-  confirmatorySummary.threshold.raw === rawThreshold &&
-  confirmatorySummary.threshold.calibrationSha256 === digest(calibrationBytes),
-"Confirmatory summary input bindings changed");
-requireCondition(bootstrap.schemaVersion === 3 && bootstrap.seed === testGates.seed && bootstrap.replicates === testGates.replicates &&
-  bootstrap.manifestSha256 === EXPECTED_MANIFESTS.test.sha256 &&
-  bootstrap.rawProbabilityThreshold === rawThreshold &&
-  bootstrap.method === testGates.method,
-"Confirmatory bootstrap contract changed");
-requireCondition(confirmatoryCompletion.schemaVersion === 1 && confirmatoryCompletion.protocol === "confirmatory" &&
-  confirmatoryCompletion.modelSha256 === modelLock.sha256 &&
-  confirmatoryCompletion.manifestSha256 === EXPECTED_MANIFESTS.test.sha256 &&
-  confirmatoryCompletion.calibrationSha256 === digest(calibrationBytes),
-"Confirmatory completion marker input bindings changed");
-const testById = new Map(manifests.test.map((row) => [row.id, row]));
-for (const variant of VARIANTS) {
-  const file = CONFIRMATORY_PREDICTIONS[variant];
-  const bytes = await readFile(file);
-  requireCondition(confirmatoryCompletion.files?.[path.basename(file)] === digest(bytes),
-    `${variant} confirmatory predictions are not completion-marker-bound`);
-  requireCondition(bootstrap.variants[variant]?.predictionsSha256 === digest(bytes),
-    `${variant} confirmatory predictions are not bootstrap-bound`);
-  const rows = parseJsonLines(bytes, file);
-  requireCondition(rows.length === 600 && new Set(rows.map((row) => row.id)).size === 600,
-    `${file} does not contain exactly one prediction per test image`);
-  for (const row of rows) {
-    const item = testById.get(row.id);
-    requireCondition(item && row.variant === variant && row.label === item.label && row.source === item.source &&
-      row.groupId === item.groupId && predictionIsNumericallyConsistent(row),
-    `${file} contains a stale prediction: ${row.id}`);
-  }
+        row.groupId === item.groupId && predictionIsNumericallyConsistent(row, rawThreshold);
+    }), `${file} is stale, incomplete, or numerically invalid`);
   const metrics = predictionMetrics(rows, rawThreshold);
-  requireCondition(jsonEqual(metrics, confirmatorySummary.variants[variant]),
-    `${variant} confirmatory summary metrics do not recompute`);
-  const interval = bootstrap.variants[variant];
-  close(interval.balancedAccuracy, metrics.balancedAccuracy, `${variant} bootstrap balanced accuracy`);
-  close(interval.realRecall, metrics.realRecall, `${variant} bootstrap real recall`);
-  close(interval.syntheticRecall, metrics.syntheticRecall, `${variant} bootstrap synthetic recall`);
+  requireCondition(jsonEqual(metrics, confirmSummary.variants[variant]),
+    `${variant} replacement confirmatory metrics do not recompute`);
+  const interval = confirmBootstrap.variants[variant];
+  close(interval.balancedAccuracy, metrics.balancedAccuracy, `${variant} balanced accuracy`);
+  close(interval.realRecall, metrics.realRecall, `${variant} real recall`);
+  close(interval.syntheticRecall, metrics.syntheticRecall, `${variant} synthetic recall`);
   requireCondition(interval.realCount === 300 && interval.realClusters === 300 && interval.realClusterSize === 1 &&
-    interval.syntheticCount === 300 && interval.syntheticClusters === 300 && interval.syntheticClusterSize === 1,
-  `${variant} bootstrap cluster design changed`);
-  requireCondition(interval.lower95 >= testGates.minimumBalancedAccuracyLower95 &&
+    interval.syntheticCount === 300 && interval.syntheticClusters === 300 && interval.syntheticClusterSize === 1 &&
+    interval.lower95 >= testGates.minimumBalancedAccuracyLower95 &&
     interval.realRecallLower95 >= testGates.minimumRealRecallLower95 &&
     interval.syntheticRecallLower95 >= testGates.minimumSyntheticRecallLower95 &&
-    Object.values(metrics.syntheticRecallBySource).every((recall) =>
-      recall >= testGates.minimumSyntheticRecallPerFamily),
-  `${variant} failed the frozen confirmatory acceptance gates`);
+    Object.values(metrics.syntheticRecallBySource).every((recall) => recall >= testGates.minimumSyntheticRecallPerFamily),
+  `${variant} failed the frozen replacement confirmatory gates`);
 }
-requireCondition(confirmatoryCompletion.files?.[path.basename(CONFIRMATORY_SUMMARY)] ===
-  digest(await readFile(CONFIRMATORY_SUMMARY)), "Confirmatory summary is not completion-marker-bound");
+requireCondition(confirmCompletion.files?.[path.basename(confirmSummaryPath)] === digest(await readFile(confirmSummaryPath)),
+  "Replacement confirmatory summary is not completion-marker-bound");
 
-const bootstrapReplayRoot = await mkdtemp(path.join(os.tmpdir(), "prooflens-bootstrap-replay-"));
+const bootstrapReplayRoot = await mkdtemp(path.join(os.tmpdir(), "prooflens-bootstrap-v2-replay-"));
 try {
   const replayPath = path.join(bootstrapReplayRoot, "bootstrap.json");
   execFileSync(process.env.PROOFLENS_PYTHON ?? "python3", [
-    "benchmark/bootstrap_ci.py",
-    "--predictions", ...VARIANTS.map((variant) => CONFIRMATORY_PREDICTIONS[variant]),
-    "--manifest", EXPECTED_MANIFESTS.test.path,
-    "--expected-manifest-sha256", EXPECTED_MANIFESTS.test.sha256,
-    "--raw-threshold", String(rawThreshold),
-    "--seed", String(testGates.seed),
-    "--replicates", String(testGates.replicates),
-    "--output", replayPath,
+    "benchmark/bootstrap_ci.py", "--predictions", ...VARIANTS.map((variant) => confirmPredictions[variant]),
+    "--manifest", EXPECTED.confirmatory.manifest,
+    "--expected-manifest-sha256", EXPECTED.confirmatory.manifestSha256,
+    "--raw-threshold", String(rawThreshold), "--seed", String(testGates.seed),
+    "--replicates", String(testGates.replicates), "--output", replayPath,
   ], { stdio: "pipe", maxBuffer: 8 * 1024 * 1024 });
-  requireCondition(jsonEqual(JSON.parse(await readFile(replayPath, "utf8")), bootstrap),
-    "Committed confirmatory bootstrap intervals do not recompute deterministically");
+  requireCondition(jsonEqual(JSON.parse(await readFile(replayPath, "utf8")), confirmBootstrap),
+    "Replacement bootstrap intervals do not recompute deterministically");
 } finally {
   await rm(bootstrapReplayRoot, { recursive: true, force: true });
 }
 
-const webSummary = JSON.parse(await readFile(WEB_NEGATIVE_SUMMARY, "utf8"));
-const webCompletion = JSON.parse(await readFile(WEB_NEGATIVE_COMPLETION, "utf8"));
-const webWilson = JSON.parse(await readFile(WEB_NEGATIVE_WILSON, "utf8"));
-requireCondition(webSummary.schemaVersion === 2 && webSummary.protocol === "web-negative" &&
-  webSummary.commitMarkerPublication === true && webSummary.allVariantsRequired === true &&
-  webSummary.model.sha256 === modelLock.sha256 &&
-  webSummary.dataset.sha256 === EXPECTED_MANIFESTS.webNegative.sha256 && webSummary.dataset.items === 319 &&
-  webSummary.threshold.raw === rawThreshold && webSummary.threshold.calibrationSha256 === digest(calibrationBytes),
-"Web-negative summary input bindings changed");
-requireCondition(webWilson.schemaVersion === 2 && webWilson.confidenceLevel === webNegativeGates.confidenceLevel &&
-  webWilson.manifestSha256 === EXPECTED_MANIFESTS.webNegative.sha256 && webWilson.rawProbabilityThreshold === rawThreshold,
-"Web-negative Wilson contract changed");
-requireCondition(webCompletion.schemaVersion === 1 && webCompletion.protocol === "web-negative" &&
-  webCompletion.modelSha256 === modelLock.sha256 &&
-  webCompletion.manifestSha256 === EXPECTED_MANIFESTS.webNegative.sha256 &&
+const webPredictions = predictionPaths(EXPECTED.webNegative);
+const webSummaryPath = `${EXPECTED.webNegative.outputDir}/${EXPECTED.webNegative.name}-summary.json`;
+const webCompletionPath = `${EXPECTED.webNegative.outputDir}/${EXPECTED.webNegative.name}-complete.json`;
+const webWilsonPath = `${EXPECTED.webNegative.outputDir}/wilson.json`;
+const webSummary = JSON.parse(await readFile(webSummaryPath, "utf8"));
+const webCompletion = JSON.parse(await readFile(webCompletionPath, "utf8"));
+const webWilson = JSON.parse(await readFile(webWilsonPath, "utf8"));
+requireCondition(webSummary.schemaVersion === 3 && webSummary.protocol === EXPECTED.webNegative.protocol &&
+  webSummary.runtime?.probabilityArithmetic === "binary64 sigmoid from the recorded ONNX logit" &&
+  webSummary.model.sha256 === modelLock.sha256 && webSummary.dataset.sha256 === EXPECTED.webNegative.manifestSha256 &&
+  webSummary.dataset.items === 319 && webSummary.threshold.raw === rawThreshold &&
+  webSummary.threshold.calibrationSha256 === digest(calibrationBytes),
+"Replacement web-negative summary binding changed");
+requireCondition(webCompletion.schemaVersion === 1 && webCompletion.protocol === EXPECTED.webNegative.protocol &&
+  webCompletion.modelSha256 === modelLock.sha256 && webCompletion.manifestSha256 === EXPECTED.webNegative.manifestSha256 &&
   webCompletion.calibrationSha256 === digest(calibrationBytes),
-"Web-negative completion marker input bindings changed");
+"Replacement web-negative completion marker changed");
+requireCondition(webWilson.schemaVersion === 2 && webWilson.manifestSha256 === EXPECTED.webNegative.manifestSha256 &&
+  webWilson.confidenceLevel === webNegativeGates.confidenceLevel && webWilson.rawProbabilityThreshold === rawThreshold,
+"Replacement web-negative Wilson contract changed");
 const webById = new Map(manifests.webNegative.map((row) => [row.id, row]));
 for (const variant of VARIANTS) {
-  const file = WEB_NEGATIVE_PREDICTIONS[variant];
+  const file = webPredictions[variant];
   const bytes = await readFile(file);
-  requireCondition(webCompletion.files?.[path.basename(file)] === digest(bytes),
-    `${variant} web-negative predictions are not completion-marker-bound`);
-  requireCondition(webWilson.variants[variant]?.predictionsSha256 === digest(bytes),
-    `${variant} web-negative predictions are not interval-bound`);
   const rows = parseJsonLines(bytes, file);
-  requireCondition(rows.length === 319 && new Set(rows.map((row) => row.id)).size === 319 &&
-    rows.every((row) => {
-    const item = webById.get(row.id);
-    return item && row.variant === variant && row.label === 0 && row.source === item.source &&
-      row.groupId === item.groupId && predictionIsNumericallyConsistent(row);
-  }), `${file} does not match the frozen web-negative manifest`);
+  requireCondition(webCompletion.files?.[path.basename(file)] === digest(bytes) &&
+    webWilson.variants?.[variant]?.predictionsSha256 === digest(bytes) && rows.length === 319 &&
+    new Set(rows.map((row) => row.id)).size === 319 && rows.every((row) => {
+      const item = webById.get(row.id);
+      return item && row.variant === variant && row.label === 0 && row.source === item.source &&
+        row.groupId === item.groupId && predictionIsNumericallyConsistent(row, rawThreshold);
+    }), `${file} is stale, incomplete, or numerically invalid`);
   const metrics = negativeMetrics(rows, rawThreshold);
   requireCondition(jsonEqual(metrics, webSummary.variants[variant]),
-    `${variant} web-negative summary metrics do not recompute`);
+    `${variant} replacement web-negative metrics do not recompute`);
   const falsePositives = rows.filter((row) => row.rawProbability >= rawThreshold).length;
   const [lower, upper] = wilson(falsePositives, rows.length);
   const interval = webWilson.variants[variant];
-  close(interval.falsePositiveRate, metrics.falsePositiveRate, `${variant} web-negative FPR`);
-  close(interval.lower95, lower, `${variant} web-negative lower interval`);
-  close(interval.upper95, upper, `${variant} web-negative upper interval`);
+  close(interval.falsePositiveRate, metrics.falsePositiveRate, `${variant} web FPR`);
+  close(interval.lower95, lower, `${variant} web lower interval`);
+  close(interval.upper95, upper, `${variant} web upper interval`);
   requireCondition(interval.upper95 <= webNegativeGates.maximumOverallFalsePositiveRateUpper95,
-    `${variant} overall web-negative upper FPR exceeds its frozen gate`);
+    `${variant} replacement web-negative upper FPR failed`);
   for (const [source, sourceMetrics] of Object.entries(metrics.bySource)) {
     const selected = rows.filter((row) => row.source === source);
     const sourceFalsePositives = selected.filter((row) => row.rawProbability >= rawThreshold).length;
@@ -481,113 +356,88 @@ for (const variant of VARIANTS) {
     close(sourceInterval.lower95, sourceLower, `${variant}/${source} lower interval`);
     close(sourceInterval.upper95, sourceUpper, `${variant}/${source} upper interval`);
     requireCondition(sourceInterval.upper95 <= webNegativeGates.maximumPerSourceFalsePositiveRateUpper95,
-      `${variant}/${source} upper FPR exceeds its frozen gate`);
+      `${variant}/${source} replacement web-negative upper FPR failed`);
   }
 }
-requireCondition(webCompletion.files?.[path.basename(WEB_NEGATIVE_SUMMARY)] === digest(await readFile(WEB_NEGATIVE_SUMMARY)),
-  "Web-negative summary is not completion-marker-bound");
+requireCondition(webCompletion.files?.[path.basename(webSummaryPath)] === digest(await readFile(webSummaryPath)),
+  "Replacement web-negative summary is not completion-marker-bound");
 
-const replayVerification = JSON.parse(await readFile(
-  "benchmark/evidence/evaluation/replay-verification.json",
-  "utf8",
-));
+const replay = JSON.parse(await readFile(REPLAY_PATH, "utf8"));
 const replayBoundFiles = [
-  "weights/prooflens-cf384.onnx",
-  "benchmark/evidence/large/calibration.json",
-  "benchmark/evaluate.py",
-  "benchmark/evaluation_contract.py",
-  "benchmark/bootstrap_ci.py",
-  "benchmark/bootstrap_fpr.py",
-  "benchmark/prediction_contract.py",
-  "benchmark/verify_evaluation_evidence.py",
-  "benchmark/evidence/evaluation/pre-score-freeze-v2.json",
-  ...Object.values(VALIDATION_PREDICTIONS), VALIDATION_SUMMARY, VALIDATION_COMPLETION,
-  ...Object.values(CONFIRMATORY_PREDICTIONS), CONFIRMATORY_SUMMARY, CONFIRMATORY_COMPLETION,
-  ...Object.values(WEB_NEGATIVE_PREDICTIONS), WEB_NEGATIVE_SUMMARY, WEB_NEGATIVE_COMPLETION,
-  CONFIRMATORY_BOOTSTRAP,
-  WEB_NEGATIVE_WILSON,
+  MODEL_PATH, CALIBRATION_PATH, "model-lock.json", RECIPE_PATH, FREEZE_PATH,
+  "benchmark/evaluate.py", "benchmark/evaluation_contract.py", "benchmark/bootstrap_ci.py",
+  "benchmark/bootstrap_fpr.py", "benchmark/prediction_contract.py",
+  "benchmark/verify_evaluation_evidence.py", "benchmark/run_release_replay.py",
+  EXPECTED.confirmatory.manifest, EXPECTED.webNegative.manifest, SELECTION_PATH, PARITY_IDS_PATH,
+  ...Object.values(confirmPredictions), confirmSummaryPath, confirmCompletionPath,
+  ...Object.values(webPredictions), webSummaryPath, webCompletionPath,
+  confirmBootstrapPath, webWilsonPath,
 ];
-const calibrationSha256 = digest(calibrationBytes);
-const evaluatorCommand = (protocol, dataRoot, manifest, manifestSha256, outputDir) => [
-  "benchmark/evaluate.py",
-  "--model", "weights/prooflens-cf384.onnx",
-  "--expected-model-sha256", modelLock.sha256,
-  "--data-root", dataRoot,
-  "--manifest", manifest,
-  "--expected-manifest-sha256", manifestSha256,
-  "--output-dir", outputDir,
-  "--protocol", protocol,
-  "--batch-size", "16",
-  "--execution-provider", "cpu",
-  "--calibration", "benchmark/evidence/large/calibration.json",
-  "--expected-calibration-sha256", calibrationSha256,
+const evaluatorCommand = (config) => [
+  "benchmark/evaluate.py", "--model", MODEL_PATH, "--expected-model-sha256", modelLock.sha256,
+  "--data-root", "benchmark/data/replacement-v2", "--manifest", config.manifest,
+  "--expected-manifest-sha256", config.manifestSha256, "--output-dir", config.outputDir,
+  "--protocol", config.protocol, "--batch-size", "16", "--execution-provider", "cpu",
+  "--calibration", CALIBRATION_PATH, "--expected-calibration-sha256", digest(calibrationBytes),
   "--verify-existing",
 ];
 const expectedReplayCommands = [
-  evaluatorCommand(
-    "validation", "benchmark/data/modern-head", EXPECTED_MANIFESTS.validation.path,
-    EXPECTED_MANIFESTS.validation.sha256, "benchmark/evidence/evaluation/validation",
-  ),
-  evaluatorCommand(
-    "confirmatory", "benchmark/data", EXPECTED_MANIFESTS.test.path,
-    EXPECTED_MANIFESTS.test.sha256, "benchmark/evidence/evaluation/confirmatory",
-  ),
-  evaluatorCommand(
-    "web-negative", "benchmark/data/web-negative", EXPECTED_MANIFESTS.webNegative.path,
-    EXPECTED_MANIFESTS.webNegative.sha256, "benchmark/evidence/evaluation/web-negative",
-  ),
+  evaluatorCommand(EXPECTED.confirmatory),
+  evaluatorCommand(EXPECTED.webNegative),
   [
-    "benchmark/bootstrap_ci.py",
-    "--predictions", ...VARIANTS.map((variant) => CONFIRMATORY_PREDICTIONS[variant]),
-    "--manifest", EXPECTED_MANIFESTS.test.path,
-    "--expected-manifest-sha256", EXPECTED_MANIFESTS.test.sha256,
-    "--raw-threshold", String(rawThreshold),
-    "--seed", "20260813",
-    "--replicates", "20000",
-    "--output", CONFIRMATORY_BOOTSTRAP,
-    "--verify-existing",
+    "benchmark/bootstrap_ci.py", "--predictions", ...VARIANTS.map((variant) => confirmPredictions[variant]),
+    "--manifest", EXPECTED.confirmatory.manifest,
+    "--expected-manifest-sha256", EXPECTED.confirmatory.manifestSha256,
+    "--raw-threshold", String(rawThreshold), "--seed", "20260813", "--replicates", "20000",
+    "--output", confirmBootstrapPath, "--verify-existing",
   ],
   [
-    "benchmark/bootstrap_fpr.py",
-    "--predictions", ...VARIANTS.map((variant) => WEB_NEGATIVE_PREDICTIONS[variant]),
-    "--manifest", EXPECTED_MANIFESTS.webNegative.path,
-    "--expected-manifest-sha256", EXPECTED_MANIFESTS.webNegative.sha256,
-    "--raw-threshold", String(rawThreshold),
-    "--output", WEB_NEGATIVE_WILSON,
-    "--verify-existing",
+    "benchmark/bootstrap_fpr.py", "--predictions", ...VARIANTS.map((variant) => webPredictions[variant]),
+    "--manifest", EXPECTED.webNegative.manifest,
+    "--expected-manifest-sha256", EXPECTED.webNegative.manifestSha256,
+    "--raw-threshold", String(rawThreshold), "--output", webWilsonPath, "--verify-existing",
   ],
 ];
-requireCondition(replayVerification.schemaVersion === 1 &&
-  replayVerification.mode ===
-    "byte-identical replay of immutable validation, confirmatory, web-negative, bootstrap, and Wilson evidence" &&
-  replayVerification.modelSha256 === modelLock.sha256 &&
-  replayVerification.calibrationSha256 === calibrationSha256 &&
-  replayVerification.executionProvider === "cpu" && replayVerification.batchSize === 16 &&
-  jsonEqual(replayVerification.commands, expectedReplayCommands) &&
-  jsonEqual(Object.keys(replayVerification.files).sort(), [...replayBoundFiles].sort()) &&
-  replayBoundFiles.every((file) => /^[a-f0-9]{64}$/u.test(replayVerification.files?.[file] ?? "")),
-"Local evaluation replay receipt contract changed");
+requireCondition(replay.schemaVersion === 2 && replay.mode ===
+  "byte-identical replay of replacement-v2 confirmatory, web-negative, bootstrap, and Wilson evidence" &&
+  replay.modelSha256 === modelLock.sha256 && replay.calibrationSha256 === digest(calibrationBytes) &&
+  replay.recipeSha256 === digest(recipeBytes) && replay.freezeReceiptSha256 === digest(freezeBytes) &&
+  replay.executionProvider === "cpu" && replay.batchSize === 16 &&
+  jsonEqual(replay.commands, expectedReplayCommands) &&
+  jsonEqual(Object.keys(replay.files).sort(), [...replayBoundFiles].sort()),
+"Replacement release replay receipt contract changed");
 for (const file of replayBoundFiles) {
-  requireCondition(replayVerification.files?.[file] === digest(await readFile(file)),
-    `Local evaluation replay receipt is stale: ${file}`);
+  requireCondition(replay.files[file] === digest(await readFile(file)), `Replacement replay is stale: ${file}`);
 }
 
-const parityIds = JSON.parse(await readFile("benchmark/manifests/parity-ids.json", "utf8"));
+const parityIdsBytes = await readFile(PARITY_IDS_PATH);
+requireCondition(digest(parityIdsBytes) === "0f0e72ac4bd91549af10a76c494138b6cf0c22328d904134b67be82d79badf99",
+  "Replacement parity ID packet changed");
+const parityIds = JSON.parse(parityIdsBytes);
 const expectedParityIds = [];
 for (const label of [0, 1]) {
-  const candidates = manifests.test.filter((row) => row.label === label)
+  const candidates = manifests.confirmatory.filter((row) => row.label === label)
     .sort((left, right) => priority(left.id).localeCompare(priority(right.id)) || left.id.localeCompare(right.id));
   expectedParityIds.push(...candidates.slice(0, 30).map((row) => row.id));
 }
-requireCondition(jsonEqual(parityIds, expectedParityIds), "Browser-parity IDs are not the deterministic 30-per-class subset");
+requireCondition(jsonEqual(parityIds, expectedParityIds),
+  "Browser parity IDs are not the pre-score deterministic replacement subset");
+const confirmOriginalById = new Map(parseJsonLines(await readFile(confirmPredictions.original), confirmPredictions.original)
+  .map((row) => [row.id, row]));
 const parity = JSON.parse(await readFile("artifacts/browser-parity.json", "utf8"));
-requireCondition(parity.schemaVersion >= 2 && parity.modelSha256 === modelLock.sha256 && parity.samples === 60 &&
+requireCondition(parity.schemaVersion === 2 && parity.modelSha256 === modelLock.sha256 && parity.samples === 60 &&
   parity.classCounts.real === 30 && parity.classCounts.synthetic === 30 && parity.cleanProfile === true &&
-  parity.offline === true && parity.networkRequests.length === 0 &&
+  parity.offline === true && parity.networkRequests.length === 0 && /^[a-f0-9]{64}$/u.test(parity.fixtureManifestSha256) &&
   parity.providerCounts.webgpu === 60 && parity.browserMetrics.balancedAccuracy >= 0.75 &&
   parity.decisionAgreement >= 0.95 && parity.meanAbsoluteProbabilityDifference <= 0.05 &&
-  parity.maximumAbsoluteProbabilityDifference <= 0.25,
-"Browser parity failed its frozen runtime-agreement gates");
+  parity.maximumAbsoluteProbabilityDifference <= 0.25 && Array.isArray(parity.predictions) &&
+  parity.predictions.length === 60 && parity.predictions.map((row) => row.id).join("\n") === parityIds.join("\n") &&
+  parity.predictions.every((row) => {
+    const item = confirmById.get(row.id);
+    const reference = confirmOriginalById.get(row.id);
+    return item && reference && row.label === item.label && row.source === item.source &&
+      row.imageSha256 === item.imageSha256 && row.referenceRawProbability === reference.rawProbability;
+  }), "Browser parity failed its replacement-v2 runtime-agreement gates");
 
 const browserEvidence = {};
 for (const [provider, file] of Object.entries(CHROME_E2E)) {
@@ -597,13 +447,12 @@ for (const [provider, file] of Object.entries(CHROME_E2E)) {
     report.serverStoppedBeforeAnalysis === true && report.browserOfflineBeforeAnalysis === true &&
     jsonEqual(report.postCutoffNetworkRequests, []) && report.setupProgressAccessibleName === true &&
     report.setupProgressAdvanced === true && report.popupCaveatVisible === true &&
-    report.setupInitialFailureRecovered === true &&
-    report.popupUnsupportedGuard === true && report.popupSupportedPageControls === true &&
-    report.popupTemporaryLabelsReset === true && report.popupSavedSiteStatePersisted === true &&
-    report.popupRescanFeedback === true && report.popupRescanWork?.acceptedAfter > report.popupRescanWork?.acceptedBefore &&
+    report.setupInitialFailureRecovered === true && report.popupUnsupportedGuard === true &&
+    report.popupSupportedPageControls === true && report.popupTemporaryLabelsReset === true &&
+    report.popupSavedSiteStatePersisted === true && report.popupRescanFeedback === true &&
+    report.popupRescanWork?.acceptedAfter > report.popupRescanWork?.acceptedBefore &&
     report.popupFailureStateTruthful === true && report.popupCrossOriginMutationRejected === true &&
-    report.popupInitializationNavigationRejected === true &&
-    report.numericScore === true &&
+    report.popupInitializationNavigationRejected === true && report.numericScore === true &&
     report.modelStateFixtures?.likelyAi?.classification === "likely-ai" &&
     report.modelStateFixtures?.belowThreshold?.classification === "not-flagged" &&
     report.reducedMotionSuppressed === true && report.closedShadowRoot === true &&
@@ -623,11 +472,7 @@ for (const [provider, file] of Object.entries(CHROME_E2E)) {
   const testedTree = execFileSync("git", ["rev-parse", `${report.testedGitHead}^{tree}`], { encoding: "utf8" }).trim();
   requireCondition(testedTree === report.testedGitTree, `${provider} Chrome E2E source tree binding changed`);
   const actualScreenshots = {};
-  for (const [kind, suffix] of Object.entries({
-    modelState: "states",
-    narrow: "narrow",
-    smallTarget: "small-target",
-  })) {
+  for (const [kind, suffix] of Object.entries({ modelState: "states", narrow: "narrow", smallTarget: "small-target" })) {
     const bytes = await readFile(`artifacts/chrome-e2e-${provider}-${suffix}.png`);
     actualScreenshots[kind] = { sha256: digest(bytes), ...pngDimensions(bytes) };
   }
@@ -643,8 +488,7 @@ requireCondition(digest(await readFile("release/prooflens.zip")) === browserEvid
 const currentHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 if (currentHead !== browserEvidence.wasm.testedGitHead) {
   const evidenceDelta = execFileSync(
-    "git",
-    ["diff", "--no-renames", "--name-only", `${browserEvidence.wasm.testedGitHead}..${currentHead}`],
+    "git", ["diff", "--no-renames", "--name-only", `${browserEvidence.wasm.testedGitHead}..${currentHead}`],
     { encoding: "utf8" },
   ).trim().split("\n").filter(Boolean);
   requireCondition(evidenceDelta.length > 0 && evidenceDelta.every((file) => file.startsWith("artifacts/")),
@@ -652,12 +496,10 @@ if (currentHead !== browserEvidence.wasm.testedGitHead) {
 }
 
 console.log(JSON.stringify({
-  manifests: Object.fromEntries(Object.entries(EXPECTED_MANIFESTS).map(([name, value]) => [name, {
-    rows: value.rows, sha256: value.sha256,
-  }])),
-  familyOverlap: 0,
-  promptGroupOverlap: 0,
-  legacyEvaluationOverlap: 0,
+  replacementConfirmatoryRows: manifests.confirmatory.length,
+  replacementWebNegativeRows: manifests.webNegative.length,
+  historicalExclusions: historical.items.length,
+  v1FailurePreserved: true,
   confirmatoryLower95Gates: "pass",
   webNegativeUpper95Gates: "pass",
   browserParity: "pass",

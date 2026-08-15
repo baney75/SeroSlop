@@ -1,4 +1,4 @@
-"""Replay every frozen evaluator and interval output against local source pixels."""
+"""Replay the replacement-v2 evaluator and intervals against local pixels."""
 
 from __future__ import annotations
 
@@ -14,28 +14,24 @@ import tempfile
 
 VARIANTS = ("original", "screenshot", "social-q75", "social-heavy")
 PROTOCOLS = {
-    "validation": {
-        "dataRoot": "benchmark/data/modern-head",
-        "manifest": "benchmark/manifests/validation.jsonl",
-        "manifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
-        "outputDir": "benchmark/evidence/evaluation/validation",
-        "name": "prooflens-validation",
+    "confirmatory-v2": {
+        "dataRoot": "benchmark/data/replacement-v2",
+        "manifest": "benchmark/manifests/test-v2.jsonl",
+        "manifestSha256": "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8",
+        "outputDir": "benchmark/evidence/evaluation/confirmatory-v2",
+        "name": "prooflens-confirmatory-v2",
     },
-    "confirmatory": {
-        "dataRoot": "benchmark/data",
-        "manifest": "benchmark/manifests/test.jsonl",
-        "manifestSha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
-        "outputDir": "benchmark/evidence/evaluation/confirmatory",
-        "name": "prooflens-confirmatory-test",
-    },
-    "web-negative": {
-        "dataRoot": "benchmark/data/web-negative",
-        "manifest": "benchmark/manifests/web-negative.jsonl",
-        "manifestSha256": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824",
-        "outputDir": "benchmark/evidence/evaluation/web-negative",
-        "name": "prooflens-web-negative",
+    "web-negative-v2": {
+        "dataRoot": "benchmark/data/replacement-v2",
+        "manifest": "benchmark/manifests/web-negative-v2.jsonl",
+        "manifestSha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9",
+        "outputDir": "benchmark/evidence/evaluation/web-negative-v2",
+        "name": "prooflens-web-negative-v2",
     },
 }
+FREEZE_PATH = Path("benchmark/evidence/evaluation/pre-score-freeze-v3.json")
+RECIPE_PATH = Path("benchmark/large/recipe.json")
+MODEL_LOCK_PATH = Path("model-lock.json")
 
 
 def digest(path: Path) -> str:
@@ -57,7 +53,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("benchmark/evidence/evaluation/replay-verification.json"),
+        default=Path("benchmark/evidence/evaluation/replay-verification-v2.json"),
     )
     parser.add_argument(
         "--verify-existing-receipt",
@@ -66,10 +62,24 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if digest(args.model) != args.expected_model_sha256:
-        raise ValueError("Replay model SHA-256 changed")
-    if digest(args.calibration) != args.expected_calibration_sha256:
-        raise ValueError("Replay calibration SHA-256 changed")
+    model_lock = json.loads(MODEL_LOCK_PATH.read_text())
+    training_evidence = model_lock.get("trainingEvidence", {})
+    if (
+        digest(args.model) != args.expected_model_sha256
+        or model_lock.get("sha256") != args.expected_model_sha256
+        or args.model.stat().st_size != model_lock.get("bytes")
+    ):
+        raise ValueError("Replay model does not match model-lock.json")
+    if (
+        digest(args.calibration) != args.expected_calibration_sha256
+        or training_evidence.get("calibrationSha256") != args.expected_calibration_sha256
+    ):
+        raise ValueError("Replay calibration does not match model-lock.json")
+    if digest(RECIPE_PATH) != training_evidence.get("recipeSha256"):
+        raise ValueError("Replay recipe does not match model-lock.json")
+    if not FREEZE_PATH.is_file():
+        raise FileNotFoundError("Replacement replay requires the public V3 freeze receipt")
+
     commands: list[list[str]] = []
     for protocol, config in PROTOCOLS.items():
         command = [
@@ -93,37 +103,39 @@ def main() -> None:
 
     calibration = json.loads(args.calibration.read_text())
     threshold = str(calibration["rawProbabilityThreshold"])
+    confirmatory = PROTOCOLS["confirmatory-v2"]
     confirmatory_predictions = [
-        f"benchmark/evidence/evaluation/confirmatory/prooflens-confirmatory-test-{variant}-predictions.jsonl"
+        f"{confirmatory['outputDir']}/{confirmatory['name']}-{variant}-predictions.jsonl"
         for variant in VARIANTS
     ]
     bootstrap_command = [
         sys.executable,
         "benchmark/bootstrap_ci.py",
         "--predictions", *confirmatory_predictions,
-        "--manifest", PROTOCOLS["confirmatory"]["manifest"],
-        "--expected-manifest-sha256", PROTOCOLS["confirmatory"]["manifestSha256"],
+        "--manifest", confirmatory["manifest"],
+        "--expected-manifest-sha256", confirmatory["manifestSha256"],
         "--raw-threshold", threshold,
         "--seed", "20260813",
         "--replicates", "20000",
-        "--output", "benchmark/evidence/evaluation/confirmatory/bootstrap.json",
+        "--output", f"{confirmatory['outputDir']}/bootstrap.json",
         "--verify-existing",
     ]
     subprocess.run(bootstrap_command, check=True)
     commands.append(bootstrap_command[1:])
 
+    web_negative = PROTOCOLS["web-negative-v2"]
     web_predictions = [
-        f"benchmark/evidence/evaluation/web-negative/prooflens-web-negative-{variant}-predictions.jsonl"
+        f"{web_negative['outputDir']}/{web_negative['name']}-{variant}-predictions.jsonl"
         for variant in VARIANTS
     ]
     wilson_command = [
         sys.executable,
         "benchmark/bootstrap_fpr.py",
         "--predictions", *web_predictions,
-        "--manifest", PROTOCOLS["web-negative"]["manifest"],
-        "--expected-manifest-sha256", PROTOCOLS["web-negative"]["manifestSha256"],
+        "--manifest", web_negative["manifest"],
+        "--expected-manifest-sha256", web_negative["manifestSha256"],
         "--raw-threshold", threshold,
-        "--output", "benchmark/evidence/evaluation/web-negative/wilson.json",
+        "--output", f"{web_negative['outputDir']}/wilson.json",
         "--verify-existing",
     ]
     subprocess.run(wilson_command, check=True)
@@ -132,13 +144,20 @@ def main() -> None:
     bound_files = [
         args.model,
         args.calibration,
+        MODEL_LOCK_PATH,
+        RECIPE_PATH,
+        FREEZE_PATH,
         Path("benchmark/evaluate.py"),
         Path("benchmark/evaluation_contract.py"),
         Path("benchmark/bootstrap_ci.py"),
         Path("benchmark/bootstrap_fpr.py"),
         Path("benchmark/prediction_contract.py"),
         Path("benchmark/verify_evaluation_evidence.py"),
-        Path("benchmark/evidence/evaluation/pre-score-freeze-v2.json"),
+        Path("benchmark/run_release_replay.py"),
+        Path("benchmark/manifests/test-v2.jsonl"),
+        Path("benchmark/manifests/web-negative-v2.jsonl"),
+        Path("benchmark/manifests/replacement-v2-selection.json"),
+        Path("benchmark/manifests/parity-ids-v2.json"),
     ]
     for config in PROTOCOLS.values():
         root = Path(config["outputDir"])
@@ -148,14 +167,16 @@ def main() -> None:
             root / f"{config['name']}-complete.json",
         ])
     bound_files.extend([
-        Path("benchmark/evidence/evaluation/confirmatory/bootstrap.json"),
-        Path("benchmark/evidence/evaluation/web-negative/wilson.json"),
+        Path(f"{confirmatory['outputDir']}/bootstrap.json"),
+        Path(f"{web_negative['outputDir']}/wilson.json"),
     ])
     receipt = {
-        "schemaVersion": 1,
-        "mode": "byte-identical replay of immutable validation, confirmatory, web-negative, bootstrap, and Wilson evidence",
+        "schemaVersion": 2,
+        "mode": "byte-identical replay of replacement-v2 confirmatory, web-negative, bootstrap, and Wilson evidence",
         "modelSha256": args.expected_model_sha256,
         "calibrationSha256": args.expected_calibration_sha256,
+        "recipeSha256": digest(RECIPE_PATH),
+        "freezeReceiptSha256": digest(FREEZE_PATH),
         "executionProvider": args.execution_provider,
         "batchSize": args.batch_size,
         "commands": commands,
@@ -166,7 +187,7 @@ def main() -> None:
         if not args.verify_existing_receipt:
             raise FileExistsError(f"Refusing to overwrite replay verification: {args.output}")
         if args.output.read_bytes() != encoded:
-            raise ValueError("Existing replay verification receipt is not byte-identical")
+            raise ValueError("Existing replacement replay receipt is not byte-identical")
         print(json.dumps(receipt, indent=2))
         return
     args.output.parent.mkdir(parents=True, exist_ok=True)
