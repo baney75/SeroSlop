@@ -1,6 +1,6 @@
 # Security model
 
-ProofLens processes untrusted webpage pixels and DOM state with broad host access, so its release contract is deliberately narrow.
+SeroSlop processes untrusted webpage pixels and DOM state with broad host access, so its release contract is deliberately narrow.
 
 ## Trust boundaries
 
@@ -27,7 +27,7 @@ ProofLens processes untrusted webpage pixels and DOM state with broad host acces
 
 - ONNX Runtime, browser image decoders, GPU drivers, and Chrome itself remain a dependency attack surface.
 - `<all_urls>` is powerful. It is needed to inject automatic labels and locally capture rendered pixels on ordinary active tabs; users can disable analysis per origin.
-- A hostile page can visually cover the overlay, imitate ProofLens styling elsewhere on the page, or continuously mutate the DOM. The closed root, self-repair, throttling, and hard admission limits contain direct tampering and resource use but cannot make an in-page UI equivalent to trusted browser chrome.
+- A hostile page can visually cover the overlay, imitate SeroSlop styling elsewhere on the page, or continuously mutate the DOM. The closed root, self-repair, throttling, and hard admission limits contain direct tampering and resource use but cannot make an in-page UI equivalent to trusted browser chrome.
 - Active-viewport capture is transient and local, but it can contain pixels outside the target before the offscreen crop. The full capture is not persisted, logged, or transmitted.
 
 Report vulnerabilities privately to the repository owner. Do not include secrets, private images, or exploit payloads in a public issue.

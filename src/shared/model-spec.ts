@@ -25,7 +25,7 @@ export interface ModelSpec {
  */
 export const MODEL_SPEC: ModelSpec = {
   id: `ProofLens/${modelLock.trainingRecipe}:${modelLock.sha256.slice(0, 12)}:fp32`,
-  displayName: "ProofLens Community Forensics ViT-S/16 (FP32)",
+  displayName: "SeroSlop Community Forensics ViT-S/16 (FP32)",
   bundledWeightsPath: modelLock.artifact,
   weightsSha256: modelLock.sha256,
   weightsBytes: modelLock.bytes,

@@ -73,6 +73,9 @@ for (const forbidden of [
 }
 const manifest = JSON.parse(await readFile("dist/manifest.json", "utf8"));
 if (manifest.manifest_version !== 3) throw new Error("Package is not Manifest V3");
+if (manifest.name !== "SeroSlop" || manifest.action?.default_title !== "SeroSlop") {
+  throw new Error("Packaged extension branding is not SeroSlop");
+}
 const extensionPolicy = String(manifest.content_security_policy?.extension_pages);
 for (const directive of [
   "default-src 'self'",

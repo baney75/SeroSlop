@@ -65,15 +65,15 @@ function supportedOrigin(url: string | undefined): string {
   }
 }
 
-function exposeChangedPage(message = "The page changed. Reopen ProofLens to use its controls."): void {
+function exposeChangedPage(message = "The page changed. Reopen SeroSlop to use its controls."): void {
   targetInvalidated = true;
   contentAvailable = false;
-  pageElement.textContent = "Page changed · reopen ProofLens";
+  pageElement.textContent = "Page changed · reopen SeroSlop";
   siteContextElement.textContent = "The selected page changed";
   siteToggle.disabled = true;
   labelToggle.disabled = true;
   rescanButton.disabled = true;
-  rescanButton.textContent = "Reopen ProofLens to scan";
+  rescanButton.textContent = "Reopen SeroSlop to scan";
   setFeedback(message, "error");
 }
 
@@ -170,7 +170,7 @@ async function initialize(): Promise<void> {
     } catch {
       siteToggle.disabled = true;
       if (!targetInvalidated) {
-        setFeedback("Saved site setting unavailable. Reopen ProofLens to retry.", "error");
+        setFeedback("Saved site setting unavailable. Reopen SeroSlop to retry.", "error");
       }
     }
   } else {
@@ -312,7 +312,7 @@ rescanButton.addEventListener("click", async () => {
     rescanButton.disabled = !contentAvailable || targetInvalidated;
     rescanButton.removeAttribute("aria-busy");
     rescanButton.textContent = targetInvalidated
-      ? "Reopen ProofLens to scan"
+      ? "Reopen SeroSlop to scan"
       : contentAvailable ? "Re-scan page" : "This page can’t be scanned";
   }
 });

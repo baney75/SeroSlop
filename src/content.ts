@@ -106,8 +106,8 @@ const expectedOverlayStyle = overlayStyleTemplate.style.cssText;
 
 function ensureOverlayIntegrity(): void {
   if (overlayHost.id !== "prooflens-overlay") overlayHost.id = "prooflens-overlay";
-  if (overlayHost.getAttribute("aria-label") !== "ProofLens image analysis labels") {
-    overlayHost.setAttribute("aria-label", "ProofLens image analysis labels");
+  if (overlayHost.getAttribute("aria-label") !== "SeroSlop image analysis labels") {
+    overlayHost.setAttribute("aria-label", "SeroSlop image analysis labels");
   }
   overlayHost.removeAttribute("hidden");
   overlayHost.removeAttribute("inert");
@@ -179,8 +179,8 @@ function makeBadge(): HTMLDivElement {
   const badge = document.createElement("div");
   badge.setAttribute("role", "status");
   badge.setAttribute("aria-live", "off");
-  badge.textContent = "ProofLens · queued";
-  badge.setAttribute("aria-label", "ProofLens image analysis queued");
+  badge.textContent = "SeroSlop · queued";
+  badge.setAttribute("aria-label", "SeroSlop image analysis queued");
   badge.dataset.state = "queued";
   badge.hidden = !labelsVisible || mutationOverflowRecoveryPending;
   shadow.append(badge);
@@ -228,7 +228,7 @@ function resetRecord(record: TargetRecord, detail = "Waiting for this image to e
   record.unavailable = false;
   delete record.badge.dataset.classification;
   delete record.badge.dataset.provider;
-  updateBadge(record, "ProofLens · queued", detail);
+  updateBadge(record, "SeroSlop · queued", detail);
   intersectionObserver.observe(record.element);
   queueAnalysis(record);
 }
@@ -356,7 +356,7 @@ function invalidateRecordForDeferredSync(record: TargetRecord): void {
   delete record.badge.dataset.classification;
   delete record.badge.dataset.provider;
   removePendingRecord(record);
-  updateBadge(record, "ProofLens · refreshing", "The displayed image changed; bounded reconciliation is pending");
+  updateBadge(record, "SeroSlop · refreshing", "The displayed image changed; bounded reconciliation is pending");
 }
 
 function invalidateElementForDeferredSync(element: HTMLElement): void {
@@ -421,7 +421,7 @@ function syncElement(element: HTMLElement): void {
     slots.set(descriptor.slot, record);
     records.add(record);
     trackAdmissionCandidate(record);
-    updateBadge(record, "ProofLens · queued", "Waiting for this image to enter the local analysis queue");
+    updateBadge(record, "SeroSlop · queued", "Waiting for this image to enter the local analysis queue");
   }
   if (!slots.size) {
     intersectionObserver.unobserve(element);
@@ -756,7 +756,7 @@ async function analyze(record: TargetRecord): Promise<void> {
   const expectedMutationEpoch = mutationInvalidationEpoch;
   const expectedDocumentLifecycleEpoch = documentLifecycleEpoch;
   record.requestId = requestId;
-  updateBadge(record, "ProofLens · analyzing", "Analysis runs privately on this device");
+  updateBadge(record, "SeroSlop · analyzing", "Analysis runs privately on this device");
 
   try {
     const source = inferenceSource(record);
@@ -789,7 +789,7 @@ async function analyze(record: TargetRecord): Promise<void> {
     if (!response.ok || !response.result) {
       record.state = "unavailable";
       record.unavailable = true;
-      updateBadge(record, "ProofLens · unavailable", response.error?.message ?? "This image could not be analyzed");
+      updateBadge(record, "SeroSlop · unavailable", response.error?.message ?? "This image could not be analyzed");
       return;
     }
     record.state = "complete";
@@ -811,7 +811,7 @@ async function analyze(record: TargetRecord): Promise<void> {
     if (record.requestId !== requestId) return;
     record.state = "unavailable";
     record.unavailable = true;
-    updateBadge(record, "ProofLens · unavailable", "Image unavailable or blocked");
+    updateBadge(record, "SeroSlop · unavailable", "Image unavailable or blocked");
   }
 }
 
@@ -1157,7 +1157,7 @@ chrome.runtime.onMessage.addListener((
           record.state = "queued";
           record.flagged = false;
           record.unavailable = false;
-          updateBadge(record, "ProofLens · queued", "Analysis paused while ProofLens is disabled for this site");
+          updateBadge(record, "SeroSlop · queued", "Analysis paused while SeroSlop is disabled for this site");
         }
       }
     }

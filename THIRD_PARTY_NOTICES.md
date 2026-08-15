@@ -1,6 +1,6 @@
 # Third-party notices
 
-ProofLens distributes the following third-party model and runtime components. Verbatim license and notice files are shipped under `LICENSES/` in both the source tree and release archive.
+SeroSlop distributes the following third-party model and runtime components. Verbatim license and notice files are shipped under `LICENSES/` in both the source tree and release archive.
 
 ## Community Forensics model
 
@@ -26,13 +26,13 @@ The generated ONNX Runtime Web bundle retains its upstream copyright comments. T
 
 ## SynthCheck
 
-ProofLens’s initial Manifest V3 service-worker/offscreen structure, setup flow, and test/build design were derived from SynthCheck commit `5883d1c23895d407ee1ec50fccfdccca165cc072`.
+SeroSlop’s initial Manifest V3 service-worker/offscreen structure, setup flow, and test/build design were derived from SynthCheck commit `5883d1c23895d407ee1ec50fccfdccca165cc072`.
 
 - Source: https://github.com/thedudeb/synthcheck/tree/5883d1c23895d407ee1ec50fccfdccca165cc072
 - Verbatim license: `LICENSES/SYNTHCHECK_MIT.txt`
 - License SHA-256: `5a8ee7ffa018b7d8e888903acba24b16072ce84e95bf07d7fb6ebdd8a10f9c84`
 
-ProofLens changes the model and preprocessing, classifier head, calibration, WebGPU/WASM fallback, content-hash cache, local-only pixel acquisition, CSS composite scanning, stale-result handling, persisted-model revalidation, hostile-page bounds, tests, and benchmark evidence.
+SeroSlop changes the model and preprocessing, classifier head, calibration, WebGPU/WASM fallback, content-hash cache, local-only pixel acquisition, CSS composite scanning, stale-result handling, persisted-model revalidation, hostile-page bounds, tests, and benchmark evidence.
 
 ## Training and evaluation datasets
 
@@ -44,5 +44,6 @@ Dataset pixels are not redistributed in this repository or release archive.
 - DOCCI selected training images: CC BY 4.0; selected public example IDs are committed in `benchmark/manifests/docci-attribution.json`
 - Library of Congress FSA/OWI color photographs: public domain with no known restrictions on publication; exact catalog IDs, rights statements, image hashes, and photographers are frozen in the benchmark plan. Collection rights: https://www.loc.gov/collections/fsa-owi-color-photographs/about-this-collection/rights-and-access/
 - Chartography at revision `a0156216330b52452b1da68b58ffcc0a53be3984`: CC BY 4.0. Only the 19 rows marked `Expert-created` are used, and their exact IDs and hashes are frozen in `benchmark/manifests/web-negative-chartography.jsonl`.
+- Omni-Fake-SET at revision `724e97f5fc9f4b89f59631a8d4e6331712b7d441`: the dataset card reports CC BY 4.0. It is reserved for the score-blind 100,000-image M5 synthetic-recall panel, not training or candidate selection. The public source-lock packet retains the fixed revision, all Image-config Parquet LFS hashes, generator labels, pixel hashes, and license link; source pixels stay ignored under `benchmark/data/` and are not shipped. Source: https://huggingface.co/datasets/JamalLee/Omni-Fake-SET/tree/724e97f5fc9f4b89f59631a8d4e6331712b7d441
 
-ProofLens itself is licensed under the root `LICENSE`.
+SeroSlop itself is licensed under the root `LICENSE`.

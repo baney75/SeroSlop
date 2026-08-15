@@ -4,6 +4,7 @@ import { classifyReleaseStage, FREEZE_PATH, LEGACY_FREEZE_PATH } from "./release
 import { classifyM2Stage } from "./m2-stage-policy.mjs";
 import { classifyM4Stage, M4_FAILURE_PATH, M4_PUBLICATION_LOCK_PATH } from "./m4-stage-policy.mjs";
 import { classifyM3Stage, M3_FAILURE_PATH, M3_PUBLICATION_LOCK_PATH } from "./m3-stage-policy.mjs";
+import { classifyM5Stage, M5_FAILURE_PATH, M5_FINAL_RECEIPT_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_SELECTION_LOCK_PATH } from "./m5-stage-policy.mjs";
 
 function git(arguments_) {
   return execFileSync("git", arguments_, { encoding: "utf8" }).trim();
@@ -22,6 +23,11 @@ const m4SelectionExists = existsSync("benchmark/evidence/m4/selection-summary.js
 const m4FailureExists = existsSync(M4_FAILURE_PATH);
 const m4LockExists = existsSync(M4_PUBLICATION_LOCK_PATH);
 const m4TrainingExists = existsSync("benchmark/evidence/m4/training-summary.json");
+const m5ProtocolExists = existsSync("benchmark/m5/recipe.json");
+const m5LockExists = existsSync(M5_SELECTION_LOCK_PATH);
+const m5FailureExists = existsSync(M5_FAILURE_PATH);
+const m5LargeSourceLockExists = existsSync(M5_LARGE_SOURCE_LOCK_PATH);
+const m5FinalExists = existsSync(M5_FINAL_RECEIPT_PATH);
 const head = git(["rev-parse", "HEAD"]);
 const additions = git(["log", "--no-renames", "--diff-filter=A", "--format=%H", "--", FREEZE_PATH])
   .split("\n").filter(Boolean);
@@ -40,13 +46,25 @@ const m4Stage = classifyM4Stage({
   lockExists: m4LockExists,
   trainingExists: m4TrainingExists,
 });
-const effectiveStage = m4Stage ?? classifyM3Stage({
+const m5Stage = classifyM5Stage({
+  protocolExists: m5ProtocolExists,
+  lockExists: m5LockExists,
+  failureExists: m5FailureExists,
+  largeSourceLockExists: m5LargeSourceLockExists,
+  finalExists: m5FinalExists,
+});
+const effectiveStage = m5Stage ?? m4Stage ?? classifyM3Stage({
   selectionExists: m3SelectionExists,
   failureExists: m3FailureExists,
   lockExists: m3LockExists,
   trainingExists: m3TrainingExists,
 }) ?? m2Stage ?? stage;
 const scripts = new Map([
+  ["m5-protocol", "verify:m5-protocol"],
+  ["m5-pinned", "verify:m5-pinned"],
+  ["m5-eval-locked", "verify:m5-eval-locked"],
+  ["m5-failed", "verify:m5-failed"],
+  ["m5-final", "verify:m5-final"],
   ["m4-protocol", "verify:m4-protocol"],
   ["m4-source", "verify:m4-source"],
   ["m4-failed", "verify:m4-failed"],

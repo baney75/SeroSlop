@@ -39,7 +39,7 @@ function render(status: ModelStatus): void {
     prepareButton.disabled = true;
   } else if (status.state === "preparing") {
     stateElement.textContent = "Verifying local model…";
-    detailElement.textContent = "Keep this page open while ProofLens verifies and prepares the packaged model.";
+    detailElement.textContent = "Keep this page open while SeroSlop verifies and prepares the packaged model.";
     prepareButton.textContent = "Preparing…";
     prepareButton.disabled = true;
   } else if (status.state === "error") {
@@ -49,7 +49,7 @@ function render(status: ModelStatus): void {
     prepareButton.disabled = false;
   } else {
     stateElement.textContent = "Preparing local detector";
-    detailElement.textContent = "ProofLens needs to verify its packaged model once before scanning pages.";
+    detailElement.textContent = "SeroSlop needs to verify its packaged model once before scanning pages.";
     prepareButton.textContent = "Prepare verified model";
     prepareButton.disabled = false;
   }

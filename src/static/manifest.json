@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ProofLens",
+  "name": "SeroSlop",
   "version": "1.0.0",
   "description": "Browser-local AI image scores for ordinary webpages, fully offline after install.",
   "minimum_chrome_version": "121",
@@ -10,7 +10,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "ProofLens",
+    "default_title": "SeroSlop",
     "default_popup": "popup.html"
   },
   "content_scripts": [

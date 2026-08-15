@@ -123,7 +123,7 @@ const deepStaticNodes = "<span></span>".repeat(5_200);
 const html = `<!doctype html>
 <html><head><meta charset="utf-8"><style>
   body{font:16px system-ui;margin:24px;background:#f2f3f6;color:#171b2c}main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}figure,.background{margin:0;min-height:260px;background:#fff;border-radius:14px;padding:10px}.background{background-image:url("${fixtureC}"),url("${fixtureA}");background-size:cover}.unavailable{background-image:url("file:///prooflens-unavailable.png");background-size:cover}img{display:block;width:100%;height:260px;object-fit:cover}</style></head>
-<body><h1>ProofLens offline browser contract</h1><main id="grid">
+<body><h1>SeroSlop offline browser contract</h1><main id="grid">
 <figure><img id="normal" width="640" height="480" alt="normal fixture" src="${fixtureA}"></figure>
 <figure><img id="duplicate" width="640" height="480" alt="duplicate fixture" src="${fixtureA}"></figure>
 <figure><picture><source media="(min-width:1px)" srcset="${fixtureB}"><img id="responsive" width="640" height="480" alt="responsive fixture" src="${fixtureA}"></picture></figure>
@@ -132,7 +132,7 @@ const html = `<!doctype html>
   </main><section id="prooflens-static-deep-prefix" hidden>${deepStaticNodes}</section>
   <img id="static-after-5000" width="640" height="480" alt="static target after 5000 inert elements" src="${fixtureB}" style="position:fixed;left:12px;bottom:12px;width:96px;height:72px;z-index:1">
   <script>window.addDynamicFixture=()=>{const figure=document.createElement('figure');const image=document.createElement('img');image.id='dynamic';image.width=640;image.height=480;image.alt='dynamic fixture';image.src=${JSON.stringify(fixtureB)};figure.append(image);document.querySelector('#grid').append(figure);};</script></body></html>`;
-const controlsHtml = "<!doctype html><html><head><meta charset=utf-8><title>ProofLens controls fixture</title></head><body><h1>Controls fixture</h1><p>No eligible images are present on this page.</p></body></html>";
+const controlsHtml = "<!doctype html><html><head><meta charset=utf-8><title>SeroSlop controls fixture</title></head><body><h1>Controls fixture</h1><p>No eligible images are present on this page.</p></body></html>";
 
 function fixtureRequestHandler(request, response) {
   if (request.url === "/" || request.url === "/controls") {
@@ -476,7 +476,7 @@ try {
   );
   await page.goto(crossOriginControlsUrl, { waitUntil: "load", timeout: 30_000 });
   await initializationRacePopup.locator("#page-summary").filter({
-    hasText: "Page changed · reopen ProofLens",
+    hasText: "Page changed · reopen SeroSlop",
   }).waitFor();
   await initializationRacePopup.evaluate(() =>
     window.__prooflensResolveInitialSiteState?.({ enabled: false }));
@@ -484,7 +484,7 @@ try {
     const ids = ["#site-enabled", "#labels-visible", "#rescan"];
     return ids.every((selector) => document.querySelector(selector)?.disabled === true) &&
       document.querySelector("#control-feedback")?.textContent ===
-        "The page changed. Reopen ProofLens to use its controls.";
+        "The page changed. Reopen SeroSlop to use its controls.";
   }, undefined, { label: "popup initialization navigation rejection" });
   const disabledAfterInitializationRace = await worker.evaluate(() => chrome.storage.local.get("disabledOrigins"));
   if (JSON.stringify([...(disabledBeforeInitializationRace.disabledOrigins ?? [])].sort()) !==
@@ -510,7 +510,7 @@ try {
     control.dispatchEvent(new window.Event("change", { bubbles: true }));
   });
   await statusPage.locator("#control-feedback").filter({
-    hasText: "The page changed. Reopen ProofLens to use its controls.",
+    hasText: "The page changed. Reopen SeroSlop to use its controls.",
   }).waitFor();
   const changedPageToggle = statusPage.locator("#site-enabled");
   if (await changedPageToggle.isChecked() || !await changedPageToggle.isDisabled() ||

@@ -1,12 +1,12 @@
-# ProofLens model card
+# SeroSlop model card
 
 ## Model
 
-ProofLens packages one FP32 ONNX ViT-S/16 image classifier with a 384-dimensional hidden representation and one synthetic-image logit. Inference happens inside the Chrome extension. There is no remote model call, local server, second detector, metadata heuristic, or hash lookup.
+SeroSlop packages one FP32 ONNX ViT-S/16 image classifier with a 384-dimensional hidden representation and one synthetic-image logit. Inference happens inside the Chrome extension. There is no remote model call, local server, second detector, metadata heuristic, or hash lookup.
 
 The frozen backbone comes from the corrected CommunityForensics DeepfakeDet-ViT revision `ac6ee457bea904a373065754107451793b56db00`. Its exact upstream ONNX SHA-256 is `a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1`; the model license is MIT. The Community Forensics training reported 2.7 million generated images from 4,803 generators paired with 2.7 million real images, or 5.4 million examples total.
 
-ProofLens freezes that backbone and trains only `classifier.weight [1,384]` and `classifier.bias [1]`.
+SeroSlop freezes that backbone and trains only `classifier.weight [1,384]` and `classifier.bias [1]`.
 
 <!-- PROOFLENS_CURRENT_M2_START -->
 ## Current M2 head-training data
@@ -64,7 +64,7 @@ No current acceptance result exists. See `BENCHMARK.md` for the immutable v1 fai
 
 ## Intended use
 
-ProofLens is a local screening hint for ordinary webpage images. It can help a person decide what deserves closer inspection. It does not prove origin or authenticity, identify a generator or author, or justify moderation, employment, legal, financial, medical, or safety decisions without independent human evidence.
+SeroSlop is a local screening hint for ordinary webpage images. It can help a person decide what deserves closer inspection. It does not prove origin or authenticity, identify a generator or author, or justify moderation, employment, legal, financial, medical, or safety decisions without independent human evidence.
 
 ## Known limitations
 

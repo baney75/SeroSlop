@@ -1,13 +1,13 @@
-# ProofLens
+# SeroSlop
 
-ProofLens is a native Manifest V3 Chrome extension that shows a local AI-image model score beside images on ordinary webpages. It runs one packaged ONNX model inside the browser, without a detector API, localhost process, hash lookup, telemetry, or post-install model download.
+SeroSlop is a native Manifest V3 Chrome extension that shows a local AI-image model score beside images on ordinary webpages. It runs one packaged ONNX model inside the browser, without a detector API, localhost process, hash lookup, telemetry, or post-install model download.
 
-The fixed decision rule is inclusive: **AI score ≥ 65.0/100 is flagged**. Every completed analysis shows a numeric model score; failures say **unavailable** instead of inventing one. The score is not a calibrated probability, and a badge is not proof of origin or authenticity.
+The fixed decision rule is inclusive: **AI score ≥ 65.0/100 is flagged**. Every completed analysis shows a numeric model score; failures say **unavailable** instead of inventing one. The score is not a calibrated probability, and a badge is not proof of origin or authenticity. Historical repository paths and evidence identifiers retain `prooflens` so prior model and evaluation receipts remain reproducible; the installed extension and user-visible interface are SeroSlop.
 
 <!-- PROOFLENS_CURRENT_M2_START -->
 ## Current M2 model
 
-The shipped classifier keeps the Community Forensics ViT-S/16 backbone frozen and replaces only its 384-to-1 head. The upstream backbone was trained on 5.4 million real/synthetic examples spanning 4,803 generators. ProofLens trained the M2 head on **105,978 public images**: 51,200 synthetic and 54,778 non-AI. The 2,378-image StockImages-CC0 addition targets the ordinary-photo false positives found by the consumed replacement-v2 evaluation. Fresh extraction covered all 123,912 feature views.
+The shipped classifier keeps the Community Forensics ViT-S/16 backbone frozen and replaces only its 384-to-1 head. The upstream backbone was trained on 5.4 million real/synthetic examples spanning 4,803 generators. SeroSlop trained the M2 head on **105,978 public images**: 51,200 synthetic and 54,778 non-AI. The 2,378-image StockImages-CC0 addition targets the ordinary-photo false positives found by the consumed replacement-v2 evaluation. Fresh extraction covered all 123,912 feature views.
 
 Independent ONNX comparison found exactly two changed initializers, `classifier.weight` and `classifier.bias`; the other 198 initializers and the graph contract are unchanged. The packaged model is 87,442,080 bytes with SHA-256 `a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47`.
 
@@ -39,7 +39,7 @@ Then:
 1. Open `chrome://extensions`, then enable **Developer mode** using the toggle in its upper-right corner.
 2. Select **Load unpacked** and choose the generated `dist/` directory.
 3. Keep the setup tab open until it says **Offline ready**. The model is already in the package; setup verifies its SHA-256 and prepares local storage.
-4. Visit an ordinary webpage. ProofLens automatically queues visible `<img>`, `picture`/`srcset`, dynamic images, and CSS `background-image` targets.
+4. Visit an ordinary webpage. SeroSlop automatically queues visible `<img>`, `picture`/`srcset`, dynamic images, and CSS `background-image` targets.
 
 The reproducible archive is generated at `release/prooflens.zip`; its digest is recorded in `release/SHA256SUMS.txt`.
 
@@ -77,7 +77,7 @@ then runs WebGPU or its clean WASM fallback and applies frozen calibration
 content script: accepts only the matching request/source and renders a result
 ```
 
-When canvas access permits, ProofLens reduces images above a 1,024-pixel long edge and encodes the bounded pixels locally as lossless PNG. Otherwise, it captures the already-rendered active viewport locally and crops the target inside the offscreen document. Viewport capture is confirmed against the exact sending document ID and origin before and after Chrome's capture call. A page-controlled URL is never fetched by extension code, and extension-page CSP blocks remote connection/image beacons, so redirects, DNS rebinding, localhost, and private-network destinations are outside the acquisition path. Oversized sources, excessive decoded dimensions, corrupt model bytes, unsupported protocols, navigated/inactive-tab crops, and decode failures fail closed.
+When canvas access permits, SeroSlop reduces images above a 1,024-pixel long edge and encodes the bounded pixels locally as lossless PNG. Otherwise, it captures the already-rendered active viewport locally and crops the target inside the offscreen document. Viewport capture is confirmed against the exact sending document ID and origin before and after Chrome's capture call. A page-controlled URL is never fetched by extension code, and extension-page CSP blocks remote connection/image beacons, so redirects, DNS rebinding, localhost, and private-network destinations are outside the acquisition path. Oversized sources, excessive decoded dimensions, corrupt model bytes, unsupported protocols, navigated/inactive-tab crops, and decode failures fail closed.
 
 ## Model lock
 
@@ -100,4 +100,4 @@ The complete machine-readable contract is [model-lock.json](model-lock.json). Tr
 - [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md): bounty criteria mapped to executable proof
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): bundled runtime/model notices and training-data provenance
 
-ProofLens is MIT licensed. Dataset pixels are not included in this repository.
+SeroSlop is MIT licensed. Dataset pixels are not included in this repository.

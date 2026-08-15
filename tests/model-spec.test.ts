@@ -6,6 +6,8 @@ import { MODEL_SPEC } from "../src/shared/model-spec";
 
 describe("pinned detector model", () => {
   it("locks the exact corrected upstream revision and local artifact", () => {
+    expect(MODEL_SPEC.displayName).toBe("SeroSlop Community Forensics ViT-S/16 (FP32)");
+    expect(MODEL_SPEC.id).toMatch(/^ProofLens\//u);
     expect(MODEL_SPEC.upstreamRevision).toMatch(/^[0-9a-f]{40}$/u);
     expect(MODEL_SPEC.weightsSha256).toMatch(/^[0-9a-f]{64}$/u);
     expect(MODEL_SPEC.weightsSha256).toBe(lock.sha256);

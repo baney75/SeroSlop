@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "name": "prooflens-m5-runpod-vit-finetune",
+  "seed": 20260815,
+  "purpose": "Fine-tune the packaged ViT-S/384 detector on the score-blind M4 training packet using a bounded RunPod GPU job while keeping the extension model local and practical.",
+  "baseSource": {
+    "commit": "5ab375fad2a744620b6ec75f09e6153c8a409049",
+    "tree": "fc0afc8a746f3f41c29bbd8713f309856d2bdc53"
+  },
+  "deliverable": {
+    "format": "ONNX FP32",
+    "input": "pixel_values float32 [N,3,384,384]",
+    "output": "logits float32 [N,1]",
+    "maximumBytes": 90000000,
+    "browserExecution": ["wasm", "webgpu"],
+    "networkAfterInstall": false
+  },
+  "upstream": {
+    "repository": "buildborderless/CommunityForensics-DeepfakeDet-ViT",
+    "revision": "ac6ee457bea904a373065754107451793b56db00",
+    "sourceReportedLicense": "MIT",
+    "config": {
+      "path": "config.json",
+      "bytes": 524,
+      "sha256": "4b425d089842fecf8f25fc52aa44d09f49607ef89a0e2ff685ced6ec1c70e9b1"
+    },
+    "preprocessor": {
+      "path": "preprocessor_config.json",
+      "bytes": 306,
+      "sha256": "d5e70eaba99880a52978157cf4e6ee71502fed9479dd7b659854107e131ee8f6"
+    },
+    "pytorchWeights": {
+      "path": "model.safetensors",
+      "bytes": 87270764,
+      "sha256": "275ba982236ddd6afddf7131f8133e89f537574b964cf8fa5825b4956d741692"
+    },
+    "onnxReference": {
+      "path": "onnx/model.onnx",
+      "bytes": 87442080,
+      "sha256": "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1"
+    }
+  },
+  "initialModel": {
+    "path": "weights/prooflens-cf384.onnx",
+    "bytes": 87442080,
+    "sha256": "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+    "modelLock": "model-lock.json",
+    "modelLockSha256": "2a818b7b2582bc9614f02f178d9af997f46628734ea078a79415c3d68d3061f0",
+    "classifierInitializers": ["classifier.weight", "classifier.bias"],
+    "maximumPytorchOnnxParityError": 0.0002
+  },
+  "preprocessing": {
+    "exifOrientation": true,
+    "resizeShortestEdge": 440,
+    "centerCrop": 384,
+    "resampling": "bicubic",
+    "mean": [0.48145466, 0.4578275, 0.40821073],
+    "std": [0.26862954, 0.26130258, 0.27577711]
+  },
+  "sourceEvidence": {
+    "dataRoot": "benchmark/data/m4-head",
+    "trainingManifest": {
+      "trackedPath": "benchmark/evidence/m4/train-manifest.jsonl.gz",
+      "compressedSha256": "e5dfc79869541ae5c6703b60de250930f1fb8247790f55b67bb1805f5ac73a93",
+      "expandedSha256": "33ef93361be0da1b7942e5b3c15368e1cf1d87351fbaea214dab8c72e90cf43e",
+      "items": 112562,
+      "classCounts": {"real": 59578, "synthetic": 52984}
+    },
+    "selectorManifest": {
+      "path": "benchmark/evidence/m4/validation-manifest.jsonl",
+      "sha256": "643eb365a603309b94b112403ef4250b565b9863d2ec61a5cc48aa80d5f85caa",
+      "items": 600,
+      "classCounts": {"real": 300, "synthetic": 300},
+      "sourceCounts": {
+        "british-library-plates": 300,
+        "rapidata-dalle-3": 75,
+        "rapidata-flux": 75,
+        "rapidata-midjourney": 75,
+        "rapidata-stable-diffusion": 75
+      }
+    },
+    "selectionSummary": {
+      "path": "benchmark/evidence/m4/selection-summary.json",
+      "sha256": "5e4227ac2bf468b10e54a354bba09b1e869391bc4d38f99228d246433705ccba"
+    },
+    "h3PixelsRead": false
+  },
+  "training": {
+    "provider": "RunPod Secure Cloud (operator-recorded control-plane receipt)",
+    "requiredGpuProduct": "NVIDIA L40S",
+    "containerImage": "pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385",
+    "requirementsPath": "benchmark/m5/runpod-requirements.txt",
+    "requirementsSha256": "ec87953539172609d20e1a969b8acdbf34e98a3cc8a71a6df08212c30cd41f11",
+    "minimumGpuMemoryBytes": 45000000000,
+    "provisioningReceiptPath": "benchmark/candidates/prooflens-cf384-m5/runpod-provisioning-receipt.json",
+    "maximumPaidWallClockSeconds": 28800,
+    "deadlineSafetySeconds": 300,
+    "providerAutoStopAvailable": false,
+    "providerAutoStopRequired": false,
+    "stopControl": "trainer-deadline-plus-authenticated-operator-stop",
+    "cudaRequired": true,
+    "mixedPrecision": "bfloat16",
+    "attentionImplementation": "eager",
+    "epochs": 8,
+    "perGpuBatchSize": 64,
+    "gradientAccumulationSteps": 2,
+    "effectiveBatchSize": 128,
+    "workers": 16,
+    "gradientClipNorm": 1.0,
+    "warmupRatio": 0.05,
+    "scheduler": "cosine",
+    "optimizer": "AdamW",
+    "sourceBalancedLoss": "Each epoch visits every image exactly once. Per-image BCE weights sum to one class mass per class and equal mass per named source within each class; weights are fixed globally and never renormalized per minibatch.",
+    "teacherAnchor": "The frozen initial M2 model supplies same-view logits for every inherited M3 training source. New M4 sources are excluded from the anchor. The masked MSE uses the fixed minibatch denominator and cannot read selector, regression, or H3 rows.",
+    "viewSchedule": "For each branch, epoch, and training row, SHA-256(seed, branch, epoch, id) chooses exactly one of original, screenshot, social-q75, or social-heavy before the frozen 440/384 preprocessing.",
+    "resumability": "A canonical run marker binds the protocol, source manifests, initial model, operator-recorded RunPod provisioning receipt, absolute paid deadline, environment, and H3 non-use. Every completed epoch atomically writes model, optimizer, scheduler, step, receipt state, candidate checkpoint when due, and a digest seal written last. Only a contiguous, digest-valid sealed history under that exact marker may resume; one complete unsealed next epoch may be recovered and sealed.",
+    "branches": [
+      {
+        "name": "last4",
+        "trainableEncoderBlocks": [8, 9, 10, 11],
+        "backboneLearningRate": 0.00003,
+        "classifierLearningRate": 0.0003,
+        "weightDecay": 0.05,
+        "teacherAnchorCoefficient": 0.1,
+        "layerwiseLearningRateDecay": 1.0,
+        "candidateEpochs": [4, 6, 8]
+      },
+      {
+        "name": "full",
+        "trainableEncoderBlocks": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        "backboneLearningRate": 0.00001,
+        "classifierLearningRate": 0.0002,
+        "weightDecay": 0.05,
+        "teacherAnchorCoefficient": 0.15,
+        "layerwiseLearningRateDecay": 0.8,
+        "candidateEpochs": [4, 6, 8]
+      }
+    ],
+    "candidateCount": 6
+  },
+  "selection": {
+    "role": "fresh-m4-selector-only",
+    "displayThreshold": 0.65,
+    "thresholdEnumeration": "Every finite binary64 decision partition: below-minimum, every unique logit, and math.nextafter(logit, +infinity).",
+    "gates": {
+      "original": {
+        "minimumBalancedAccuracy": 0.97,
+        "minimumRealRecall": 1.0,
+        "minimumSyntheticRecall": 0.94,
+        "minimumSyntheticRecallBySource": 0.9
+      },
+      "screenshot": {
+        "minimumBalancedAccuracy": 0.95,
+        "minimumRealRecall": 1.0,
+        "minimumSyntheticRecall": 0.9,
+        "minimumSyntheticRecallBySource": 0.85
+      },
+      "social-q75": {
+        "minimumBalancedAccuracy": 0.95,
+        "minimumRealRecall": 1.0,
+        "minimumSyntheticRecall": 0.9,
+        "minimumSyntheticRecallBySource": 0.85
+      },
+      "social-heavy": {
+        "minimumBalancedAccuracy": 0.95,
+        "minimumRealRecall": 1.0,
+        "minimumSyntheticRecall": 0.9,
+        "minimumSyntheticRecallBySource": 0.85
+      }
+    },
+    "falsePositiveRequirement": "Zero observed false positives among the 300 fresh real selector images in every declared variant. This is an observed-sample gate, not a claim of universal zero error.",
+    "ranking": [
+      "worstVariantBalancedAccuracy",
+      "originalBalancedAccuracy",
+      "worstVariantSyntheticRecall",
+      "worstSyntheticSourceRecall",
+      "negativeBranchOrder",
+      "negativeEpoch"
+    ],
+    "failure": "If no candidate and threshold pass every selector gate, stop and publish a failed development receipt. Gates, threshold policy, data, and candidates may not be changed after selector scores are observed."
+  },
+  "terminalRegressions": [
+    {
+      "name": "m3-selector-regression",
+      "dataRoot": "benchmark/data/m3-head",
+      "manifest": "benchmark/evidence/m3/validation-manifest.jsonl",
+      "sha256": "86b7b9119fc7a118ee8b0a85e1a6b7dce6635154b3eff49cc1197b9d40fca2ff",
+      "items": 600,
+      "gates": {
+        "minimumBalancedAccuracyPerVariant": 0.85,
+        "minimumRealRecallPerVariant": 0.9,
+        "minimumSyntheticRecallPerVariant": 0.8,
+        "minimumSyntheticRecallPerFamily": 0.8,
+        "minimumRealRecallBySource": {"met-open-access": 0.93}
+      }
+    },
+    {
+      "name": "m2-development-regression",
+      "dataRoot": "benchmark/data/m2-head",
+      "manifest": "benchmark/evidence/m2/validation-manifest.jsonl",
+      "sha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93",
+      "items": 900,
+      "gates": {
+        "minimumBalancedAccuracyPerVariant": 0.91,
+        "minimumRealRecallPerVariant": 0.92,
+        "minimumSyntheticRecallPerVariant": 0.89,
+        "minimumSyntheticRecallPerFamily": 0.82,
+        "minimumRealRecallBySource": {"open-images": 0.92, "stockimages-cc0": 0.92}
+      }
+    }
+  ],
+  "regressionPolicy": "The selected model hash and raw threshold must be committed in the one-file selection lock before either terminal regression is read. Any regression failure is terminal: no reselection, retraining, threshold change, or gate change.",
+  "largeSyntheticEvaluation": {
+    "role": "post-training-fresh-synthetic-recall-only",
+    "sourceStatus": "must-be-fixed-and-public-before-first-score",
+    "minimumItems": 100000,
+    "batchSize": 100,
+    "minimumBatches": 1000,
+    "metric": "For each deterministic batch, synthetic recall is correctly flagged images divided by 100 at the locked model and raw threshold.",
+    "minimumMeanBatchRecallExclusive": 0.95,
+    "minimumMedianBatchRecallExclusive": 0.95,
+    "source": {
+      "repository": "JamalLee/Omni-Fake-SET",
+      "revision": "724e97f5fc9f4b89f59631a8d4e6331712b7d441",
+      "configuration": "image",
+      "splits": ["train", "validation"],
+      "sourceReportedLicense": "CC-BY-4.0",
+      "expectedParquetShards": 71,
+      "expectedParquetBytes": 49751776056,
+      "eligibleLabel": "full_synthetic",
+      "excludedGeneratorFamilies": ["DALL-E", "FLUX.1-dev", "Midjourney", "Stable Diffusion"],
+      "selectionNamespace": "seroslop:m5:synthetic-eval:v1"
+    },
+    "manifest": "benchmark/evidence/m5/large-synthetic/manifest.jsonl.gz",
+    "batchAssignment": "benchmark/evidence/m5/large-synthetic/batches.json",
+    "sourceLock": "benchmark/evidence/m5/large-synthetic/source-lock.json",
+    "attribution": "benchmark/evidence/m5/large-synthetic/attribution.json",
+    "evaluationReceipt": "benchmark/evidence/m5/large-synthetic-evaluation.json",
+    "trainingOverlapAllowed": false,
+    "selectorOverlapAllowed": false,
+    "regressionOverlapAllowed": false,
+    "selectionInfluence": false,
+    "failure": "If either aggregate is not strictly above 0.95, the model is not accepted. Any retraining must use new training data and a newly fixed, never-scored 100,000-image evaluation panel; scored evaluation rows may never enter training or selection."
+  },
+  "h3Boundary": {
+    "manifest": "benchmark/evidence/m3/h3-met-holdout-manifest.jsonl",
+    "sha256": "50574778ab0d58f839f1dccc3c99da5f6dca98150186f13aeca8d9ba052e9547",
+    "items": 600,
+    "pixelsMayBeRead": false,
+    "acceptedArguments": false,
+    "scoreArtifactsBeforeFinalLock": false
+  },
+  "output": {
+    "candidateRoot": "benchmark/candidates/prooflens-cf384-m5",
+    "selectionLock": "benchmark/evidence/m5/selection-lock.json",
+    "failureReceipt": "benchmark/evidence/m5/failed-training-attempt-1.json",
+    "trainingSummary": "benchmark/evidence/m5/training-summary.json",
+    "largeSyntheticEvaluation": "benchmark/evidence/m5/large-synthetic-evaluation.json",
+    "model": "weights/prooflens-cf384.onnx"
+  }
+}
