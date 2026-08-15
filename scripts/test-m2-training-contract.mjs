@@ -9,6 +9,7 @@ import {
   M2_SINGLE_VIEW_SOURCES,
   M2_VARIANTS,
   digest,
+  validateM2BrowserFixtures,
   validateM2PublicationMetadata,
   validateM2OnnxEvidence,
   validateM2PublicDocumentation,
@@ -29,6 +30,36 @@ function hash(value) {
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
+
+const browserFixtureManifestBytes = readFileSync("tests/fixtures/model-states/fixture-manifest.json");
+const browserFixtureManifest = JSON.parse(browserFixtureManifestBytes);
+const browserFixtureCalibration = JSON.parse(readFileSync("benchmark/evidence/m2/calibration.json"));
+const browserFixtureAssets = Object.fromEntries(browserFixtureManifest.items.map((item) => [
+  item.asset,
+  digest(readFileSync(`tests/fixtures/model-states/${item.asset}`)),
+]));
+const browserFixturePacket = () => ({
+  manifest: clone(browserFixtureManifest),
+  manifestSha256: digest(browserFixtureManifestBytes),
+  assetSha256: { ...browserFixtureAssets },
+  calibration: clone(browserFixtureCalibration),
+});
+validateM2BrowserFixtures(browserFixturePacket());
+const expectBrowserFixtureFailure = (mutate, pattern) => {
+  const fixture = browserFixturePacket();
+  mutate(fixture);
+  assert.throws(() => validateM2BrowserFixtures(fixture), pattern);
+};
+expectBrowserFixtureFailure((fixture) => { fixture.manifestSha256 = "0".repeat(64); },
+  /manifest bytes changed/u);
+expectBrowserFixtureFailure((fixture) => { fixture.manifest.modelSha256 = "0".repeat(64); },
+  /bindings changed/u);
+expectBrowserFixtureFailure((fixture) => { fixture.manifest.items[0].referenceRawProbability += 1e-8; },
+  /raw score changed/u);
+expectBrowserFixtureFailure((fixture) => { fixture.assetSha256["likely-ai.png"] = "0".repeat(64); },
+  /likely-ai changed/u);
+expectBrowserFixtureFailure((fixture) => { fixture.manifest.items[1].role = "likely-ai"; },
+  /roles changed/u);
 
 function metrics(stockRecall = 0.95) {
   return Object.fromEntries(M2_VARIANTS.map((variant) => [variant, {
@@ -413,4 +444,4 @@ assert.throws(() => validateM2OnnxEvidence({
   upstreamStructure, shippedStructure, comparison: wrongPythonShape,
 }), /comparison is malformed/u);
 
-console.log(JSON.stringify({ cases: 31, policy: "pass" }));
+console.log(JSON.stringify({ cases: 36, policy: "pass" }));

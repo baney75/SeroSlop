@@ -17,6 +17,9 @@ export const M2 = Object.freeze({
   calibrationSha256: "06d2452a8db9de26d42285cdc9dad0d233d397a6015583604c64480aec560e2c",
   candidateGridSha256: "7ac1028543607a94af88a95af585bdd973205849aa20bbf841f656598b4afe1c",
   modelComparisonSha256: "7e037912f28a69ac7ea9620471f1410b7b1ab445b7bb30ce9d7bdbe0c24f96ac",
+  validationFeatureShardSha256: "7ea076370fddfcb39c29aabeef682aeebc40687198e37b2705da5c0dab9cccf1",
+  modelStateSelectorSha256: "f16f4cc77bc138b9f020be071d3d2c8bea036b3a94654d57ea5cff3bb37447a0",
+  modelStateFixtureManifestSha256: "c9180f008c95cd41c65276a95af54fe35242a6f84587b22a243817110163bd41",
   freshRunId: "add5d5306942c5c729c97556bd61cabd",
   trainImages: 105_978,
   trainViews: 123_912,
@@ -68,6 +71,23 @@ export const M2_EXPECTED_SOURCES = Object.freeze({
 });
 
 export const M2_EXPECTED_CLASS_COUNTS = Object.freeze({ real: 54_778, synthetic: 51_200 });
+
+export const M2_MODEL_STATE_ITEMS = Object.freeze({
+  "likely-ai": Object.freeze({
+    id: "qwen-image-bench:d2493deb153b020cf169c7e3f57d15e4dd697038:HunyuanImage-3.0:000054_08081038.png",
+    source: "HunyuanImage-3.0",
+    label: 1,
+    asset: "likely-ai.png",
+    assetSha256: "89b7ea82459075bbc8c249b1a525993e805a57dc4a10b7233eb2e051f988611a",
+  }),
+  "below-threshold": Object.freeze({
+    id: "open-images:v7-validation-cvdf:validation:6f34d599f8a37eb0",
+    source: "open-images",
+    label: 0,
+    asset: "below-threshold.jpg",
+    assetSha256: "3eca74773c9ee456b504aaa378f36ca70cc543a7ccf5c536ca23e7c5836c11c6",
+  }),
+});
 
 export const M2_EXPECTED_ARGUMENTS = Object.freeze([
   "--model", "benchmark/candidates/upstream-cf384.onnx",
@@ -377,6 +397,51 @@ export function validateM2PublicationMetadata({
     receipt.publishedEvidenceSha256?.["model-comparison.json"] === M2.modelComparisonSha256 &&
     jsonEqual(receipt.publishedRepositorySha256, repositoryHashes),
   "M2 finalization receipt changed");
+}
+
+export function validateM2BrowserFixtures({ manifest, manifestSha256, assetSha256, calibration }) {
+  requireCondition(manifestSha256 === M2.modelStateFixtureManifestSha256,
+    "M2 browser fixture manifest bytes changed");
+  requireCondition(manifest?.schemaVersion === 2 &&
+    manifest.selection === "M2 development-validation QA fixtures: deterministic maximum-margin synthetic " +
+      "and Open Images real items from the fresh-feature packet" &&
+    manifest.selectorSha256 === M2.modelStateSelectorSha256 &&
+    manifest.modelSha256 === M2.modelSha256 &&
+    manifest.calibrationSha256 === M2.calibrationSha256 &&
+    manifest.trainingSummarySha256 === M2.trainingSummarySha256 &&
+    manifest.validationManifestSha256 === M2.validationManifestSha256 &&
+    manifest.validationFeatureShardSha256 === M2.validationFeatureShardSha256 &&
+    manifest.freshFeatureRunId === M2.freshRunId &&
+    manifest.minimumLikelyAiScore === 0.8 && manifest.maximumBelowThresholdScore === 0.45,
+  "M2 browser fixture bindings changed");
+  requireCondition(Array.isArray(manifest.items) && manifest.items.length === 2,
+    "M2 browser fixture item count changed");
+  const items = new Map(manifest.items.map((item) => [item.role, item]));
+  requireCondition(items.size === 2 && jsonEqual([...items.keys()].sort(), Object.keys(M2_MODEL_STATE_ITEMS).sort()),
+    "M2 browser fixture roles changed");
+  requireCondition(calibration?.modelSha256 === M2.modelSha256 &&
+    calibration.validationManifestSha256 === M2.validationManifestSha256 &&
+    finiteNumber(calibration.intercept), "M2 browser fixture calibration changed");
+  for (const [role, expected] of Object.entries(M2_MODEL_STATE_ITEMS)) {
+    const item = items.get(role);
+    requireCondition(item?.id === expected.id && item.source === expected.source && item.label === expected.label &&
+      item.asset === expected.asset && item.assetSha256 === expected.assetSha256 &&
+      assetSha256?.[item.asset] === expected.assetSha256 && finiteNumber(item.selectionFeatureDisplayScore) &&
+      finiteNumber(item.referenceLogit) && finiteNumber(item.referenceRawProbability) &&
+      finiteNumber(item.referenceDisplayScore), `M2 browser fixture ${role} changed`);
+    close(1 / (1 + Math.exp(-item.referenceLogit)), item.referenceRawProbability,
+      `M2 browser fixture ${role} raw score`);
+    close(1 / (1 + Math.exp(-(item.referenceLogit + calibration.intercept))), item.referenceDisplayScore,
+      `M2 browser fixture ${role} display score`);
+    if (role === "likely-ai") {
+      requireCondition(item.referenceDisplayScore >= manifest.minimumLikelyAiScore,
+        "M2 likely-AI browser fixture lost its score margin");
+    } else {
+      requireCondition(item.referenceDisplayScore <= manifest.maximumBelowThresholdScore,
+        "M2 below-threshold browser fixture lost its score margin");
+    }
+  }
+  return items;
 }
 
 export function validateM2PublicDocumentation({ readme, modelCard, benchmark }) {

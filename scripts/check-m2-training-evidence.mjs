@@ -3,12 +3,14 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { inspectOnnxStructure } from "./onnx-structure.mjs";
 import {
+  M2_BROWSER_FIXTURE_RECOVERY_EXPECTED,
   M2_CHECKER_RECOVERY_COMMIT,
   M2_CHECKER_RECOVERY_EXPECTED,
   M2_DOCUMENTATION_RECOVERY_EXPECTED,
   M2_FINALIZER_SOURCE_COMMIT,
   M2_FINALIZER_SOURCE_EXPECTED,
   M2_PUBLICATION_EXPECTED,
+  M2_PUBLICATION_COMMIT,
   M2_RECOVERY_COMMIT,
   matchesExpectedRows,
 } from "./m2-stage-policy.mjs";
@@ -17,6 +19,7 @@ import {
   digest,
   jsonEqual,
   requireCondition,
+  validateM2BrowserFixtures,
   validateM2PublicationMetadata,
   validateM2OnnxEvidence,
   validateM2PublicDocumentation,
@@ -55,9 +58,17 @@ function parseJson(bytes, pathname) {
 requireCondition(git(["status", "--porcelain=v1", "--untracked-files=all"]) === "",
   "M2 final verification requires a completely clean repository");
 const head = git(["rev-parse", "HEAD"]);
-const documentationRecoveryCommit = git(["rev-parse", "HEAD^"]);
+const headRows = rowsForCommit(head);
+const fixtureRecovery = head !== M2_PUBLICATION_COMMIT &&
+  git(["rev-parse", "HEAD^"]) === M2_PUBLICATION_COMMIT &&
+  matchesExpectedRows(headRows, M2_BROWSER_FIXTURE_RECOVERY_EXPECTED);
+requireCondition(head === M2_PUBLICATION_COMMIT || fixtureRecovery,
+  "M2 final head is neither the frozen publication nor its exact browser-fixture recovery");
+const publicationCommit = head === M2_PUBLICATION_COMMIT ? head : git(["rev-parse", "HEAD^"]);
+const documentationRecoveryCommit = git(["rev-parse", `${publicationCommit}^`]);
 const checkerRecoveryCommit = git(["rev-parse", `${documentationRecoveryCommit}^`]);
 requireCondition(git(["rev-list", "--parents", "-n", "1", head]).split(" ").length === 2 &&
+  git(["rev-list", "--parents", "-n", "1", publicationCommit]).split(" ").length === 2 &&
   git(["rev-list", "--parents", "-n", "1", documentationRecoveryCommit]).split(" ").length === 2 &&
   git(["rev-list", "--parents", "-n", "1", checkerRecoveryCommit]).split(" ").length === 2 &&
   git(["rev-list", "--parents", "-n", "1", M2_FINALIZER_SOURCE_COMMIT]).split(" ").length === 2,
@@ -73,8 +84,13 @@ requireCondition(checkerRecoveryCommit === M2_CHECKER_RECOVERY_COMMIT &&
 requireCondition(git(["rev-parse", `${documentationRecoveryCommit}^`]) === checkerRecoveryCommit &&
   matchesExpectedRows(rowsForCommit(documentationRecoveryCommit), M2_DOCUMENTATION_RECOVERY_EXPECTED),
 "M2 documentation recovery changed outside its direct six-path packet");
-requireCondition(matchesExpectedRows(rowsForCommit(head), M2_PUBLICATION_EXPECTED),
+requireCondition(publicationCommit === M2_PUBLICATION_COMMIT &&
+  matchesExpectedRows(rowsForCommit(publicationCommit), M2_PUBLICATION_EXPECTED),
   "M2 publication changed outside its exact eleven-path packet");
+if (fixtureRecovery) {
+  requireCondition(matchesExpectedRows(headRows, M2_BROWSER_FIXTURE_RECOVERY_EXPECTED),
+    "M2 browser-fixture recovery changed outside its exact seven-path packet");
+}
 requireCondition(!existsSync("docs/COMPETITOR_AUDIT.md"), "Competitor audit must remain absent");
 
 const paths = {
@@ -91,6 +107,10 @@ const paths = {
   publicReadme: "README.md",
   modelCard: "MODEL_CARD.md",
   benchmark: "BENCHMARK.md",
+  modelStateFixtureManifest: "tests/fixtures/model-states/fixture-manifest.json",
+  modelStateLikely: "tests/fixtures/model-states/likely-ai.png",
+  modelStateBelow: "tests/fixtures/model-states/below-threshold.jpg",
+  modelStateSelector: "benchmark/select_m2_model_state_fixtures.py",
   upstreamStructure: "benchmark/evidence/large/upstream-model-structure.json",
 };
 const entries = Object.fromEntries(await Promise.all(Object.entries(paths).map(async ([name, pathname]) =>
@@ -103,6 +123,7 @@ const candidateGrid = parseJson(entries.candidateGrid, paths.candidateGrid);
 const comparison = parseJson(entries.comparison, paths.comparison);
 const receipt = parseJson(entries.receipt, paths.receipt);
 const modelLock = parseJson(entries.modelLock, paths.modelLock);
+const modelStateFixtureManifest = parseJson(entries.modelStateFixtureManifest, paths.modelStateFixtureManifest);
 const upstreamStructure = parseJson(entries.upstreamStructure, paths.upstreamStructure);
 
 validateM2TrainingPacket({
@@ -152,6 +173,17 @@ validateM2PublicDocumentation({
   modelCard: entries.modelCard.toString("utf8"),
   benchmark: entries.benchmark.toString("utf8"),
 });
+requireCondition(digest(entries.modelStateSelector) === M2.modelStateSelectorSha256,
+  "M2 browser-fixture selector bytes changed");
+validateM2BrowserFixtures({
+  manifest: modelStateFixtureManifest,
+  manifestSha256: digest(entries.modelStateFixtureManifest),
+  assetSha256: {
+    "likely-ai.png": digest(entries.modelStateLikely),
+    "below-threshold.jpg": digest(entries.modelStateBelow),
+  },
+  calibration,
+});
 requireCondition(digest(entries.comparison) === M2.modelComparisonSha256,
   "M2 model-comparison bytes changed");
 
@@ -165,6 +197,7 @@ validateM2OnnxEvidence({ upstreamStructure, shippedStructure, comparison });
 console.log(JSON.stringify({
   stage: "m2-final",
   head,
+  publicationCommit,
   finalizerSourceCommit: M2_FINALIZER_SOURCE_COMMIT,
   checkerRecoveryCommit,
   documentationRecoveryCommit,
@@ -173,6 +206,7 @@ console.log(JSON.stringify({
   calibrationSha256: M2.calibrationSha256,
   candidateGridSha256: M2.candidateGridSha256,
   modelComparisonSha256: M2.modelComparisonSha256,
+  browserFixtureManifestSha256: M2.modelStateFixtureManifestSha256,
   classifierOnly: true,
   policy: "pass",
 }));
