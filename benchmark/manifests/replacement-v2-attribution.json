@@ -1,0 +1,39 @@
+{
+  "datasets": [
+    {
+      "citation": "Yao Xiao, Binbin Yang, Weiyan Chen, Jiahao Chen, Zijie Cao, Ziyi Dong, Xiangyang Ji, Liang Lin, Wei Ke, and Pengxu Wei, Are High-Quality AI-Generated Images More Difficult for Models to Detect?, ICML 2025",
+      "creators": [
+        "Yao Xiao",
+        "Binbin Yang",
+        "Weiyan Chen",
+        "Jiahao Chen",
+        "Zijie Cao",
+        "Ziyi Dong",
+        "Xiangyang Ji",
+        "Liang Lin",
+        "Wei Ke",
+        "Pengxu Wei"
+      ],
+      "homepage": "https://huggingface.co/datasets/Coxy7/AIGI-Detection-Quality-Paradox",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "name": "Coxy7/AIGI-Detection-Quality-Paradox",
+      "notice": "300 unmodified Infinity image bytes are retained only in ignored benchmark/data/replacement-v2. This public repository distributes provenance manifests, not source pixels. ProofLens performed deterministic selection and generated the manifests; no endorsement is implied.",
+      "revision": "9244882a51dbe33e658fe514488692155d20e5dd",
+      "sourceMaterialUrl": "https://huggingface.co/datasets/Coxy7/AIGI-Detection-Quality-Paradox/tree/9244882a51dbe33e658fe514488692155d20e5dd",
+      "sourceReportedLicense": "CC BY 4.0",
+      "use": "300 Infinity-generated confirmation images; source pixels are local-only"
+    },
+    {
+      "citation": "KoalaAI, CC0 Stock Images Dataset",
+      "homepage": "https://huggingface.co/datasets/KoalaAI/StockImages-CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "name": "KoalaAI/StockImages-CC0",
+      "notice": "The pinned dataset card reports CC0-1.0. That uploader-provided statement is not an independent verification of contributor ownership or other third-party rights. Source pixels remain only in ignored benchmark/data/replacement-v2.",
+      "revision": "206f3575579f1187548c6f47042ae9174c0a51fc",
+      "sourceMaterialUrl": "https://huggingface.co/datasets/KoalaAI/StockImages-CC0/tree/206f3575579f1187548c6f47042ae9174c0a51fc",
+      "sourceReportedLicense": "CC0-1.0",
+      "use": "300 confirmation and 319 separate web-negative stock photographs; exact rows and bytes are disjoint, source dataset is shared and disclosed"
+    }
+  ],
+  "schemaVersion": 2
+}

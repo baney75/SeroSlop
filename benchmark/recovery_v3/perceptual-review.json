@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 2,
+  "algorithm": "EXIF-oriented RGB dHash 64-bit, LANCZOS 9x8 grayscale",
+  "maximumHammingDistance": 8,
+  "policy": "Replacement v2 admits no perceptual-overlap exceptions. Every candidate at or below the threshold is rejected.",
+  "pairs": []
+}

@@ -1,0 +1,8 @@
+{
+  "algorithm": "EXIF-oriented RGB dHash 64-bit, LANCZOS 9x8 grayscale",
+  "maximumHammingDistance": 8,
+  "policy": "Every candidate at or below the frozen dHash threshold is rejected; replacement v2 admits no overlap exceptions.",
+  "rejectedCandidateCount": 248,
+  "retainedPairs": [],
+  "schemaVersion": 2
+}

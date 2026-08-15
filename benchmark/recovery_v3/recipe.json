@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "name": "prooflens-replacement-v2",
+  "purpose": "Untouched replacement holdout selected without model inference after the first confirmatory packet failed its frozen numeric evidence contract",
+  "selectionPolicy": "Dataset revision, source family, split, candidate priorities, sample sizes, and overlap rules are fixed before the binary64 sigmoid repair is committed. Observed Kling/Library of Congress scores are not selection inputs.",
+  "confirmatory": {
+    "items": 600,
+    "labels": {
+      "real": 300,
+      "synthetic": 300
+    },
+    "synthetic": {
+      "dataset": "Coxy7/AIGI-Detection-Quality-Paradox",
+      "revision": "9244882a51dbe33e658fe514488692155d20e5dd",
+      "sourceReportedLicense": "CC BY 4.0",
+      "generator": "Infinity",
+      "globalOffsetStartInclusive": 4000,
+      "globalOffsetEndExclusive": 8000,
+      "target": 300,
+      "candidateReserve": 1000,
+      "priorityNamespace": "9244882a51dbe33e658fe514488692155d20e5dd:prooflens-replacement-v1:Infinity:offset:",
+      "shards": [
+        {
+          "path": "data/fake-00002-of-00015.parquet",
+          "globalRowStart": 3200,
+          "rows": 1600,
+          "bytes": 481706653,
+          "sha256": "39d7257ad6d5167d5b5440dc6cb1b491417c83c5b96992130095e20264365c67"
+        },
+        {
+          "path": "data/fake-00003-of-00015.parquet",
+          "globalRowStart": 4800,
+          "rows": 1600,
+          "bytes": 465732395,
+          "sha256": "109a737884da90b0042a5d4263e5862c56cc7f892c797e27a721a3667b141a6e"
+        },
+        {
+          "path": "data/fake-00004-of-00015.parquet",
+          "globalRowStart": 6400,
+          "rows": 1600,
+          "bytes": 465188090,
+          "sha256": "32e2def69ad89b1a219fec0f3be756d44bf2794b874ca73c2eb80c78566a5a0c"
+        }
+      ]
+    },
+    "real": {
+      "dataset": "KoalaAI/StockImages-CC0",
+      "revision": "206f3575579f1187548c6f47042ae9174c0a51fc",
+      "sourceReportedLicense": "CC0-1.0",
+      "target": 300,
+      "priorityNamespace": "206f3575579f1187548c6f47042ae9174c0a51fc:prooflens-confirmatory-real-v2:"
+    }
+  },
+  "webNegative": {
+    "items": 319,
+    "dataset": "KoalaAI/StockImages-CC0",
+    "revision": "206f3575579f1187548c6f47042ae9174c0a51fc",
+    "sourceReportedLicense": "CC0-1.0",
+    "allocationPolicy": "Use a second exact-ID, byte, and dHash-disjoint priority order from the same source corpus after confirmation selection; disclose the shared dataset source",
+    "priorityNamespace": "206f3575579f1187548c6f47042ae9174c0a51fc:prooflens-web-negative-v2:"
+  },
+  "stockImagesSource": {
+    "dataset": "KoalaAI/StockImages-CC0",
+    "revision": "206f3575579f1187548c6f47042ae9174c0a51fc",
+    "sourceReportedLicense": "CC0-1.0",
+    "candidateRows": 3999,
+    "shards": [
+      {
+        "path": "data/train-00000-of-00002.parquet",
+        "rows": 2000,
+        "bytes": 421610088,
+        "sha256": "8d0ab6f1c1da83682e752c00b96db0f9c00db9f3364622e776a65a54e49dad1a"
+      },
+      {
+        "path": "data/train-00001-of-00002.parquet",
+        "rows": 1999,
+        "bytes": 467300014,
+        "sha256": "f04f27040e19a92b65168634b174ca527482cb09bdb370ec07e1fe2a69dab472"
+      }
+    ]
+  },
+  "historicalExclusions": {
+    "largeTrainManifestPath": "benchmark/evidence/large/train-manifest.jsonl.gz",
+    "largeTrainManifestSha256": "7af42465589756f2152e61d30341c9ce2db478fac039161eda4777ff614e5a78",
+    "legacyExclusionsPath": "benchmark/manifests/legacy-evaluation-exclusions.json",
+    "legacyExclusionsSha256": "5a8a056ac4fbebebdc6b3d864323dce1f8c412d57f996ddcac2ead6a54ace2e3",
+    "legacyItems": 1200,
+    "legacyManifests": [
+      {
+        "path": "benchmark/recovery_v3/legacy-validation.jsonl.gz",
+        "compressedSha256": "f59c9461a22ca731bfb1847aa2f47e98a0275f76e84d471654b8f392954c1937",
+        "expandedSha256": "651704a6d3fb86b9324f13bea721c40854535925ce33b49b8749978ee2bed915",
+        "sourcePath": "benchmark/manifests/validation.jsonl"
+      },
+      {
+        "path": "benchmark/recovery_v3/legacy-test.jsonl.gz",
+        "compressedSha256": "1d7315f29bb4771d2805f5b7af0c94885586c6e3723f83c8286e606073aa36cc",
+        "expandedSha256": "cd4d09fbb59d695ebc0cc4dc96f0dd17caea9e0e8865d7658c6100ef723e977f",
+        "sourcePath": "benchmark/manifests/test.jsonl"
+      }
+    ],
+    "legacyPixelSources": {
+      "openImagesBaseUrl": "https://open-images-dataset.s3.amazonaws.com/validation",
+      "qwenDataset": "Qwen/Qwen-Image-Bench",
+      "qwenRevision": "d2493deb153b020cf169c7e3f57d15e4dd697038"
+    },
+    "evaluationPerceptualPath": "benchmark/evidence/large/evaluation-perceptual-hashes.json.gz",
+    "evaluationPerceptualCompressedSha256": "9adc9df705bf736fcac00125831f5a394050b0fe0266999656cc8bedd8675da4",
+    "evaluationPerceptualExpandedSha256": "5443431690fbe8b53860ceeec9c70234230ed2b273bb0ae8609fb55a4f1be520",
+    "docciMetadata": {
+      "path": "benchmark/data/modern-head/source/docci/docci_metadata.jsonlines",
+      "url": "https://storage.googleapis.com/docci/data/docci_metadata.jsonlines",
+      "bytes": 162767377,
+      "sha256": "34a88b64c46b01176e4d8f78b3ff1564dbe7125927863431caffab71f67c8695",
+      "items": 14847
+    },
+    "historicalPerceptualIndexPath": "benchmark/manifests/historical-perceptual-exclusions-v1.json.gz",
+    "historicalPerceptualIndexSha256": "1e07b148e32f3007e15df81b6d3ed9e993422a1e6635e87c656161c3aed522bd",
+    "historicalPerceptualExpandedSha256": "752bcda387bfd699f7eadc714f17c6f9445218fffafb3aecc75fea2fd06d72ee",
+    "expectedUniqueItems": 106019,
+    "manifestPathsSha256": {
+      "benchmark/manifests/train.jsonl": "03b88b3804244018fbdf532b2b7d451db91dad7c3229c9013ee4ede9fa798015",
+      "benchmark/manifests/validation.jsonl": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+      "benchmark/manifests/test.jsonl": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae",
+      "benchmark/manifests/web-negative.jsonl": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824",
+      "benchmark/manifests/web-negative-chartography.jsonl": "add2eb6494b0fb59bc912cf77ba08987da7d50b38c0315525582b3989445ef17"
+    }
+  },
+  "overlapPolicy": {
+    "id": "reject",
+    "imageSha256": "reject",
+    "sourceGroupId": "reject",
+    "perceptualDhash64": {
+      "algorithm": "EXIF-oriented RGB dHash 64-bit, LANCZOS 9x8 grayscale",
+      "maximumHammingDistance": 8,
+      "historicalOrCrossProtocolMatch": "reject",
+      "fixedQualSplitMatch": "fail for independent human review before protocol freeze"
+    }
+  },
+  "reviewedPerceptualPairsPath": "benchmark/recovery_v3/perceptual-review.json",
+  "output": {
+    "dataRoot": "benchmark/data/replacement-v2",
+    "confirmatoryManifest": "benchmark/manifests/test-v2.jsonl",
+    "webNegativeManifest": "benchmark/manifests/web-negative-v2.jsonl",
+    "selectionEvidence": "benchmark/manifests/replacement-v2-selection.json",
+    "perceptualReview": "benchmark/manifests/replacement-v2-perceptual-review.json",
+    "attribution": "benchmark/manifests/replacement-v2-attribution.json"
+  }
+}
