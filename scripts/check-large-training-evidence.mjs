@@ -10,6 +10,7 @@ const DHASH64 = /^[a-f0-9]{16}$/u;
 const VARIANTS = ["original", "screenshot", "social-q75", "social-heavy"];
 const VALIDATION_SYNTHETIC_SOURCES = ["GLM-Image", "HunyuanImage-3.0"];
 const UPSTREAM_MODEL_SHA256 = "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1";
+const M1_TRAINER_SHA256 = "6a4199d2be6fead9a10c483ce4c9648951d87ae18721499cc42a98db5f05bf56";
 const EXPECTED_TRAINING_ARGUMENTS = [
   "--model", "benchmark/candidates/upstream-cf384.onnx",
   "--expected-model-sha256", UPSTREAM_MODEL_SHA256,
@@ -397,7 +398,7 @@ const validationManifestBytes = await readFile("benchmark/manifests/validation.j
 const selectionSummarySha256 = digest(summaryBytes);
 requireCondition(trainingSummary.schemaVersion === 1 && trainingSummary.seed === 20_260_813 &&
   trainingSummary.pipelineVersion === 8 && trainingSummary.recipeSha256 === digest(recipeBytes) &&
-  trainingSummary.trainerSha256 === digest(await readFile("benchmark/modern/train_rehead.py")) &&
+  trainingSummary.trainerSha256 === M1_TRAINER_SHA256 &&
   jsonEqual(trainingSummary.commandArguments, EXPECTED_TRAINING_ARGUMENTS) &&
   trainingSummary.selectionSummarySha256 === selectionSummarySha256 &&
   trainingSummary.upstreamModelSha256 === UPSTREAM_MODEL_SHA256 &&

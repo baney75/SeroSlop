@@ -1,0 +1,100 @@
+{
+  "attributionSha256": "1813afc4ec3bb3e85268bb9c203e10e766335ac8abbc8a649ba012125d26a932",
+  "baseTrainingManifestSha256": "8e221006888f4bcd1632338a7d38f13aa081c9ac5b80340de8239178218dc4e4",
+  "classCounts": {
+    "real": 54778,
+    "synthetic": 51200
+  },
+  "counts": {
+    "total": 105978,
+    "trainingFeatureViews": 123912,
+    "validation": 900,
+    "validationFeatureViews": 3600
+  },
+  "evaluationExclusions": [
+    {
+      "dataRoot": "benchmark/data/m2-head",
+      "path": "benchmark/evidence/m2/validation-manifest.jsonl",
+      "role": "development-validation",
+      "rows": 900,
+      "sha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93"
+    },
+    {
+      "dataRoot": "benchmark/data",
+      "path": "benchmark/manifests/test.jsonl",
+      "role": "consumed-v1-confirmatory",
+      "rows": 600,
+      "sha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae"
+    },
+    {
+      "dataRoot": "benchmark/data/web-negative",
+      "path": "benchmark/manifests/web-negative.jsonl",
+      "role": "frozen-v1-web-negative",
+      "rows": 319,
+      "sha256": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824"
+    },
+    {
+      "dataRoot": "benchmark/data/replacement-v2",
+      "path": "benchmark/manifests/test-v2.jsonl",
+      "role": "consumed-v2-confirmatory",
+      "rows": 600,
+      "sha256": "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8"
+    },
+    {
+      "dataRoot": "benchmark/data/replacement-v2",
+      "path": "benchmark/manifests/web-negative-v2.jsonl",
+      "role": "consumed-v2-web-negative",
+      "rows": 319,
+      "sha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9"
+    }
+  ],
+  "manifestSha256": "0d180f36fa8e0c2f099743a325b5f25fb4ad7aa0565223abdc89ddf47190710a",
+  "name": "prooflens-m2-stock-hard-negative-head",
+  "newPerceptualReviewSha256": "afa65850992e907b2b3c5b46f557c67d5c5fad0f2ecbc2eba112c8cf4f7ce974",
+  "overlapWithEvaluation": {
+    "ids": 0,
+    "imageHashes": 0,
+    "perceptualHammingThreshold": 8,
+    "reviewedVisuallyDistinctDhashPairsAtOrBelowThreshold": 100,
+    "unreviewedPerceptualDhashPairsAtOrBelowThreshold": 0
+  },
+  "perceptualOverlapReview": {
+    "hammingThreshold": 8,
+    "path": "benchmark/manifests/perceptual-overlap-review.json",
+    "reviewedPairCount": 1,
+    "sha256": "a598bf3009a5ce96d96b9a110329e501d0483e904978c9f419fef09ab45ad509"
+  },
+  "recipeSha256": "6c215ffbce297b5405b516629fc3fb16e2d7d6711163767c2e3517fdedbf98ca",
+  "rejectsSha256": "4a3df64b9a5f34fa36fbf4415c4f759e814b24eb09ec2f2545a96ba7f5c4f404",
+  "schemaVersion": 2,
+  "sourceCounts": {
+    "FLUX.2-pro": 80,
+    "FLUX.2_max": 80,
+    "GPT-Image-1": 80,
+    "GPT-Image-1.5": 80,
+    "Imagen-4.0": 80,
+    "Imagen-4.0-Ultra": 80,
+    "Qwen-Image": 80,
+    "Qwen-Image-2.0-pro": 80,
+    "Qwen-Image-2512": 80,
+    "Seedream-4.0": 80,
+    "Seedream-4.5": 80,
+    "Seedream-5.0": 80,
+    "diffusiondb-stable-diffusion": 50000,
+    "docci-train": 1200,
+    "gpt-image-2": 80,
+    "nano-banana-2.0": 80,
+    "nano-banana-pro": 80,
+    "open-images": 1200,
+    "open-images-train": 50000,
+    "stockimages-cc0": 2378
+  },
+  "stockSelectionSha256": "4c32efc2daeb88e13231babc7d13baefde295b703054af01ed21d89c2f9fe1f7",
+  "trainingPerceptualOverlapReview": {
+    "hammingThreshold": 8,
+    "path": "benchmark/manifests/training-evaluation-perceptual-review.json",
+    "reviewedPairCount": 100,
+    "sha256": "5862357df084da42175d8130522b1e4c38bae0d0d8932406efd4682e2569eec4"
+  },
+  "validationManifestSha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93"
+}

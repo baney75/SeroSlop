@@ -1,0 +1,13 @@
+{
+  "dataset": "KoalaAI/StockImages-CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "notice": "The fixed dataset card reports CC0-1.0. This uploader-provided statement is not independent verification of contributor ownership or other third-party rights. Source pixels remain outside Git.",
+  "revision": "206f3575579f1187548c6f47042ae9174c0a51fc",
+  "schemaVersion": 1,
+  "sourceMaterialUrl": "https://huggingface.co/datasets/KoalaAI/StockImages-CC0/tree/206f3575579f1187548c6f47042ae9174c0a51fc",
+  "sourceReportedLicense": "CC0-1.0",
+  "uses": {
+    "development": 300,
+    "training": 2378
+  }
+}

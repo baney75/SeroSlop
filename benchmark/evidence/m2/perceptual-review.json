@@ -1,0 +1,7 @@
+{
+  "algorithm": "EXIF-oriented RGB dHash 64-bit, LANCZOS 9x8 grayscale",
+  "maximumHammingDistance": 8,
+  "policy": "Every new StockImages near match is rejected; M2 admits no new perceptual exceptions.",
+  "retainedPairs": [],
+  "schemaVersion": 1
+}

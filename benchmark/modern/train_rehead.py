@@ -41,7 +41,7 @@ from thresholds import complete_decision_thresholds
 
 
 SEED = 20260813
-PIPELINE_VERSION = 8
+PIPELINE_VERSION = 9
 INPUT_SIZE = 384
 RESIZE_SHORT_EDGE = 440
 MEAN = np.asarray((0.48145466, 0.4578275, 0.40821073), dtype=np.float32)
@@ -105,7 +105,7 @@ def validate_large_training_packet(
 ) -> tuple[dict[str, object], str]:
     summary = json.loads(selection_summary_path.read_text())
     summary_hash = digest(selection_summary_path)
-    if summary.get("schemaVersion") != 1:
+    if summary.get("schemaVersion") not in {1, 2}:
         raise ValueError("Unsupported large-corpus selection summary")
     if summary.get("recipeSha256") != digest(recipe_path):
         raise ValueError("Selection summary does not target the training recipe")
@@ -120,20 +120,27 @@ def validate_large_training_packet(
     }
     if source_counts != summary.get("sourceCounts"):
         raise ValueError("Training manifest source counts do not match the selection summary")
-    if source_counts.get("diffusiondb-stable-diffusion") != int(recipe["diffusionDb"]["targetCount"]):
-        raise ValueError("DiffusionDB training count does not match the recipe")
-    if source_counts.get("open-images-train") != int(recipe["openImages"]["targetCount"]):
-        raise ValueError("Open Images training count does not match the recipe")
-    if sum(count for source, count in source_counts.items() if source not in {
-        "diffusiondb-stable-diffusion", "open-images-train"
-    }) != int(recipe["expectedModernTrainingCount"]):
-        raise ValueError("Modern training source counts do not match the recipe")
+    expected_sources = recipe.get("expectedSourceCounts")
+    if expected_sources is not None:
+        if source_counts != expected_sources:
+            raise ValueError("Training manifest source counts do not match the generic recipe")
+    else:
+        if source_counts.get("diffusiondb-stable-diffusion") != int(recipe["diffusionDb"]["targetCount"]):
+            raise ValueError("DiffusionDB training count does not match the recipe")
+        if source_counts.get("open-images-train") != int(recipe["openImages"]["targetCount"]):
+            raise ValueError("Open Images training count does not match the recipe")
+        if sum(count for source, count in source_counts.items() if source not in {
+            "diffusiondb-stable-diffusion", "open-images-train"
+        }) != int(recipe["expectedModernTrainingCount"]):
+            raise ValueError("Modern training source counts do not match the recipe")
     class_counts = {
         "real": sum(item.label == 0 for item in train_items),
         "synthetic": sum(item.label == 1 for item in train_items),
     }
     if class_counts != summary.get("classCounts"):
         raise ValueError("Training manifest class counts do not match the selection summary")
+    if recipe.get("expectedClassCounts") is not None and class_counts != recipe["expectedClassCounts"]:
+        raise ValueError("Training manifest class counts do not match the generic recipe")
     train_ids = {item.id for item in train_items}
     train_hashes = {item.image_sha256 for item in train_items}
     exclusions: list[dict[str, object]] = []
@@ -154,9 +161,13 @@ def validate_large_training_packet(
                 "sha256": digest(path),
                 "rows": len(rows),
                 "dataRoot": str(manifest["dataRoot"]),
-                "role": "validation-or-confirmatory-test"
-                if manifest in recipe["evaluationManifests"]
-                else "web-negative-training-exclusion",
+                "role": str(manifest["role"])
+                if manifest.get("role") is not None
+                else (
+                    "validation-or-confirmatory-test"
+                    if manifest in recipe["evaluationManifests"]
+                    else "web-negative-training-exclusion"
+                ),
             }
         )
     if exclusions != summary.get("evaluationExclusions"):
@@ -604,6 +615,7 @@ def extract_or_load_sharded(
                             print(f"loaded {cache}", flush=True)
                         freshly_extracted_this_run = belongs_to_fresh_run
         if loaded is None:
+            verify_item_files(shard_items)
             loaded = extract_features(session, shard_items, batch_size, training, single_view_sources)
             loaded = validate_feature_result(
                 loaded,
@@ -681,11 +693,16 @@ def variant_metrics(logits: np.ndarray, labels: np.ndarray, variants: np.ndarray
             source: float((z[(s == source) & synthetic] >= threshold).mean())
             for source in sorted(set(s[synthetic].tolist()))
         }
+        real_source_recall = {
+            source: float((z[(s == source) & real] < threshold).mean())
+            for source in sorted(set(s[real].tolist()))
+        }
         output[name] = {
             "balancedAccuracy": (real_recall + synthetic_recall) / 2,
             "realRecall": real_recall,
             "syntheticRecall": synthetic_recall,
             "syntheticRecallBySource": source_recall,
+            "realRecallBySource": real_source_recall,
         }
     return output
 
@@ -699,12 +716,19 @@ def passes_validation_gates(values: dict[str, object], gates: dict[str, object] 
         for row in rows
         for recall in dict(row["syntheticRecallBySource"]).values()
     ]
+    required_real_sources = dict(gates.get("minimumRealRecallBySource", {}))
+    real_source_gate_passes = all(
+        source in dict(row["realRecallBySource"])
+        and float(dict(row["realRecallBySource"])[source]) >= float(minimum)
+        for row in rows
+        for source, minimum in required_real_sources.items()
+    )
     return all(
         float(row["balancedAccuracy"]) >= float(gates["minimumBalancedAccuracyPerVariant"])
         and float(row["realRecall"]) >= float(gates["minimumRealRecallPerVariant"])
         and float(row["syntheticRecall"]) >= float(gates["minimumSyntheticRecallPerVariant"])
         for row in rows
-    ) and min(family_recalls) >= float(gates["minimumSyntheticRecallPerFamily"])
+    ) and min(family_recalls) >= float(gates["minimumSyntheticRecallPerFamily"]) and real_source_gate_passes
 
 
 def choose_threshold(
@@ -726,10 +750,20 @@ def choose_threshold(
             for row in rows
             for recall in dict(row["syntheticRecallBySource"]).values()
         ]
-        key = (
+        base_key = (
             min(float(row["balancedAccuracy"]) for row in rows),
             sum(float(row["balancedAccuracy"]) for row in rows) / len(rows),
             min(float(row["realRecall"]) for row in rows),
+        )
+        required_real_sources = dict((gates or {}).get("minimumRealRecallBySource", {}))
+        required_real_recalls = [
+            float(dict(row["realRecallBySource"])[source])
+            for row in rows
+            for source in required_real_sources
+        ]
+        key = (
+            *base_key,
+            *([min(required_real_recalls)] if required_real_recalls else []),
             min(family_recalls),
         )
         if best is None or key > best[0]:
@@ -865,6 +899,11 @@ def main() -> None:
     if recipe_config is not None:
         if int(recipe_config["expectedTotalCount"]) != len(train_items):
             raise ValueError("Training manifest count does not match recipe")
+        if (
+            recipe_config.get("expectedValidationCount") is not None
+            and int(recipe_config["expectedValidationCount"]) != len(validation_items)
+        ):
+            raise ValueError("Validation manifest count does not match recipe")
         if frozenset(recipe_config["singleViewTrainingSources"]) != single_view_sources:
             raise ValueError("single-view-source arguments do not match recipe")
         selection_summary_path = args.selection_summary or (args.data_root / "selection-summary.json")
@@ -954,6 +993,12 @@ def main() -> None:
     )
     if recipe_config is not None and int(recipe_config["expectedTrainingFeatureViews"]) != int(train[0].shape[0]):
         raise ValueError("Extracted training feature-view count does not match recipe")
+    if (
+        recipe_config is not None
+        and recipe_config.get("expectedValidationFeatureViews") is not None
+        and int(recipe_config["expectedValidationFeatureViews"]) != int(validation[0].shape[0])
+    ):
+        raise ValueError("Extracted validation feature-view count does not match recipe")
     device = torch.device("cuda" if args.execution_provider == "cuda" else "cpu")
     candidates: list[dict[str, object]] = []
     best: tuple[tuple[float, ...], np.ndarray, float, float, dict[str, object], dict[str, float]] | None = None
