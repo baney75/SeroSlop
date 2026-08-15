@@ -1,0 +1,278 @@
+{
+  "schemaVersion": 1,
+  "name": "prooflens-m4-residual-adapter",
+  "seed": 20260815,
+  "baseCommit": "439b2481dc88a887f8317be669096495760fbeb1",
+  "baseTree": "440931a595c87ca3d293f5a6f980c75169ddb899",
+  "purpose": "Test a small zero-initialized residual adapter with balanced archival-real and multi-family modern-synthetic additions after the frozen M3 linear-head experiment failed.",
+  "developmentPolicy": "Fresh M4 selector metrics alone choose one candidate and threshold. The consumed M3 selector and M2 development packet are terminal post-selection regressions. H3 is exclusion metadata only and is never a training, selection, regression, or diagnostic input.",
+  "sourceLocks": "benchmark/m4/source-locks.json",
+  "sourceLocksSha256": "bf44ceba6f32d322de04f9fae994c0fed7fdcd00e2bcfff9de39c6d852a01394",
+  "upstreamModel": {
+    "path": "weights/prooflens-cf384.onnx",
+    "sha256": "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+    "bytes": 87442080,
+    "modelLock": "model-lock.json",
+    "modelLockSha256": "2a818b7b2582bc9614f02f178d9af997f46628734ea078a79415c3d68d3061f0"
+  },
+  "baseTraining": {
+    "manifest": "benchmark/evidence/m3/train-manifest.jsonl.gz",
+    "compressedSha256": "87bcd95c92582760ec444acdd467be4b824251a5c4763260790717bbcbc2ced3",
+    "expandedSha256": "a0cb9994018b44fa958e312816460b15b5fbab43d489e75b1a9f5647bd70d261",
+    "items": 108378,
+    "featureViews": 133512,
+    "dataRoot": "benchmark/data/m3-head",
+    "classCounts": {"real": 57178, "synthetic": 51200},
+    "sourceCounts": {
+      "FLUX.2-pro": 80,
+      "FLUX.2_max": 80,
+      "GPT-Image-1": 80,
+      "GPT-Image-1.5": 80,
+      "Imagen-4.0": 80,
+      "Imagen-4.0-Ultra": 80,
+      "Qwen-Image": 80,
+      "Qwen-Image-2.0-pro": 80,
+      "Qwen-Image-2512": 80,
+      "Seedream-4.0": 80,
+      "Seedream-4.5": 80,
+      "Seedream-5.0": 80,
+      "diffusiondb-stable-diffusion": 50000,
+      "docci-train": 1200,
+      "gpt-image-2": 80,
+      "met-open-access": 2400,
+      "nano-banana-2.0": 80,
+      "nano-banana-pro": 80,
+      "open-images": 1200,
+      "open-images-train": 50000,
+      "stockimages-cc0": 2378
+    }
+  },
+  "freshSelector": {
+    "items": 600,
+    "featureViews": 2400,
+    "dataRoot": "benchmark/data/m4-head",
+    "manifest": "benchmark/evidence/m4/validation-manifest.jsonl",
+    "sourceCounts": {
+      "british-library-plates": 300,
+      "rapidata-dalle-3": 75,
+      "rapidata-flux": 75,
+      "rapidata-midjourney": 75,
+      "rapidata-stable-diffusion": 75
+    },
+    "classCounts": {"real": 300, "synthetic": 300},
+    "role": "fresh-m4-selection-only"
+  },
+  "regressions": [
+    {
+      "name": "m3-selector-regression",
+      "manifest": "benchmark/evidence/m3/validation-manifest.jsonl",
+      "sha256": "86b7b9119fc7a118ee8b0a85e1a6b7dce6635154b3eff49cc1197b9d40fca2ff",
+      "dataRoot": "benchmark/data/m3-head",
+      "items": 600,
+      "featureViews": 2400,
+      "role": "consumed-m3-terminal-regression",
+      "gates": {
+        "minimumBalancedAccuracyPerVariant": 0.85,
+        "minimumRealRecallPerVariant": 0.9,
+        "minimumSyntheticRecallPerVariant": 0.8,
+        "minimumSyntheticRecallPerFamily": 0.8,
+        "minimumRealRecallBySource": {"met-open-access": 0.93}
+      }
+    },
+    {
+      "name": "m2-development-regression",
+      "manifest": "benchmark/evidence/m2/validation-manifest.jsonl",
+      "sha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93",
+      "dataRoot": "benchmark/data/m2-head",
+      "items": 900,
+      "featureViews": 3600,
+      "role": "consumed-m2-terminal-regression",
+      "gates": {
+        "minimumBalancedAccuracyPerVariant": 0.91,
+        "minimumRealRecallPerVariant": 0.92,
+        "minimumSyntheticRecallPerVariant": 0.89,
+        "minimumSyntheticRecallPerFamily": 0.82,
+        "minimumRealRecallBySource": {"open-images": 0.92, "stockimages-cc0": 0.92}
+      }
+    }
+  ],
+  "h3Exclusion": {
+    "manifest": "benchmark/evidence/m3/h3-met-holdout-manifest.jsonl",
+    "sha256": "50574778ab0d58f839f1dccc3c99da5f6dca98150186f13aeca8d9ba052e9547",
+    "items": 600,
+    "role": "untouched-h3-exclusion-metadata-only",
+    "pixelsMayBeRead": false
+  },
+  "m3FailureEvidence": {
+    "diagnostic": "benchmark/evidence/m3/failed-selector-diagnostic-1.json",
+    "diagnosticSha256": "1238ae1cf341ce257c2e3e9f5e44cd499ac62b3a37e47010d3522e8f2f018eb5",
+    "receipt": "benchmark/evidence/m3/failed-training-attempt-1.json",
+    "receiptSha256": "bbdaea92db8628db880000bf0682b177d78bc8b77e6e8d800f8754dbf4a47ba3"
+  },
+  "exclusionInputs": {
+    "historicalPerceptualIndex": {
+      "path": "benchmark/manifests/historical-perceptual-exclusions-v1.json.gz",
+      "sha256": "1e07b148e32f3007e15df81b6d3ed9e993422a1e6635e87c656161c3aed522bd",
+      "expandedSha256": "752bcda387bfd699f7eadc714f17c6f9445218fffafb3aecc75fea2fd06d72ee",
+      "items": 106019
+    },
+    "trainingEvaluationPerceptualReview": {
+      "path": "benchmark/manifests/training-evaluation-perceptual-review.json",
+      "sha256": "5862357df084da42175d8130522b1e4c38bae0d0d8932406efd4682e2569eec4",
+      "items": 100
+    },
+    "manifests": [
+      {"path": "benchmark/manifests/met-development-probe-v1.jsonl", "sha256": "2da5abe33177c593b6e03d4448be37f1782e59a148a2a37903b8715724108282", "role": "consumed-met-development-probe", "dataRoot": "benchmark/data/h3-dev/met"},
+      {"path": "benchmark/manifests/test.jsonl", "sha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae", "role": "consumed-v1-confirmatory", "dataRoot": "benchmark/data"},
+      {"path": "benchmark/manifests/web-negative.jsonl", "sha256": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824", "role": "frozen-v1-web-negative", "dataRoot": "benchmark/data/web-negative"},
+      {"path": "benchmark/manifests/test-v2.jsonl", "sha256": "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8", "role": "consumed-v2-confirmatory", "dataRoot": "benchmark/data/replacement-v2"},
+      {"path": "benchmark/manifests/web-negative-v2.jsonl", "sha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9", "role": "consumed-v2-web-negative", "dataRoot": "benchmark/data/replacement-v2"},
+      {"path": "benchmark/evidence/m3/validation-manifest.jsonl", "sha256": "86b7b9119fc7a118ee8b0a85e1a6b7dce6635154b3eff49cc1197b9d40fca2ff", "role": "consumed-m3-selector-regression", "dataRoot": "benchmark/data/m3-head"},
+      {"path": "benchmark/evidence/m2/validation-manifest.jsonl", "sha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93", "role": "consumed-m2-development-regression", "dataRoot": "benchmark/data/m2-head"},
+      {"path": "benchmark/evidence/m3/h3-met-holdout-manifest.jsonl", "sha256": "50574778ab0d58f839f1dccc3c99da5f6dca98150186f13aeca8d9ba052e9547", "role": "untouched-h3-exclusion-metadata-only", "dataRoot": null}
+    ]
+  },
+  "britishLibrary": {
+    "trainingTarget": 2400,
+    "selectorTarget": 300,
+    "expectedCandidateRows": 19060,
+    "expectedDistinctBooks": 3890,
+    "allowedDecades": ["1800", "1820", "1830", "1840", "1860", "1870", "1880", "1890"],
+    "source": "biglam/british-library-book-images",
+    "revision": "c288990ce59b055e7bf9411f663d0f672ae16102",
+    "config": "plates",
+    "split": "train",
+    "sourceReportedLicense": "HF metadata reports CC0-1.0; the card describes Public Domain Mark / no known copyright restrictions",
+    "shardPriorityNamespace": "prooflens:m4:british-library-shard-v1:",
+    "selectorPriorityNamespace": "prooflens:m4:british-library-selector-v1:",
+    "trainingPriorityNamespace": "prooflens:m4:british-library-training-v1:",
+    "selectorDecadeQuotas": {"1800": 10, "1820": 15, "1830": 30, "1840": 25, "1860": 45, "1870": 35, "1880": 65, "1890": 75},
+    "trainingDecadeQuotas": {"1800": 10, "1820": 30, "1830": 90, "1840": 70, "1860": 350, "1870": 160, "1880": 700, "1890": 990},
+    "expectedDistinctBooksByDecade": {"1800": 29, "1820": 75, "1830": 158, "1840": 124, "1860": 512, "1870": 256, "1880": 1215, "1890": 1521}
+  },
+  "rapidata": {
+    "trainingPromptGroups": 120,
+    "selectorPromptGroups": 75,
+    "trainingImagesPerFamily": 480,
+    "selectorImagesPerFamily": 75,
+    "source": "Rapidata/700k_Human_Preference_Dataset_FLUX_SD3_MJ_DALLE3",
+    "revision": "96a4db1d70fbf08f1054dff771f465dccab94535",
+    "sourceReportedLicense": "CDLA-Permissive-2.0",
+    "sourceReportedProvenance": "Publisher card and paper report model-family labels, prompts, paired outputs, and annotation methodology; exact generator revisions and seeds are not supplied",
+    "models": {"dalle-3": "rapidata-dalle-3", "flux": "rapidata-flux", "mj": "rapidata-midjourney", "stable_diffusion": "rapidata-stable-diffusion"},
+    "expectedVoteRows": 25622,
+    "expectedPromptGroups": 282,
+    "expectedOnePerFamilyGroups": 268,
+    "expectedFourPerFamilyGroups": 238,
+    "expectedCompleteGroupAllocation": {"selector": 75, "training": 120, "reserve": 43},
+    "expectedUniquePaths": 4397,
+    "expectedUniquePathsByModel": {"dalle-3": 1082, "flux": 1088, "mj": 1095, "stable_diffusion": 1132},
+    "selectorPriorityNamespace": "prooflens:m4:rapidata-selector-prompt-v1:",
+    "trainingPriorityNamespace": "prooflens:m4:rapidata-training-prompt-v1:",
+    "imagePriorityNamespace": "prooflens:m4:rapidata-selector-image-v1:"
+  },
+  "overlapPolicy": {
+    "id": "reject",
+    "imageSha256": "reject",
+    "sourceGroupId": "reject",
+    "perceptualDhash64": {"algorithm": "EXIF-oriented RGB dHash 64-bit, LANCZOS 9x8 grayscale", "maximumHammingDistance": 8, "match": "reject"},
+    "britishLibraryBook": "one image per book across M4 training and selector",
+    "rapidataPrompt": "all outputs for a prompt group remain in one partition; selector groups contribute one image per family and all other outputs are excluded"
+  },
+  "expectedTraining": {
+    "images": 112698,
+    "featureViews": 150792,
+    "classCounts": {"real": 59578, "synthetic": 53120},
+    "newSourceCounts": {"british-library-plates": 2400, "rapidata-dalle-3": 480, "rapidata-flux": 480, "rapidata-midjourney": 480, "rapidata-stable-diffusion": 480},
+    "singleViewSources": ["diffusiondb-stable-diffusion", "open-images-train"]
+  },
+  "adapter": {
+    "inputFeatures": 384,
+    "width": 64,
+    "activation": "Relu",
+    "classifierFrozen": true,
+    "inputInitialization": "torch.nn.init.kaiming_uniform_ with deterministic seed",
+    "outputInitialization": "zeros",
+    "featureNormalization": "training mean and std, std clipped to 1e-5",
+    "trainableParameters": 49600,
+    "protectedAnchorSources": [
+      "FLUX.2-pro",
+      "FLUX.2_max",
+      "GPT-Image-1",
+      "GPT-Image-1.5",
+      "Imagen-4.0",
+      "Imagen-4.0-Ultra",
+      "Qwen-Image",
+      "Qwen-Image-2.0-pro",
+      "Qwen-Image-2512",
+      "Seedream-4.0",
+      "Seedream-4.5",
+      "Seedream-5.0",
+      "diffusiondb-stable-diffusion",
+      "docci-train",
+      "gpt-image-2",
+      "nano-banana-2.0",
+      "nano-banana-pro",
+      "open-images",
+      "open-images-train",
+      "stockimages-cc0"
+    ],
+    "addedOnnxOps": ["Sub", "Div", "Gemm", "Relu", "Gemm", "Mul", "Add"]
+  },
+  "training": {
+    "epochs": 12,
+    "batchSize": 2048,
+    "featureBatchSize": 24,
+    "featureShardImages": 2000,
+    "optimizer": "AdamW",
+    "sourceBalancedLoss": "global view weights give each class relative mass 0.5 and every named source equal mass within its class; each minibatch uses its global weights without renormalization and applies one fixed ceil(totalViews / batchSize) scale; every extracted view appears once per epoch",
+    "anchorLoss": "global mean squared error between candidate and frozen M2 logits over protectedAnchorSources only; each minibatch divides by the fixed total protected-view count, applies the same fixed batch-count scale, and multiplies by the candidate anchor coefficient",
+    "batchOrdering": "torch.Generator.manual_seed(seed + epoch), then torch.randperm over every training feature view exactly once",
+    "initializationRng": "torch.manual_seed(seed) before kaiming_uniform_ for adapter_in.weight; all biases and adapter_out.weight are exact zeros",
+    "learningRate": 0.003,
+    "weightDecays": [0.003, 0.01, 0.03],
+    "anchorCoefficients": [0.01, 0.03, 0.1, 0.3],
+    "candidateCount": 12,
+    "executionProvider": "cpu",
+    "freshFeatureExtractionRequired": true,
+    "displayThreshold": 0.65
+  },
+  "selectionPolicy": {
+    "thresholdEnumeration": "all finite binary64 decision partitions using each unique logit and math.nextafter(logit, +infinity), plus the below-minimum boundary",
+    "candidateRanking": "selector gates first; then lexicographic maximum of worstVariantBalancedAccuracy, worstVariantRealRecall, worstVariantSyntheticRecall, worstFamilySyntheticRecall, worstRequiredRealSourceRecall, negativeWeightDecay, negativeAnchorCoefficient",
+    "regressionOrder": ["m3-selector-regression", "m2-development-regression"],
+    "regressionFailure": "terminal; no candidate reselection, threshold change, gate change, or retry on the same selector",
+    "h3InputPermitted": false
+  },
+  "runtimeParity": {
+    "zeroAdapterReference": "exact frozen M2 logits before training",
+    "zeroAdapterMaximumAbsoluteLogitError": 0.000002,
+    "exportedCandidateMaximumAbsoluteLogitError": 0.0002,
+    "browserMaximumAbsoluteDisplayPointError": 0.2,
+    "providers": ["wasm", "webgpu"]
+  },
+  "onnxContract": {
+    "opset": 18,
+    "featureTensor": "/Gather_output_0",
+    "outputTensor": "logits",
+    "initializerNames": ["m4.feature_mean", "m4.feature_std", "m4.adapter_in.weight", "m4.adapter_in.bias", "m4.adapter_out.weight", "m4.adapter_out.bias"],
+    "addedNodeNames": ["m4_sub_mean", "m4_div_std", "m4_adapter_in", "m4_relu", "m4_adapter_out", "m4_scale_residual", "m4_add_residual"],
+    "classifierNodeName": "/classifier/Gemm",
+    "gemmAttributes": {"alpha": 1.0, "beta": 1.0, "transB": 1},
+    "backboneAndClassifierInitializers": "byte-identical to the frozen M2 artifact"
+  },
+  "validationGates": {
+    "minimumBalancedAccuracyPerVariant": 0.85,
+    "minimumRealRecallPerVariant": 0.9,
+    "minimumSyntheticRecallPerVariant": 0.8,
+    "minimumSyntheticRecallPerFamily": 0.8,
+    "minimumRealRecallBySource": {"british-library-plates": 0.93}
+  },
+  "variants": ["original", "screenshot", "social-q75", "social-heavy"],
+  "output": {
+    "dataRoot": "benchmark/data/m4-head",
+    "sourceRoot": "benchmark/data/m4-source",
+    "candidateRoot": "benchmark/candidates/prooflens-cf384-m4",
+    "evidenceRoot": "benchmark/evidence/m4"
+  }
+}
