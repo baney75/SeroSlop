@@ -54,6 +54,8 @@ class M4FrozenContractTests(unittest.TestCase):
             lambda value: value["h3Exclusion"].__setitem__("manifest", "benchmark/data/h3-secret.jsonl"),
             lambda value: value["britishLibrary"].__setitem__("selectorDecadeQuotas", {"1900": 300}),
             lambda value: value["rapidata"].__setitem__("expectedFourPerFamilyGroups", 237),
+            lambda value: value["rapidata"]["trainingImagesByFamily"].__setitem__("flux", 442),
+            lambda value: value["rapidata"]["trainingGroupPolicy"].__setitem__("minimumCleanImagesPerFamily", 0),
             lambda value: value["adapter"].__setitem__("width", 65),
             lambda value: value["training"].__setitem__("featureBatchSize", 1),
             lambda value: value["validationGates"].__setitem__("minimumSyntheticRecallPerVariant", 0),

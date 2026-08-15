@@ -725,6 +725,7 @@ def select_rapidata_phase(
     selected: list[dict[str, Any]] = []
     considered: set[str] = set()
     selector = phase == "validation-synthetic"
+    selected_groups = 0
     for group in ordered:
         considered.add(group)
         candidates = _rapidata_group_candidates(
@@ -732,12 +733,38 @@ def select_rapidata_phase(
         )
         for candidate in candidates:
             candidate["selectionPriority"] = priority(namespace, str(candidate["id"]))
-        issue = state.admit_group(candidates)
-        if issue is not None:
-            _reject(rejects, phase=phase, candidate=group, issue=issue)
-            continue
-        selected.extend(candidates)
-        if len(selected) == target_groups * len(MODELS) * (1 if selector else 4):
+        if selector:
+            issue = state.admit_group(candidates)
+            if issue is not None:
+                _reject(rejects, phase=phase, candidate=group, issue=issue)
+                continue
+            accepted = candidates
+        else:
+            accepted = []
+            accepted_models: set[str] = set()
+            for candidate in candidates:
+                issue = state.issue(candidate)
+                if issue is not None:
+                    _reject(rejects, phase=phase, candidate=str(candidate["id"]), issue=issue)
+                    continue
+                accepted.append(candidate)
+                accepted_models.add(str(candidate["model"]))
+            missing = sorted(set(MODELS) - accepted_models)
+            if missing:
+                _reject(
+                    rejects,
+                    phase=phase,
+                    candidate=group,
+                    issue={"reason": "missingCleanFamily", "missingFamilies": missing},
+                )
+                continue
+            issue = state.admit_group(accepted)
+            if issue is not None:
+                _reject(rejects, phase=phase, candidate=group, issue=issue)
+                continue
+        selected.extend(accepted)
+        selected_groups += 1
+        if selected_groups == target_groups:
             return selected, considered
     raise ValueError(f"Rapidata {phase} prompt-group capacity is insufficient")
 
@@ -939,6 +966,23 @@ def derive_packet(
         state=state,
         rejects=rejects,
     )
+    rapidata_training_by_family = Counter(str(row["model"]) for row in rapidata_training)
+    rapidata_training_image_rejects = sum(
+        row["phase"] == "train-synthetic" and row["reason"] == "perceptualDhash64"
+        for row in rejects
+    )
+    rapidata_training_missing_family_groups = sum(
+        row["phase"] == "train-synthetic" and row["reason"] == "missingCleanFamily"
+        for row in rejects
+    )
+    rapidata_policy = recipe["rapidata"]["trainingGroupPolicy"]
+    if (
+        dict(rapidata_training_by_family) != recipe["rapidata"]["trainingImagesByFamily"]
+        or len(rapidata_training) != rapidata_policy["expectedSelectedImages"]
+        or rapidata_training_image_rejects != rapidata_policy["expectedImageLevelPerceptualRejects"]
+        or rapidata_training_missing_family_groups != rapidata_policy["expectedRejectedGroupsMissingFamily"]
+    ):
+        raise ValueError("Rapidata overlap-clean training allocation changed")
     assign_paths(british_selector, rapidata_selector, british_training, rapidata_training)
 
     if materialize_pixels:
@@ -1068,6 +1112,10 @@ def derive_packet(
             "britishTrainingBooks": len({row["bookId"] for row in british_training}),
             "rapidataSelectorPrompts": len({row["promptSha256"] for row in rapidata_selector}),
             "rapidataTrainingPrompts": len({row["promptSha256"] for row in rapidata_training}),
+            "rapidataTrainingImages": len(rapidata_training),
+            "rapidataTrainingImagesByFamily": dict(sorted(rapidata_training_by_family.items())),
+            "rapidataTrainingImageLevelPerceptualRejects": rapidata_training_image_rejects,
+            "rapidataTrainingGroupsRejectedMissingFamily": rapidata_training_missing_family_groups,
             "rapidataPreOverlapReserveGroups": recipe["rapidata"]["expectedCompleteGroupAllocation"]["reserve"],
             "rapidataUnassignedCompleteGroups": (
                 recipe["rapidata"]["expectedFourPerFamilyGroups"]

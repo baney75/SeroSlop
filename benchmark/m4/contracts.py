@@ -19,8 +19,8 @@ ADAPTER_ANCHOR_COEFFICIENTS = (0.01, 0.03, 0.1, 0.3)
 ALLOWED_BRITISH_DECADES = ("1800", "1820", "1830", "1840", "1860", "1870", "1880", "1890")
 SOURCE_LOCKS_RAW_SHA256 = "bf44ceba6f32d322de04f9fae994c0fed7fdcd00e2bcfff9de39c6d852a01394"
 SOURCE_LOCKS_CANONICAL_SHA256 = "095e06677cc77e82e5ed3777f80e9a21585efe401f6f5c7f658372c1987da622"
-RECIPE_RAW_SHA256 = "344ced4ee8e68325bd0217391e4e5745d554b8140586b51d7aa98ef6bb441b34"
-RECIPE_CANONICAL_SHA256 = "c567578f254bc8c4793eac9f413354caaac5153a6d1897e8ad2f096ced7d9668"
+RECIPE_RAW_SHA256 = "a0bd95b146767160be4d4145643c8ff3beef79fb2fabb3838ef7eac7a4c9dd88"
+RECIPE_CANONICAL_SHA256 = "285512e0357a907638eafe7aa3d45017ded4e189d0311d879e1338266e439b21"
 
 
 def canonical_json(value: object, *, pretty: bool = False) -> bytes:
@@ -192,15 +192,15 @@ def validate_recipe(recipe: dict[str, Any], locks: dict[str, Any]) -> None:
     }:
         raise ValueError("M4 upstream model binding changed")
     if recipe["expectedTraining"] != {
-        "images": 112_698,
-        "featureViews": 150_792,
-        "classCounts": {"real": 59_578, "synthetic": 53_120},
+        "images": 112_562,
+        "featureViews": 150_248,
+        "classCounts": {"real": 59_578, "synthetic": 52_984},
         "newSourceCounts": {
             "british-library-plates": 2_400,
-            "rapidata-dalle-3": 480,
-            "rapidata-flux": 480,
-            "rapidata-midjourney": 480,
-            "rapidata-stable-diffusion": 480,
+            "rapidata-dalle-3": 456,
+            "rapidata-flux": 443,
+            "rapidata-midjourney": 457,
+            "rapidata-stable-diffusion": 428,
         },
         "singleViewSources": ["diffusiondb-stable-diffusion", "open-images-train"],
     }:
@@ -249,6 +249,20 @@ def validate_recipe(recipe: dict[str, Any], locks: dict[str, Any]) -> None:
         "stable_diffusion": "rapidata-stable-diffusion",
     }:
         raise ValueError("Rapidata model-family map changed")
+    if (
+        recipe["rapidata"].get("trainingImagesByFamily")
+        != {"dalle-3": 456, "flux": 443, "mj": 457, "stable_diffusion": 428}
+        or recipe["rapidata"].get("trainingGroupPolicy") != {
+            "minimumCleanImagesPerFamily": 1,
+            "maximumImagesPerFamily": 4,
+            "retainEveryOverlapCleanImage": True,
+            "rejectGroupWhenAnyFamilyMissing": True,
+            "expectedSelectedImages": 1_784,
+            "expectedImageLevelPerceptualRejects": 156,
+            "expectedRejectedGroupsMissingFamily": 3,
+        }
+    ):
+        raise ValueError("Rapidata overlap-clean training policy changed")
 
 
 def _require_source_row(row: dict[str, Any], *, label: str) -> tuple[str, int]:

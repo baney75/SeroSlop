@@ -8,12 +8,12 @@ export const M4 = Object.freeze({
   baseTree: "440931a595c87ca3d293f5a6f980c75169ddb899",
   upstreamSha256: "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
   upstreamBytes: 87_442_080,
-  recipeSha256: "344ced4ee8e68325bd0217391e4e5745d554b8140586b51d7aa98ef6bb441b34",
+  recipeSha256: "a0bd95b146767160be4d4145643c8ff3beef79fb2fabb3838ef7eac7a4c9dd88",
   sourceLocksSha256: "bf44ceba6f32d322de04f9fae994c0fed7fdcd00e2bcfff9de39c6d852a01394",
   seed: 20260815,
   pipelineVersion: 1,
-  trainImages: 112_698,
-  trainViews: 150_792,
+  trainImages: 112_562,
+  trainViews: 150_248,
   selectorImages: 600,
   selectorViews: 2_400,
   trainShards: 57,
@@ -512,7 +512,7 @@ export function validateM4TrainingPacket({ summary, calibration, grid, recipe, s
   "M4 training input bindings changed");
   requireCondition(summary.trainImages === M4.trainImages && summary.trainFeatureViews === M4.trainViews &&
     summary.selectorImages === M4.selectorImages && summary.selectorFeatureViews === M4.selectorViews &&
-    summary.trainClassCounts?.real === 59_578 && summary.trainClassCounts?.synthetic === 53_120 &&
+    summary.trainClassCounts?.real === 59_578 && summary.trainClassCounts?.synthetic === 52_984 &&
     summary.selectorClassCounts?.real === 300 && summary.selectorClassCounts?.synthetic === 300,
   "M4 training or selector counts changed");
   const expectedTrainSources = { ...recipe.baseTraining.sourceCounts, ...recipe.expectedTraining.newSourceCounts };

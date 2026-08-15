@@ -5,6 +5,8 @@ import {
   M4_BASE_COMMIT,
   M4_FAILED_PROTOCOL_COMMIT,
   M4_FAILED_PROTOCOL_TREE,
+  M4_DATE_CI_RECOVERY_COMMIT,
+  M4_DATE_CI_RECOVERY_TREE,
   M4_DATE_RECOVERY_COMMIT,
   M4_DATE_RECOVERY_TREE,
   M4_DATE_CI_RECOVERY_EXPECTED,
@@ -66,9 +68,14 @@ const recoveryProtocolParents = git(["show", "-s", "--format=%P", M4_PROTOCOL_RE
   .split(" ").filter(Boolean);
 const dateRecoveryParents = git(["show", "-s", "--format=%P", M4_DATE_RECOVERY_COMMIT])
   .split(" ").filter(Boolean);
+const dateCiRecoveryParents = git(["show", "-s", "--format=%P", M4_DATE_CI_RECOVERY_COMMIT])
+  .split(" ").filter(Boolean);
 requireCondition(matchesM4ProtocolRecoveryLineage({
   protocolParents: parents,
   protocolRows: commitRows(head),
+  dateCiRecoveryParents,
+  dateCiRecoveryRows: commitRows(M4_DATE_CI_RECOVERY_COMMIT),
+  dateCiRecoveryTree: git(["rev-parse", `${M4_DATE_CI_RECOVERY_COMMIT}^{tree}`]),
   dateRecoveryParents,
   dateRecoveryRows: commitRows(M4_DATE_RECOVERY_COMMIT),
   dateRecoveryTree: git(["rev-parse", `${M4_DATE_RECOVERY_COMMIT}^{tree}`]),
@@ -96,12 +103,14 @@ requireCondition(git(["ls-files", "benchmark/data/m4-head", "benchmark/data/m4-s
 console.log(JSON.stringify({
   stage: "m4-protocol",
   head,
-  parent: M4_DATE_RECOVERY_COMMIT,
+  parent: M4_DATE_CI_RECOVERY_COMMIT,
   failedProtocolTree: M4_FAILED_PROTOCOL_TREE,
   originalProtocolPaths: M4_PROTOCOL_EXPECTED.size,
   recoveryPaths: M4_PROTOCOL_RECOVERY_EXPECTED.size,
   dateEligibilityRecoveryPaths: M4_DATE_RECOVERY_EXPECTED.size,
   ciRecoveryPaths: M4_DATE_CI_RECOVERY_EXPECTED.size,
+  ciRecoveryCommit: M4_DATE_CI_RECOVERY_COMMIT,
+  ciRecoveryTree: M4_DATE_CI_RECOVERY_TREE,
   dateRecoveryCommit: M4_DATE_RECOVERY_COMMIT,
   dateRecoveryTree: M4_DATE_RECOVERY_TREE,
   recoveryCommit: M4_PROTOCOL_RECOVERY_COMMIT,
@@ -109,7 +118,7 @@ console.log(JSON.stringify({
   modelSha256: MODEL_SHA256,
   materializationOutputsPresent: false,
   sourceArchiveMayExist: true,
-  recoveryReason: "british-date-eligibility-before-selection",
+  recoveryReason: "rapidata-overlap-clean-group-capacity-before-selection",
   h3AcceptedAsInput: false,
   policy: "pass",
 }));

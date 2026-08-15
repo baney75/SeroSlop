@@ -20,6 +20,8 @@ The British Library mirror is pinned to revision `c288990ce59b055e7bf9411f663d0f
 
 The synthetic source is `Rapidata/700k_Human_Preference_Dataset_FLUX_SD3_MJ_DALLE3` at revision `96a4db1d70fbf08f1054dff771f465dccab94535`. Its card and associated publisher paper provide prompts, paired image paths, model-family labels, and methodology. The card reports CDLA-Permissive-2.0. These are publisher-authored provenance and license statements, not independent rights clearance or exact generator-revision receipts, so M4 uses the corpus only for development selection/training—not final acceptance provenance.
 
+The score-blind Rapidata selector keeps one image per family in each of 75 prompt groups. Training uses 120 different prompt groups. Within a training group, every output that passes the frozen ID, byte, source-group, and dHash checks is retained only when at least one clean image remains from all four families; rejected outputs stay unassigned. The frozen allocation is 1,784 training images: 456 DALL-E 3, 443 FLUX, 457 Midjourney, and 428 Stable Diffusion. This preserves all four families in every admitted training group without weakening the overlap threshold.
+
 M3's 600-image selector and M2's 900-image development packet are consumed post-selection regressions only. Candidate fitting and ranking cannot read them. H3 is represented solely by the committed pixel-free manifest hash used for exclusion; no M4 command accepts an H3 data root.
 
 ## Frozen model experiment
@@ -40,7 +42,7 @@ The candidate and threshold are selected solely on the fresh M4 selector. The fi
 
 ## Intended sequence
 
-1. Commit and publicly verify this protocol freeze with no selected source pixels, manifests, features, candidates, or scores. The append-only date-eligibility recovery was made after the immutable source archives were downloaded but before any source selection, materialized output, feature extraction, candidate fitting, or score existed.
+1. Commit and publicly verify this protocol freeze with no selected source pixels, manifests, features, candidates, or scores. The append-only date-eligibility and Rapidata-capacity recoveries were made after the immutable source archives were downloaded but before any selected manifest, materialized output, feature extraction, candidate fitting, or model score existed.
 2. Materialize the pinned source files locally, publish only pixel-free source evidence, and publicly verify that exact source packet.
 3. Run one fresh CPU feature-extraction/training attempt from the documented command emitted by the source packet.
 4. Freeze the selector winner before evaluating M3, then M2, as terminal regressions. A failure records one append-only failure packet; it cannot trigger another candidate or threshold.

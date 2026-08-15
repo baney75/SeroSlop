@@ -365,6 +365,23 @@ def verify_public_only(recipe: dict[str, Any], locks: dict[str, Any], evidence_r
         image_namespace=recipe["rapidata"]["imagePriorityNamespace"], excluded_groups=rapidata_considered,
         state=state, rejects=replay_rejects,
     )
+    rapidata_training_by_family = Counter(str(row["model"]) for row in rapidata_training)
+    rapidata_training_image_rejects = sum(
+        row["phase"] == "train-synthetic" and row["reason"] == "perceptualDhash64"
+        for row in replay_rejects
+    )
+    rapidata_training_missing_family_groups = sum(
+        row["phase"] == "train-synthetic" and row["reason"] == "missingCleanFamily"
+        for row in replay_rejects
+    )
+    rapidata_policy = recipe["rapidata"]["trainingGroupPolicy"]
+    if (
+        dict(rapidata_training_by_family) != recipe["rapidata"]["trainingImagesByFamily"]
+        or len(rapidata_training) != rapidata_policy["expectedSelectedImages"]
+        or rapidata_training_image_rejects != rapidata_policy["expectedImageLevelPerceptualRejects"]
+        or rapidata_training_missing_family_groups != rapidata_policy["expectedRejectedGroupsMissingFamily"]
+    ):
+        raise ValueError("Rapidata public overlap-clean training allocation changed")
     assign_paths(british_selector, rapidata_selector, british_training, rapidata_training)
     new_training = [*british_training, *rapidata_training]
     expected_train = reindex([*base_rows, *new_training], split="train")
@@ -414,6 +431,10 @@ def verify_public_only(recipe: dict[str, Any], locks: dict[str, Any], evidence_r
             "britishTrainingBooks": len({row["bookId"] for row in british_training}),
             "rapidataSelectorPrompts": len({row["promptSha256"] for row in rapidata_selector}),
             "rapidataTrainingPrompts": len({row["promptSha256"] for row in rapidata_training}),
+            "rapidataTrainingImages": len(rapidata_training),
+            "rapidataTrainingImagesByFamily": dict(sorted(rapidata_training_by_family.items())),
+            "rapidataTrainingImageLevelPerceptualRejects": rapidata_training_image_rejects,
+            "rapidataTrainingGroupsRejectedMissingFamily": rapidata_training_missing_family_groups,
             "rapidataPreOverlapReserveGroups": recipe["rapidata"]["expectedCompleteGroupAllocation"]["reserve"],
             "rapidataUnassignedCompleteGroups": recipe["rapidata"]["expectedFourPerFamilyGroups"]
             - len(rapidata_considered | rapidata_training_considered),

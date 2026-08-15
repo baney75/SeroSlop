@@ -5,6 +5,7 @@ import { validateM4LockedPacket } from "./check-m4-publication-lock.mjs";
 import { digest, parseCanonicalJson, requireCondition } from "./m4-training-contract.mjs";
 import {
   M4_BASE_COMMIT,
+  M4_DATE_CI_RECOVERY_COMMIT,
   M4_DATE_RECOVERY_COMMIT,
   M4_FAILED_PROTOCOL_COMMIT,
   M4_PROTOCOL_RECOVERY_COMMIT,
@@ -57,6 +58,9 @@ const protocolParents = parents(protocol);
 requireCondition(matchesM4ProtocolRecoveryLineage({
   protocolParents,
   protocolRows: commitRows(protocol),
+  dateCiRecoveryParents: parents(M4_DATE_CI_RECOVERY_COMMIT),
+  dateCiRecoveryRows: commitRows(M4_DATE_CI_RECOVERY_COMMIT),
+  dateCiRecoveryTree: git(["rev-parse", `${M4_DATE_CI_RECOVERY_COMMIT}^{tree}`]),
   dateRecoveryParents: parents(M4_DATE_RECOVERY_COMMIT),
   dateRecoveryRows: commitRows(M4_DATE_RECOVERY_COMMIT),
   dateRecoveryTree: git(["rev-parse", `${M4_DATE_RECOVERY_COMMIT}^{tree}`]),

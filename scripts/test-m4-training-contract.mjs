@@ -156,7 +156,7 @@ function featureEvidence(runId, trainingHash, evaluationHash) {
     assert.equal(remainingItems, 0);
     assert.equal(remainingViews, 0);
   };
-  add("train", 57, 112_698, 150_792, trainingHash,
+  add("train", 57, 112_562, 150_248, trainingHash,
     (index, items) => index < 50 ? items : items * 4);
   add("selector", 1, 600, 2_400, evaluationHash);
   add("regression-m3", 1, 600, 2_400, evaluationHash);

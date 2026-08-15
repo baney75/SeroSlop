@@ -295,6 +295,51 @@ class M4PreparationTests(unittest.TestCase):
         self.assertFalse({row["promptSha256"] for row in selector} & {row["promptSha256"] for row in training})
         self.assertTrue({row["promptSha256"] for row in selector} <= considered)
 
+    def test_rapidata_training_retains_clean_images_when_every_family_remains(self) -> None:
+        group, images = rapidata_fixture("partial", 0)
+        for row in images:
+            row["perceptualDhash64"] = __import__("hashlib").sha256(str(row["id"]).encode()).hexdigest()[:16]
+        blocker = candidate(
+            "frozen:blocker", "frozen:blocker", str(images[0]["perceptualDhash64"]),
+            label=0, source="frozen",
+        )
+        state = prepare.OverlapState(8)
+        state.add_frozen(blocker)
+        rejects: list[dict[str, object]] = []
+        selected, considered = prepare.select_rapidata_phase(
+            {str(group["promptSha256"]): group}, images,
+            phase="train-synthetic", target_groups=1, namespace="training:",
+            image_namespace="image:", excluded_groups=set(), state=state, rejects=rejects,
+        )
+        self.assertEqual(len(selected), 15)
+        self.assertEqual({str(row["model"]) for row in selected}, set(MODELS))
+        self.assertEqual(considered, {str(group["promptSha256"])})
+        self.assertEqual(len(rejects), 1)
+        self.assertEqual(rejects[0]["reason"], "perceptualDhash64")
+
+    def test_rapidata_training_rejects_group_when_a_clean_family_is_missing(self) -> None:
+        group, images = rapidata_fixture("missing", 0)
+        for row in images:
+            row["perceptualDhash64"] = __import__("hashlib").sha256(str(row["id"]).encode()).hexdigest()[:16]
+        state = prepare.OverlapState(8)
+        blocked_model = MODELS[0]
+        for index, row in enumerate(item for item in images if item["model"] == blocked_model):
+            state.add_frozen(candidate(
+                f"frozen:blocker:{index}", f"frozen:blocker:{index}", str(row["perceptualDhash64"]),
+                label=0, source="frozen",
+            ))
+        rejects: list[dict[str, object]] = []
+        with self.assertRaisesRegex(ValueError, "capacity"):
+            prepare.select_rapidata_phase(
+                {str(group["promptSha256"]): group}, images,
+                phase="train-synthetic", target_groups=1, namespace="training:",
+                image_namespace="image:", excluded_groups=set(), state=state, rejects=rejects,
+            )
+        self.assertEqual(sum(row["reason"] == "perceptualDhash64" for row in rejects), 4)
+        missing = [row for row in rejects if row["reason"] == "missingCleanFamily"]
+        self.assertEqual(len(missing), 1)
+        self.assertEqual(missing[0]["missingFamilies"], [blocked_model])
+
     def test_rapidata_capacity_failure_does_not_reuse_selector_group(self) -> None:
         group, images = rapidata_fixture("only", 0x1000000000000000)
         groups = {str(group["promptSha256"]): group}

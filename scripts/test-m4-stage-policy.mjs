@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   M4_FAILURE_EXPECTED,
   M4_DATE_CI_RECOVERY_EXPECTED,
+  M4_RAPIDATA_CAPACITY_RECOVERY_EXPECTED,
   M4_LOCK_EXPECTED,
   M4_DATE_RECOVERY_EXPECTED,
   M4_PROTOCOL_EXPECTED,
@@ -38,7 +39,7 @@ assert.throws(() => classifyM4Stage(state({ selectionExists: true, failureExists
 assert.throws(() => classifyM4Stage(state({ selectionExists: true, trainingExists: true })), /before its output lock/u);
 
 for (const expected of [M4_PROTOCOL_EXPECTED, M4_PROTOCOL_RECOVERY_EXPECTED, M4_DATE_RECOVERY_EXPECTED,
-  M4_DATE_CI_RECOVERY_EXPECTED,
+  M4_DATE_CI_RECOVERY_EXPECTED, M4_RAPIDATA_CAPACITY_RECOVERY_EXPECTED,
   M4_SOURCE_EXPECTED, M4_LOCK_EXPECTED,
   M4_FAILURE_EXPECTED, M4_PUBLICATION_EXPECTED]) {
   const rows = [...expected];
@@ -49,8 +50,11 @@ for (const expected of [M4_PROTOCOL_EXPECTED, M4_PROTOCOL_RECOVERY_EXPECTED, M4_
 }
 
 const lineage = {
-  protocolParents: ["dedae90f2aeeb87640f5bba73fb4c362c0389770"],
-  protocolRows: [...M4_DATE_CI_RECOVERY_EXPECTED],
+  protocolParents: ["b94048c58288349976d829f81abcfa25c53b523c"],
+  protocolRows: [...M4_RAPIDATA_CAPACITY_RECOVERY_EXPECTED],
+  dateCiRecoveryParents: ["dedae90f2aeeb87640f5bba73fb4c362c0389770"],
+  dateCiRecoveryRows: [...M4_DATE_CI_RECOVERY_EXPECTED],
+  dateCiRecoveryTree: "d82e8d0df91864d32c25b239962eedb452dee06d",
   dateRecoveryParents: ["6fed0d0ad0e9b9bdf50e17cc0463d8c845abc64b"],
   dateRecoveryRows: [...M4_DATE_RECOVERY_EXPECTED],
   dateRecoveryTree: "8f5162ac2a8ffcf5b9654efce0570a6c7fa38f2a",
@@ -63,7 +67,8 @@ const lineage = {
   baseTree: "440931a595c87ca3d293f5a6f980c75169ddb899",
 };
 assert.equal(matchesM4ProtocolRecoveryLineage(lineage), true);
-for (const field of ["protocolParents", "protocolRows", "dateRecoveryParents", "dateRecoveryRows",
+for (const field of ["protocolParents", "protocolRows", "dateCiRecoveryParents", "dateCiRecoveryRows",
+  "dateCiRecoveryTree", "dateRecoveryParents", "dateRecoveryRows",
   "dateRecoveryTree", "recoveryProtocolParents", "recoveryProtocolRows",
   "recoveryProtocolTree", "failedProtocolParents", "failedProtocolRows",
   "failedProtocolTree", "baseTree"]) {
@@ -86,4 +91,4 @@ assert.ok(router.indexOf("classifyM4Stage") < router.indexOf("classifyM3Stage"))
 assert.match(router, /\["m4-final", "verify:m4-final"\]/u);
 assert.match(router, /\["m4-failed", "verify:m4-failed"\]/u);
 
-console.log(JSON.stringify({ cases: 51, policy: "pass" }));
+console.log(JSON.stringify({ cases: 58, policy: "pass" }));

@@ -157,7 +157,16 @@
   "rapidata": {
     "trainingPromptGroups": 120,
     "selectorPromptGroups": 75,
-    "trainingImagesPerFamily": 480,
+    "trainingImagesByFamily": {"dalle-3": 456, "flux": 443, "mj": 457, "stable_diffusion": 428},
+    "trainingGroupPolicy": {
+      "minimumCleanImagesPerFamily": 1,
+      "maximumImagesPerFamily": 4,
+      "retainEveryOverlapCleanImage": true,
+      "rejectGroupWhenAnyFamilyMissing": true,
+      "expectedSelectedImages": 1784,
+      "expectedImageLevelPerceptualRejects": 156,
+      "expectedRejectedGroupsMissingFamily": 3
+    },
     "selectorImagesPerFamily": 75,
     "source": "Rapidata/700k_Human_Preference_Dataset_FLUX_SD3_MJ_DALLE3",
     "revision": "96a4db1d70fbf08f1054dff771f465dccab94535",
@@ -181,13 +190,13 @@
     "sourceGroupId": "reject",
     "perceptualDhash64": {"algorithm": "EXIF-oriented RGB dHash 64-bit, LANCZOS 9x8 grayscale", "maximumHammingDistance": 8, "match": "reject"},
     "britishLibraryBook": "one image per book across M4 training and selector",
-    "rapidataPrompt": "all outputs for a prompt group remain in one partition; selector groups contribute one image per family and all other outputs are excluded"
+    "rapidataPrompt": "each prompt group is assigned to at most one partition; selector groups contribute one image per family; training groups retain every overlap-clean output only when every family retains at least one image; rejected outputs remain unassigned"
   },
   "expectedTraining": {
-    "images": 112698,
-    "featureViews": 150792,
-    "classCounts": {"real": 59578, "synthetic": 53120},
-    "newSourceCounts": {"british-library-plates": 2400, "rapidata-dalle-3": 480, "rapidata-flux": 480, "rapidata-midjourney": 480, "rapidata-stable-diffusion": 480},
+    "images": 112562,
+    "featureViews": 150248,
+    "classCounts": {"real": 59578, "synthetic": 52984},
+    "newSourceCounts": {"british-library-plates": 2400, "rapidata-dalle-3": 456, "rapidata-flux": 443, "rapidata-midjourney": 457, "rapidata-stable-diffusion": 428},
     "singleViewSources": ["diffusiondb-stable-diffusion", "open-images-train"]
   },
   "adapter": {
