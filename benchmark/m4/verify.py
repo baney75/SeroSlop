@@ -180,6 +180,19 @@ def _validate_british_source_eligibility(
         raise ValueError("M4 British source rows are not exhaustively accounted")
 
 
+def _append_public_rapidata_group(
+    groups: dict[str, dict[str, Any]], row: dict[str, Any],
+) -> None:
+    """Rebuild the producer's prompt-hash-keyed group index from public rows."""
+    prompt_hash = str(row["promptSha256"])
+    model = str(row["model"])
+    image_path = str(row["imagePath"])
+    entry = groups.setdefault(prompt_hash, {"promptSha256": prompt_hash, "models": defaultdict(list)})
+    if entry["promptSha256"] != prompt_hash:
+        raise ValueError("M4 Rapidata group changed prompt hash")
+    entry["models"][model].append(image_path)
+
+
 def _validate_public_indexes(
     british_packet: dict[str, Any], rapidata_packet: dict[str, Any], recipe: dict[str, Any], locks: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, Any]]]:
@@ -288,10 +301,7 @@ def _validate_public_indexes(
             or group != f"rapidata:{locks['rapidata']['revision']}:prompt:{prompt_hash}"
         ):
             raise ValueError(f"M4 Rapidata candidate provenance changed: {row.get('id')}")
-        entry = groups.setdefault(group, {"promptSha256": prompt_hash, "models": defaultdict(list)})
-        if entry["promptSha256"] != prompt_hash:
-            raise ValueError("M4 Rapidata group changed prompt hash")
-        entry["models"][model].append(image_path)
+        _append_public_rapidata_group(groups, row)
     if len({str(row["id"]) for row in rapidata}) != len(rapidata) or len({str(row["imageSha256"]) for row in rapidata}) != len(rapidata):
         raise ValueError("M4 Rapidata source index contains duplicate IDs or image bytes")
     unique_by_model = Counter(str(row["model"]) for row in rapidata)

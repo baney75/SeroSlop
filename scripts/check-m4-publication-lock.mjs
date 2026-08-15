@@ -17,6 +17,7 @@ import {
 } from "./m4-training-contract.mjs";
 import {
   M4_BASE_COMMIT,
+  M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT,
   M4_DATE_CI_RECOVERY_COMMIT,
   M4_DATE_RECOVERY_COMMIT,
   M4_FAILED_PROTOCOL_COMMIT,
@@ -233,6 +234,9 @@ function validatePinnedStage() {
   requireCondition(matchesM4ProtocolRecoveryLineage({
     protocolParents,
     protocolRows: commitRows(protocol),
+    capacityRecoveryParents: parents(M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT),
+    capacityRecoveryRows: commitRows(M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT),
+    capacityRecoveryTree: git(["rev-parse", `${M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT}^{tree}`]),
     dateCiRecoveryParents: parents(M4_DATE_CI_RECOVERY_COMMIT),
     dateCiRecoveryRows: commitRows(M4_DATE_CI_RECOVERY_COMMIT),
     dateCiRecoveryTree: git(["rev-parse", `${M4_DATE_CI_RECOVERY_COMMIT}^{tree}`]),

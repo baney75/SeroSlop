@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from "node:fs";
 
 import {
   M4_BASE_COMMIT,
+  M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT,
+  M4_PREVERIFIER_SOURCE_PACKET_SHA256,
   M4_DATE_CI_RECOVERY_COMMIT,
   M4_DATE_RECOVERY_COMMIT,
   M4_FAILED_PROTOCOL_COMMIT,
@@ -60,6 +62,9 @@ const protocolParents = parents(protocol);
 requireCondition(matchesM4ProtocolRecoveryLineage({
   protocolParents,
   protocolRows: commitRows(protocol),
+  capacityRecoveryParents: parents(M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT),
+  capacityRecoveryRows: commitRows(M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT),
+  capacityRecoveryTree: git(["rev-parse", `${M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT}^{tree}`]),
   dateCiRecoveryParents: parents(M4_DATE_CI_RECOVERY_COMMIT),
   dateCiRecoveryRows: commitRows(M4_DATE_CI_RECOVERY_COMMIT),
   dateCiRecoveryTree: git(["rev-parse", `${M4_DATE_CI_RECOVERY_COMMIT}^{tree}`]),
@@ -76,6 +81,10 @@ requireCondition(matchesM4ProtocolRecoveryLineage({
 }), "The M4 source packet is not the recovered protocol's direct child");
 requireCondition(matchesExpectedRows(commitRows(head), M4_SOURCE_EXPECTED),
   "The M4 source commit changed outside its exact score-blind packet");
+for (const [name, sha256] of Object.entries(M4_PREVERIFIER_SOURCE_PACKET_SHA256)) {
+  requireCondition(digest(readFileSync(`benchmark/evidence/m4/${name}`)) === sha256,
+    `M4 source bytes changed after the verifier-only recovery: ${name}`);
+}
 for (const pathname of FORBIDDEN) {
   requireCondition(!existsSync(pathname), `M4 source stage contains terminal or training output: ${pathname}`);
 }

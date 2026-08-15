@@ -5,6 +5,8 @@ import {
   M4_BASE_COMMIT,
   M4_FAILED_PROTOCOL_COMMIT,
   M4_FAILED_PROTOCOL_TREE,
+  M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT,
+  M4_RAPIDATA_CAPACITY_RECOVERY_TREE,
   M4_DATE_CI_RECOVERY_COMMIT,
   M4_DATE_CI_RECOVERY_TREE,
   M4_DATE_RECOVERY_COMMIT,
@@ -70,9 +72,14 @@ const dateRecoveryParents = git(["show", "-s", "--format=%P", M4_DATE_RECOVERY_C
   .split(" ").filter(Boolean);
 const dateCiRecoveryParents = git(["show", "-s", "--format=%P", M4_DATE_CI_RECOVERY_COMMIT])
   .split(" ").filter(Boolean);
+const capacityRecoveryParents = git(["show", "-s", "--format=%P", M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT])
+  .split(" ").filter(Boolean);
 requireCondition(matchesM4ProtocolRecoveryLineage({
   protocolParents: parents,
   protocolRows: commitRows(head),
+  capacityRecoveryParents,
+  capacityRecoveryRows: commitRows(M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT),
+  capacityRecoveryTree: git(["rev-parse", `${M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT}^{tree}`]),
   dateCiRecoveryParents,
   dateCiRecoveryRows: commitRows(M4_DATE_CI_RECOVERY_COMMIT),
   dateCiRecoveryTree: git(["rev-parse", `${M4_DATE_CI_RECOVERY_COMMIT}^{tree}`]),
@@ -103,7 +110,7 @@ requireCondition(git(["ls-files", "benchmark/data/m4-head", "benchmark/data/m4-s
 console.log(JSON.stringify({
   stage: "m4-protocol",
   head,
-  parent: M4_DATE_CI_RECOVERY_COMMIT,
+  parent: M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT,
   failedProtocolTree: M4_FAILED_PROTOCOL_TREE,
   originalProtocolPaths: M4_PROTOCOL_EXPECTED.size,
   recoveryPaths: M4_PROTOCOL_RECOVERY_EXPECTED.size,
@@ -111,14 +118,17 @@ console.log(JSON.stringify({
   ciRecoveryPaths: M4_DATE_CI_RECOVERY_EXPECTED.size,
   ciRecoveryCommit: M4_DATE_CI_RECOVERY_COMMIT,
   ciRecoveryTree: M4_DATE_CI_RECOVERY_TREE,
+  capacityRecoveryCommit: M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT,
+  capacityRecoveryTree: M4_RAPIDATA_CAPACITY_RECOVERY_TREE,
   dateRecoveryCommit: M4_DATE_RECOVERY_COMMIT,
   dateRecoveryTree: M4_DATE_RECOVERY_TREE,
   recoveryCommit: M4_PROTOCOL_RECOVERY_COMMIT,
   recoveryTree: M4_PROTOCOL_RECOVERY_TREE,
   modelSha256: MODEL_SHA256,
   materializationOutputsPresent: false,
+  sourcePacketGeneratedBeforeRecovery: true,
   sourceArchiveMayExist: true,
-  recoveryReason: "rapidata-overlap-clean-group-capacity-before-selection",
+  recoveryReason: "public-verifier-rapidata-group-key-mismatch-after-score-blind-materialization",
   h3AcceptedAsInput: false,
   policy: "pass",
 }));

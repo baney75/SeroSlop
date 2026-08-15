@@ -8,6 +8,8 @@ export const M4_DATE_RECOVERY_COMMIT = "dedae90f2aeeb87640f5bba73fb4c362c0389770
 export const M4_DATE_RECOVERY_TREE = "8f5162ac2a8ffcf5b9654efce0570a6c7fa38f2a";
 export const M4_DATE_CI_RECOVERY_COMMIT = "b94048c58288349976d829f81abcfa25c53b523c";
 export const M4_DATE_CI_RECOVERY_TREE = "d82e8d0df91864d32c25b239962eedb452dee06d";
+export const M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT = "82f210892a371cfae5f8101d380c9a36966ee9a8";
+export const M4_RAPIDATA_CAPACITY_RECOVERY_TREE = "971fa71db7e17e98af7b599b3a7dfe592051889b";
 export const M4_PUBLICATION_LOCK_PATH = "benchmark/evidence/m4/publication-lock.json";
 export const M4_FAILURE_PATH = "benchmark/evidence/m4/failed-training-attempt-1.json";
 
@@ -124,6 +126,34 @@ export const M4_RAPIDATA_CAPACITY_RECOVERY_EXPECTED = new Map([
   ["scripts/test-m4-training-contract.mjs", "M"],
 ]);
 
+// P6: verifier-only recovery after score-blind materialization. The producer
+// correctly keyed Rapidata groups by prompt hash; the public verifier rebuilt
+// the same groups under source-group IDs and therefore changed priority order.
+// No recipe, producer, selection, model input, or H3 boundary changes.
+export const M4_PUBLIC_REPLAY_RECOVERY_EXPECTED = new Map([
+  ["benchmark/m4/README.md", "M"],
+  ["benchmark/m4/test_prepare.py", "M"],
+  ["benchmark/m4/verify.py", "M"],
+  ["scripts/check-m4-failure-stage.mjs", "M"],
+  ["scripts/check-m4-protocol-stage.mjs", "M"],
+  ["scripts/check-m4-publication-lock.mjs", "M"],
+  ["scripts/check-m4-source-stage.mjs", "M"],
+  ["scripts/check-m4-training-evidence.mjs", "M"],
+  ["scripts/m4-stage-policy.mjs", "M"],
+  ["scripts/test-m4-stage-policy.mjs", "M"],
+]);
+
+export const M4_PREVERIFIER_SOURCE_PACKET_SHA256 = Object.freeze({
+  "attribution.json": "e534ca8128fed143a42e9b07dd3f48f6f4babd5ca9e637a59479331dbbd605ad",
+  "british-source-index.json.gz": "1b1b45cd7f239f4b8e3563884fcbe33910688a7f9b49a0c9db473c43875f9718",
+  "perceptual-review.json": "bd493388dd0675de07eb1a0fea51ab21582148e1a2b478453d50d995038cfc88",
+  "rapidata-source-index.json.gz": "0943c4f332492d24866130d6626127bf1d37ead72b25fff5b178da9ce7cb8ead",
+  "rejects.jsonl.gz": "37d3d9abc026fef61ed416d8c4618e5e4bac4615d08813d8cc44a0af163aa6ef",
+  "selection-summary.json": "5e4227ac2bf468b10e54a354bba09b1e869391bc4d38f99228d246433705ccba",
+  "train-manifest.jsonl.gz": "e5dfc79869541ae5c6703b60de250930f1fb8247790f55b67bb1805f5ac73a93",
+  "validation-manifest.jsonl": "643eb365a603309b94b112403ef4250b565b9863d2ec61a5cc48aa80d5f85caa",
+});
+
 // S: pixel-free, score-free source evidence. Source pixels remain ignored.
 export const M4_SOURCE_EXPECTED = new Map([
   ["benchmark/evidence/m4/attribution.json", "A"],
@@ -193,6 +223,9 @@ export function matchesExpectedRows(rows, expected) {
 export function matchesM4ProtocolRecoveryLineage({
   protocolParents,
   protocolRows,
+  capacityRecoveryParents,
+  capacityRecoveryRows,
+  capacityRecoveryTree,
   dateCiRecoveryParents,
   dateCiRecoveryRows,
   dateCiRecoveryTree,
@@ -207,8 +240,11 @@ export function matchesM4ProtocolRecoveryLineage({
   failedProtocolTree,
   baseTree,
 }) {
-  return protocolParents.length === 1 && protocolParents[0] === M4_DATE_CI_RECOVERY_COMMIT &&
-    matchesExpectedRows(protocolRows, M4_RAPIDATA_CAPACITY_RECOVERY_EXPECTED) &&
+  return protocolParents.length === 1 && protocolParents[0] === M4_RAPIDATA_CAPACITY_RECOVERY_COMMIT &&
+    matchesExpectedRows(protocolRows, M4_PUBLIC_REPLAY_RECOVERY_EXPECTED) &&
+    capacityRecoveryParents.length === 1 && capacityRecoveryParents[0] === M4_DATE_CI_RECOVERY_COMMIT &&
+    capacityRecoveryTree === M4_RAPIDATA_CAPACITY_RECOVERY_TREE &&
+    matchesExpectedRows(capacityRecoveryRows, M4_RAPIDATA_CAPACITY_RECOVERY_EXPECTED) &&
     dateCiRecoveryParents.length === 1 && dateCiRecoveryParents[0] === M4_DATE_RECOVERY_COMMIT &&
     dateCiRecoveryTree === M4_DATE_CI_RECOVERY_TREE &&
     matchesExpectedRows(dateCiRecoveryRows, M4_DATE_CI_RECOVERY_EXPECTED) &&

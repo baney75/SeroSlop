@@ -340,6 +340,16 @@ class M4PreparationTests(unittest.TestCase):
         self.assertEqual(len(missing), 1)
         self.assertEqual(missing[0]["missingFamilies"], [blocked_model])
 
+    def test_public_rapidata_replay_uses_the_producer_prompt_hash_key(self) -> None:
+        group, images = rapidata_fixture("public-replay", 0)
+        replay: dict[str, dict[str, object]] = {}
+        for row in images:
+            verify._append_public_rapidata_group(replay, row)
+        prompt_hash = str(group["promptSha256"])
+        self.assertEqual(set(replay), {prompt_hash})
+        self.assertNotIn(str(images[0]["sourceGroupId"]), replay)
+        self.assertEqual(replay[prompt_hash]["models"], group["models"])
+
     def test_rapidata_capacity_failure_does_not_reuse_selector_group(self) -> None:
         group, images = rapidata_fixture("only", 0x1000000000000000)
         groups = {str(group["promptSha256"]): group}

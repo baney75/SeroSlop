@@ -42,7 +42,7 @@ The candidate and threshold are selected solely on the fresh M4 selector. The fi
 
 ## Intended sequence
 
-1. Commit and publicly verify this protocol freeze with no selected source pixels, manifests, features, candidates, or scores. The append-only date-eligibility and Rapidata-capacity recoveries were made after the immutable source archives were downloaded but before any selected manifest, materialized output, feature extraction, candidate fitting, or model score existed.
+1. Commit and publicly verify this protocol freeze with no selected source pixels, manifests, features, candidates, or scores. The append-only date-eligibility and Rapidata-capacity recoveries were made after the immutable source archives were downloaded but before any selected manifest, materialized output, feature extraction, candidate fitting, or model score existed. The first score-blind materialization then produced the final 112,562/600 packet, but its independent public replay exposed a verifier-only group-key mismatch: the producer keyed Rapidata groups by prompt hash while the public verifier keyed the same rows by source-group ID. The append-only replay recovery changes only that verifier and its contracts, freezes the already-generated packet hashes, and records that no model output or H3 pixel was read.
 2. Materialize the pinned source files locally, publish only pixel-free source evidence, and publicly verify that exact source packet.
 3. Run one fresh CPU feature-extraction/training attempt from the documented command emitted by the source packet.
 4. Freeze the selector winner before evaluating M3, then M2, as terminal regressions. A failure records one append-only failure packet; it cannot trigger another candidate or threshold.
