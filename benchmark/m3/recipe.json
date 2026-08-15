@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 3,
+  "name": "prooflens-m3-cultural-heritage-hard-negative-head",
+  "seed": 20260815,
+  "purpose": "Repair the artwork false-positive category exposed by a consumed 100-item Met development probe while preserving the M2 backbone, fixed 65/100 display threshold, candidate grid, and untouched future evaluation boundary.",
+  "developmentPolicy": "The 100-item Met probe and all M1/M2 evaluation packets are consumed development evidence. They are excluded from gradients and M3 selector metrics. M2 validation is a post-selection regression gate only.",
+  "upstreamModel": {
+    "path": "weights/prooflens-cf384.onnx",
+    "sha256": "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+    "bytes": 87442080,
+    "modelLock": "model-lock.json",
+    "modelLockSha256": "2a818b7b2582bc9614f02f178d9af997f46628734ea078a79415c3d68d3061f0",
+    "selectionSummary": "benchmark/evidence/m2/selection-summary.json",
+    "selectionSummarySha256": "f619f334d3263c609262b90844d6dcefacbb4333a1b7c215b6d386d5f517bd0c",
+    "trainingSummary": "benchmark/evidence/m2/training-summary.json",
+    "trainingSummarySha256": "c3d49719e50b1fbf5fdc9ba5b8c1df57712910af0f0284a3c3acdf6bad931c04",
+    "finalizationReceipt": "benchmark/evidence/m2/finalization-receipt.json",
+    "finalizationReceiptSha256": "62c55bf9fd25e59e97d54db793131306c2d049fee0f30bf804ec5987d3dad91c"
+  },
+  "baseTraining": {
+    "manifest": "benchmark/evidence/m2/train-manifest.jsonl.gz",
+    "compressedSha256": "fc84b9646d9ee91ff5dd40e7a79b38226fa4e83418dfd5fce974aef7daf533d8",
+    "expandedSha256": "0d180f36fa8e0c2f099743a325b5f25fb4ad7aa0565223abdc89ddf47190710a",
+    "items": 105978,
+    "dataRoot": "benchmark/data/m2-head",
+    "trainingEvaluationPerceptualReview": {
+      "path": "benchmark/manifests/training-evaluation-perceptual-review.json",
+      "sha256": "5862357df084da42175d8130522b1e4c38bae0d0d8932406efd4682e2569eec4",
+      "items": 100
+    }
+  },
+  "regressionValidation": {
+    "manifest": "benchmark/evidence/m2/validation-manifest.jsonl",
+    "sha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93",
+    "items": 900,
+    "featureViews": 3600,
+    "dataRoot": "benchmark/data/m2-head",
+    "role": "consumed-m2-post-selection-regression"
+  },
+  "metSource": {
+    "dataset": "The Metropolitan Museum of Art Open Access",
+    "sourceReportedLicense": "CC0-1.0 for images marked public domain; Met API and repository terms remain authoritative",
+    "repository": "https://github.com/metmuseum/openaccess",
+    "commit": "e901de145e60258542243571098245826a01fe47",
+    "csvPath": "benchmark/data/h3-dev/met-source/MetObjects.csv",
+    "csvRepositoryPath": "MetObjects.csv",
+    "csvUrl": "https://media.githubusercontent.com/media/metmuseum/openaccess/e901de145e60258542243571098245826a01fe47/MetObjects.csv",
+    "csvBytes": 317650992,
+    "csvSha256": "de617b9c947458e426111207f81a65bd1379a151c0077d3ce29cfc22fc0b9183",
+    "imageHost": "images.metmuseum.org",
+    "imageCacheRoot": "benchmark/data/m3-source/met/images",
+    "huggingFaceMetadata": {
+      "dataset": "metmuseum/openaccess",
+      "revision": "c65f8d6041aea7b3bc767a54d93772c3c6a365f6",
+      "sourceReportedLicense": "CC0-1.0",
+      "path": "benchmark/data/m3-source/met/metadata_images.csv.gz",
+      "repositoryPath": "source/metadata_images.csv.gz",
+      "downloadUrl": "https://huggingface.co/datasets/metmuseum/openaccess/resolve/c65f8d6041aea7b3bc767a54d93772c3c6a365f6/source/metadata_images.csv.gz?download=true",
+      "bytes": 28227046,
+      "sha256": "73c4bc4381e0a09ce9f199fda52568c92d9088337f1464fc4b3fead461410fbc"
+    },
+    "maximumObjectEndDate": 1980,
+    "allowedDepartments": [
+      "American Decorative Arts",
+      "Ancient Near Eastern Art",
+      "Arms and Armor",
+      "Arts of Africa, Oceania, and the Americas",
+      "Asian Art",
+      "Costume Institute",
+      "Drawings and Prints",
+      "Egyptian Art",
+      "European Paintings",
+      "European Sculpture and Decorative Arts",
+      "Greek and Roman Art",
+      "Islamic Art",
+      "Medieval Art",
+      "Modern and Contemporary Art",
+      "Musical Instruments",
+      "Photographs",
+      "Robert Lehman Collection",
+      "The American Wing",
+      "The Cloisters",
+      "The Libraries"
+    ],
+    "developmentProbe": {
+      "reportPath": "benchmark/data/h3-dev/met/development-report.json",
+      "reportSha256": "e81b52c038193bb2f20a589fcc9c356ce7800dd3c21498692dd7b59bdc8429fd",
+      "detailRoot": "benchmark/data/h3-dev/met/details",
+      "imageRoot": "benchmark/data/h3-dev/met",
+      "items": 100,
+      "manifestPath": "benchmark/manifests/met-development-probe-v1.jsonl"
+    },
+    "holdoutTarget": 600,
+    "developmentTarget": 300,
+    "trainingTarget": 2400,
+    "holdoutPriorityNamespace": "prooflens:m3:met:h3-holdout-v1:",
+    "developmentPriorityNamespace": "prooflens:m3:met:development-v1:",
+    "trainingPriorityNamespace": "prooflens:m3:met:training-v1:"
+  },
+  "syntheticDevelopmentSource": {
+    "dataset": "LukasT9/Flux-1-Dev-Images-1k",
+    "revision": "ade8147d5f10bac016d691fd2b564e877e6315f7",
+    "sourceReportedLicense": "Apache-2.0",
+    "sourceReportedGenerator": "FLUX.1-dev at 50 steps; the dataset card does not identify a model revision, seed, or remaining generation parameters",
+    "repository": "https://huggingface.co/datasets/LukasT9/Flux-1-Dev-Images-1k",
+    "candidateRows": 1000,
+    "target": 300,
+    "priorityNamespace": "prooflens:m3:flux-development-v1:",
+    "sourceIndexPath": "benchmark/evidence/m3/flux-source-index.json.gz",
+    "sourceIndexSha256": "5f5f075e578b0c4981b82382c32d58dbb02133b646f83e9aeeda53220f4d6059",
+    "cacheRoot": "benchmark/data/m3-source/flux"
+  },
+  "historicalExclusions": {
+    "historicalPerceptualIndexPath": "benchmark/manifests/historical-perceptual-exclusions-v1.json.gz",
+    "historicalPerceptualIndexSha256": "1e07b148e32f3007e15df81b6d3ed9e993422a1e6635e87c656161c3aed522bd",
+    "historicalPerceptualExpandedSha256": "752bcda387bfd699f7eadc714f17c6f9445218fffafb3aecc75fea2fd06d72ee",
+    "expectedUniqueItems": 106019,
+    "largeTrainManifestSha256": "7af42465589756f2152e61d30341c9ce2db478fac039161eda4777ff614e5a78",
+    "evaluationPerceptualCompressedSha256": "9adc9df705bf736fcac00125831f5a394050b0fe0266999656cc8bedd8675da4",
+    "evaluationPerceptualExpandedSha256": "5443431690fbe8b53860ceeec9c70234230ed2b273bb0ae8609fb55a4f1be520",
+    "legacyExclusionsSha256": "5a8a056ac4fbebebdc6b3d864323dce1f8c412d57f996ddcac2ead6a54ace2e3",
+    "docciMetadata": {"sha256": "34a88b64c46b01176e4d8f78b3ff1564dbe7125927863431caffab71f67c8695"}
+  },
+  "consumedEvaluationExclusions": [
+    {"path": "benchmark/manifests/test.jsonl", "sha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae", "dataRoot": "benchmark/data", "role": "consumed-v1-confirmatory"},
+    {"path": "benchmark/manifests/web-negative.jsonl", "sha256": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824", "dataRoot": "benchmark/data/web-negative", "role": "frozen-v1-web-negative"},
+    {"path": "benchmark/manifests/test-v2.jsonl", "sha256": "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8", "dataRoot": "benchmark/data/replacement-v2", "role": "consumed-v2-confirmatory"},
+    {"path": "benchmark/manifests/web-negative-v2.jsonl", "sha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9", "dataRoot": "benchmark/data/replacement-v2", "role": "consumed-v2-web-negative"}
+  ],
+  "overlapPolicy": {
+    "id": "reject",
+    "imageSha256": "reject",
+    "sourceGroupId": "reject",
+    "perceptualDhash64": {
+      "algorithm": "EXIF-oriented RGB dHash 64-bit, LANCZOS 9x8 grayscale",
+      "maximumHammingDistance": 8,
+      "historicalConsumedOrCrossPartitionMatch": "reject"
+    }
+  },
+  "expectedTotalCount": 108378,
+  "expectedTrainingFeatureViews": 133512,
+  "expectedValidationCount": 600,
+  "expectedValidationFeatureViews": 2400,
+  "expectedRegressionCount": 900,
+  "expectedRegressionFeatureViews": 3600,
+  "singleViewTrainingSources": ["diffusiondb-stable-diffusion", "open-images-train"],
+  "expectedClassCounts": {"real": 57178, "synthetic": 51200},
+  "expectedSourceCounts": {
+    "FLUX.2-pro": 80,
+    "FLUX.2_max": 80,
+    "GPT-Image-1": 80,
+    "GPT-Image-1.5": 80,
+    "Imagen-4.0": 80,
+    "Imagen-4.0-Ultra": 80,
+    "Qwen-Image": 80,
+    "Qwen-Image-2.0-pro": 80,
+    "Qwen-Image-2512": 80,
+    "Seedream-4.0": 80,
+    "Seedream-4.5": 80,
+    "Seedream-5.0": 80,
+    "diffusiondb-stable-diffusion": 50000,
+    "docci-train": 1200,
+    "gpt-image-2": 80,
+    "met-open-access": 2400,
+    "nano-banana-2.0": 80,
+    "nano-banana-pro": 80,
+    "open-images": 1200,
+    "open-images-train": 50000,
+    "stockimages-cc0": 2378
+  },
+  "evaluationManifests": [
+    {
+      "path": "benchmark/evidence/m3/validation-manifest.jsonl",
+      "dataRoot": "benchmark/data/m3-head",
+      "role": "fresh-m3-selection-validation",
+      "sha256": "86b7b9119fc7a118ee8b0a85e1a6b7dce6635154b3eff49cc1197b9d40fca2ff",
+      "items": 600,
+      "featureViews": 2400
+    }
+  ],
+  "regressionManifests": [
+    {
+      "path": "benchmark/evidence/m2/validation-manifest.jsonl",
+      "dataRoot": "benchmark/data/m2-head",
+      "role": "consumed-m2-post-selection-regression",
+      "sha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93",
+      "items": 900,
+      "featureViews": 3600
+    }
+  ],
+  "additionalTrainingExclusionManifests": [
+    {"path": "benchmark/manifests/met-development-probe-v1.jsonl", "dataRoot": "benchmark/data/h3-dev/met", "role": "consumed-met-development-probe"},
+    {"path": "benchmark/evidence/m3/h3-met-holdout-manifest.jsonl", "dataRoot": "benchmark/data/h3-met-holdout-v1", "role": "untouched-h3-met-holdout"},
+    {"path": "benchmark/manifests/test.jsonl", "dataRoot": "benchmark/data", "role": "consumed-v1-confirmatory"},
+    {"path": "benchmark/manifests/web-negative.jsonl", "dataRoot": "benchmark/data/web-negative", "role": "frozen-v1-web-negative"},
+    {"path": "benchmark/manifests/test-v2.jsonl", "dataRoot": "benchmark/data/replacement-v2", "role": "consumed-v2-confirmatory"},
+    {"path": "benchmark/manifests/web-negative-v2.jsonl", "dataRoot": "benchmark/data/replacement-v2", "role": "consumed-v2-web-negative"}
+  ],
+  "perceptualDuplicateHammingThreshold": 8,
+  "perceptualOverlapReview": "benchmark/evidence/m3/perceptual-review.json",
+  "trainingPerceptualOverlapReview": "benchmark/evidence/m3/training-evaluation-perceptual-review.json",
+  "validationGates": {
+    "minimumBalancedAccuracyPerVariant": 0.85,
+    "minimumRealRecallPerVariant": 0.9,
+    "minimumSyntheticRecallPerVariant": 0.8,
+    "minimumSyntheticRecallPerFamily": 0.8,
+    "minimumRealRecallBySource": {"met-open-access": 0.93}
+  },
+  "regressionGates": {
+    "minimumBalancedAccuracyPerVariant": 0.91,
+    "minimumRealRecallPerVariant": 0.92,
+    "minimumSyntheticRecallPerVariant": 0.89,
+    "minimumSyntheticRecallPerFamily": 0.82,
+    "minimumRealRecallBySource": {"open-images": 0.92, "stockimages-cc0": 0.92}
+  },
+  "output": {
+    "dataRoot": "benchmark/data/m3-head",
+    "holdoutDataRoot": "benchmark/data/h3-met-holdout-v1",
+    "evidenceRoot": "benchmark/evidence/m3"
+  }
+}

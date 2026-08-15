@@ -1,0 +1,19 @@
+{
+  "fluxDevelopment": {
+    "dataset": "LukasT9/Flux-1-Dev-Images-1k",
+    "developmentOnly": true,
+    "neverAcceptanceEvidence": true,
+    "repository": "https://huggingface.co/datasets/LukasT9/Flux-1-Dev-Images-1k",
+    "revision": "ade8147d5f10bac016d691fd2b564e877e6315f7",
+    "sourceReportedGenerator": "FLUX.1-dev at 50 steps; the dataset card does not identify a model revision, seed, or remaining generation parameters",
+    "sourceReportedLicense": "Apache-2.0"
+  },
+  "met": {
+    "commit": "e901de145e60258542243571098245826a01fe47",
+    "dataset": "The Metropolitan Museum of Art Open Access",
+    "notice": "Selected public-domain cultural-heritage image bytes stay under ignored benchmark/data. This repository publishes pixel-free provenance and overlap evidence only.",
+    "repository": "https://github.com/metmuseum/openaccess",
+    "sourceReportedLicense": "CC0-1.0 for images marked public domain; Met API and repository terms remain authoritative"
+  },
+  "schemaVersion": 1
+}

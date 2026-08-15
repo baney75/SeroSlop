@@ -15,6 +15,7 @@ from hashlib import sha256
 from io import BytesIO
 import json
 import math
+import os
 from pathlib import Path
 import platform
 import random
@@ -53,6 +54,7 @@ TRAINING_EPOCHS = 12
 TRAINING_BATCH_SIZE = 2_048
 LEGACY_FEATURE_CACHE_TRAINER_SHA256 = "00f3bdea0ae58166d2b1708eeb4582562631d18b6a60f43c2273de1bd68e1377"
 FEATURE_EXTRACTOR_CONTRACT = "cf384-static-batch24-preprocess-v1"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
@@ -96,6 +98,98 @@ def load_manifest(path: Path, data_root: Path) -> list[Item]:
     return items
 
 
+def lexical_absolute(path: Path) -> Path:
+    return Path(os.path.abspath(path))
+
+
+def require_repository_path(requested: Path, expected_relative: str, *, label: str) -> Path:
+    expected = lexical_absolute(REPOSITORY_ROOT / expected_relative)
+    actual = lexical_absolute(requested)
+    if actual != expected:
+        raise ValueError(f"{label} path does not match the frozen recipe")
+    try:
+        relative = expected.relative_to(REPOSITORY_ROOT)
+    except ValueError as error:
+        raise ValueError(f"{label} escapes the repository") from error
+    current = REPOSITORY_ROOT
+    if current.is_symlink():
+        raise ValueError(f"{label} repository root is symlinked")
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(f"{label} traverses a symlink")
+    return expected
+
+
+def require_partition_contract(
+    recipe: dict[str, object],
+    *,
+    selector_manifest: Path,
+    selector_data_root: Path,
+    selector_items: list[Item],
+    regression_manifest: Path,
+    regression_data_root: Path,
+    regression_items: list[Item],
+) -> dict[str, object]:
+    selector_configs = list(recipe.get("evaluationManifests", []))
+    regression_configs = list(recipe.get("regressionManifests", []))
+    if len(selector_configs) != 1 or len(regression_configs) != 1:
+        raise ValueError("M3 requires exactly one selector and one regression manifest")
+    selector = dict(selector_configs[0])
+    regression = dict(regression_configs[0])
+    selector_path = require_repository_path(
+        selector_manifest,
+        str(selector["path"]),
+        label="selector manifest",
+    )
+    require_repository_path(
+        selector_data_root,
+        str(selector["dataRoot"]),
+        label="selector data root",
+    )
+    regression_path = require_repository_path(
+        regression_manifest,
+        str(regression["path"]),
+        label="regression manifest",
+    )
+    require_repository_path(
+        regression_data_root,
+        str(regression["dataRoot"]),
+        label="regression data root",
+    )
+    selector_hash = digest(selector_path)
+    regression_hash = digest(regression_path)
+    if selector_hash != selector.get("sha256"):
+        raise ValueError("Selector manifest hash does not match the frozen recipe")
+    if regression_hash != regression.get("sha256"):
+        raise ValueError("Regression manifest hash does not match the frozen recipe")
+    if len(selector_items) != int(selector["items"]) or len(selector_items) != int(recipe["expectedValidationCount"]):
+        raise ValueError("Selector manifest count does not match the frozen recipe")
+    if len(regression_items) != int(regression["items"]) or len(regression_items) != int(recipe["expectedRegressionCount"]):
+        raise ValueError("Regression manifest count does not match the frozen recipe")
+    if int(selector["featureViews"]) != int(recipe["expectedValidationFeatureViews"]):
+        raise ValueError("Selector feature-view contract changed")
+    if int(regression["featureViews"]) != int(recipe["expectedRegressionFeatureViews"]):
+        raise ValueError("Regression feature-view contract changed")
+    detailed = dict(recipe.get("regressionValidation", {}))
+    expected_detailed = {
+        "manifest": regression["path"],
+        "sha256": regression["sha256"],
+        "items": regression["items"],
+        "featureViews": regression["featureViews"],
+        "dataRoot": regression["dataRoot"],
+        "role": regression["role"],
+    }
+    if detailed != expected_detailed:
+        raise ValueError("Detailed regression contract disagrees with the frozen manifest entry")
+    return {
+        "selectorManifestSha256": selector_hash,
+        "selectorRole": selector["role"],
+        "regressionManifestSha256": regression_hash,
+        "regressionRole": regression["role"],
+    }
+
+
 def validate_large_training_packet(
     recipe_path: Path,
     recipe: dict[str, object],
@@ -105,7 +199,7 @@ def validate_large_training_packet(
 ) -> tuple[dict[str, object], str]:
     summary = json.loads(selection_summary_path.read_text())
     summary_hash = digest(selection_summary_path)
-    if summary.get("schemaVersion") not in {1, 2}:
+    if summary.get("schemaVersion") not in {1, 2, 3}:
         raise ValueError("Unsupported large-corpus selection summary")
     if summary.get("recipeSha256") != digest(recipe_path):
         raise ValueError("Selection summary does not target the training recipe")
@@ -731,6 +825,26 @@ def passes_validation_gates(values: dict[str, object], gates: dict[str, object] 
     ) and min(family_recalls) >= float(gates["minimumSyntheticRecallPerFamily"]) and real_source_gate_passes
 
 
+def evaluate_frozen_regression(
+    weight: np.ndarray,
+    bias: float,
+    threshold: float,
+    regression: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    gates: dict[str, object],
+) -> dict[str, object]:
+    """Evaluate one already-selected head without feeding regression results back into selection."""
+
+    features, labels, variants, sources = regression
+    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        logits = features @ weight + bias
+    if not np.isfinite(logits).all():
+        raise RuntimeError("Selected classifier produced non-finite post-selection regression logits")
+    values = variant_metrics(logits, labels, variants, sources, threshold)
+    if not passes_validation_gates(values, gates):
+        raise RuntimeError("Selected candidate failed frozen post-selection regression gates")
+    return values
+
+
 def choose_threshold(
     logits: np.ndarray,
     labels: np.ndarray,
@@ -848,6 +962,35 @@ def replace_classifier(source: Path, destination: Path, weight: np.ndarray, bias
     onnx.save(model, destination)
 
 
+def exported_parity_error(
+    session: ort.InferenceSession,
+    items: list[Item],
+    features: np.ndarray,
+    weight: np.ndarray,
+    bias: float,
+    batch_size: int,
+) -> float:
+    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        expected = features @ weight + bias
+    if not np.isfinite(expected).all():
+        raise RuntimeError("Selected classifier produced non-finite reference logits")
+    actual: list[np.ndarray] = []
+    images_per_batch = max(1, batch_size // len(VARIANTS))
+    with ThreadPoolExecutor(max_workers=min(8, images_per_batch)) as executor:
+        for offset in range(0, len(items), images_per_batch):
+            batch_items = items[offset : offset + images_per_batch]
+            views = list(executor.map(lambda item: preprocess_views(item, False), batch_items))
+            tensor = np.stack([pixels for item_views in views for pixels in item_views])
+            actual.append(np.asarray(session.run(["logits"], {"pixel_values": tensor})[0]).reshape(-1))
+    actual_values = np.concatenate(actual)
+    if not np.isfinite(actual_values).all():
+        raise RuntimeError("Exported classifier produced non-finite ONNX logits")
+    error = float(np.max(np.abs(expected - actual_values)))
+    if not math.isfinite(error) or error > 2e-4:
+        raise RuntimeError(f"Export parity error too high: {error}")
+    return error
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=Path, required=True)
@@ -856,6 +999,8 @@ def main() -> None:
     parser.add_argument("--train-manifest", type=Path)
     parser.add_argument("--validation-data-root", type=Path)
     parser.add_argument("--validation-manifest", type=Path)
+    parser.add_argument("--regression-data-root", type=Path)
+    parser.add_argument("--regression-manifest", type=Path)
     parser.add_argument("--recipe", type=Path)
     parser.add_argument("--selection-summary", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -879,7 +1024,6 @@ def main() -> None:
     model_hash = digest(args.model)
     if model_hash != args.expected_model_sha256:
         raise ValueError(f"Unexpected model SHA-256: {model_hash}")
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     if args.feature_shard_images < 1:
         raise ValueError("feature-shard-images must be positive")
     if args.batch_size < len(VARIANTS):
@@ -887,15 +1031,32 @@ def main() -> None:
     train_manifest = args.train_manifest or (args.data_root / "train-manifest.jsonl")
     validation_data_root = args.validation_data_root or args.data_root
     validation_manifest = args.validation_manifest or (validation_data_root / "validation-manifest.jsonl")
+    recipe_config = json.loads(args.recipe.read_text()) if args.recipe else None
+    if recipe_config is not None and recipe_config.get("regressionManifests"):
+        if args.regression_manifest is None or args.regression_data_root is None:
+            raise ValueError("Recipe-backed M3 training requires explicit regression manifest and data root")
+        selector_configs = list(recipe_config.get("evaluationManifests", []))
+        regression_configs = list(recipe_config.get("regressionManifests", []))
+        if len(selector_configs) != 1 or len(regression_configs) != 1:
+            raise ValueError("M3 requires exactly one selector and one regression manifest")
+        selector_config = dict(selector_configs[0])
+        regression_config = dict(regression_configs[0])
+        require_repository_path(validation_manifest, str(selector_config["path"]), label="selector manifest")
+        require_repository_path(validation_data_root, str(selector_config["dataRoot"]), label="selector data root")
+        require_repository_path(args.regression_manifest, str(regression_config["path"]), label="regression manifest")
+        require_repository_path(args.regression_data_root, str(regression_config["dataRoot"]), label="regression data root")
     train_items = load_manifest(train_manifest, args.data_root)
     validation_items = load_manifest(validation_manifest, validation_data_root)
     single_view_sources = frozenset(str(source) for source in args.single_view_source)
     missing_single_view_sources = single_view_sources - {item.source for item in train_items}
     if missing_single_view_sources:
         raise ValueError(f"single-view sources are absent from training data: {sorted(missing_single_view_sources)}")
-    recipe_config = json.loads(args.recipe.read_text()) if args.recipe else None
     validation_gates = recipe_config.get("validationGates") if recipe_config else None
     selection_summary_hash: str | None = None
+    regression_items: list[Item] | None = None
+    regression_manifest: Path | None = None
+    regression_data_root: Path | None = None
+    regression_contract: dict[str, object] | None = None
     if recipe_config is not None:
         if int(recipe_config["expectedTotalCount"]) != len(train_items):
             raise ValueError("Training manifest count does not match recipe")
@@ -914,6 +1075,26 @@ def main() -> None:
             train_manifest,
             train_items,
         )
+        if recipe_config.get("regressionManifests"):
+            if args.regression_manifest is None or args.regression_data_root is None:
+                raise ValueError("Recipe-backed M3 training requires explicit regression manifest and data root")
+            regression_manifest = args.regression_manifest
+            regression_data_root = args.regression_data_root
+            regression_items = load_manifest(regression_manifest, regression_data_root)
+            regression_contract = require_partition_contract(
+                recipe_config,
+                selector_manifest=validation_manifest,
+                selector_data_root=validation_data_root,
+                selector_items=validation_items,
+                regression_manifest=regression_manifest,
+                regression_data_root=regression_data_root,
+                regression_items=regression_items,
+            )
+        elif args.regression_manifest is not None or args.regression_data_root is not None:
+            raise ValueError("Regression arguments are not declared by this recipe")
+    elif args.regression_manifest is not None or args.regression_data_root is not None:
+        raise ValueError("Regression arguments require a recipe-backed contract")
+    args.output_dir.mkdir(parents=True, exist_ok=True)
     feature_model = args.output_dir / "feature-model.onnx"
     upstream_weight, upstream_bias = make_feature_model(args.model, feature_model, args.batch_size)
     providers = {
@@ -941,6 +1122,13 @@ def main() -> None:
             feature_batch_size=args.batch_size,
         ),
     }
+    if regression_items is not None:
+        feature_configuration_hashes["regression"] = feature_configuration_hash(
+            training=False,
+            single_view_sources=frozenset(),
+            providers=provider_tuple,
+            feature_batch_size=args.batch_size,
+        )
     fresh_feature_marker = args.output_dir / "fresh-feature-run.json"
     fresh_feature_context = {
         "pipelineVersion": PIPELINE_VERSION,
@@ -948,6 +1136,11 @@ def main() -> None:
         "upstreamModelSha256": model_hash,
         "trainManifestSha256": digest(train_manifest),
         "validationManifestSha256": digest(validation_manifest),
+        "regressionManifestSha256": digest(regression_manifest) if regression_manifest else None,
+        "regressionDataRoot": str(regression_data_root) if regression_data_root else None,
+        "regressionFeatureViews": int(recipe_config["expectedRegressionFeatureViews"])
+        if recipe_config is not None and regression_items is not None
+        else None,
         "selectionSummarySha256": selection_summary_hash,
         "featureBatchSize": args.batch_size,
         "featureShardImages": args.feature_shard_images,
@@ -991,6 +1184,23 @@ def main() -> None:
         fresh_feature_run_id,
         feature_shard_evidence,
     )
+    regression: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None = None
+    if regression_items is not None and regression_manifest is not None:
+        regression = extract_or_load_sharded(
+            session,
+            regression_items,
+            regression_manifest,
+            args.output_dir / "features",
+            "regression",
+            model_hash,
+            args.batch_size,
+            False,
+            args.feature_shard_images,
+            frozenset(),
+            args.reextract_cached_features,
+            fresh_feature_run_id,
+            feature_shard_evidence,
+        )
     if recipe_config is not None and int(recipe_config["expectedTrainingFeatureViews"]) != int(train[0].shape[0]):
         raise ValueError("Extracted training feature-view count does not match recipe")
     if (
@@ -999,6 +1209,12 @@ def main() -> None:
         and int(recipe_config["expectedValidationFeatureViews"]) != int(validation[0].shape[0])
     ):
         raise ValueError("Extracted validation feature-view count does not match recipe")
+    if (
+        recipe_config is not None
+        and regression is not None
+        and int(recipe_config["expectedRegressionFeatureViews"]) != int(regression[0].shape[0])
+    ):
+        raise ValueError("Extracted regression feature-view count does not match recipe")
     device = torch.device("cuda" if args.execution_provider == "cuda" else "cpu")
     candidates: list[dict[str, object]] = []
     best: tuple[tuple[float, ...], np.ndarray, float, float, dict[str, object], dict[str, float]] | None = None
@@ -1026,28 +1242,41 @@ def main() -> None:
     if recipe_config is not None:
         if not passes_validation_gates(values, recipe_config["validationGates"]):
             raise RuntimeError("Selected candidate failed frozen validation gates")
+    regression_values: dict[str, object] | None = None
+    if regression is not None:
+        if recipe_config is None or recipe_config.get("regressionGates") is None:
+            raise ValueError("Regression features exist without frozen regression gates")
+        regression_values = evaluate_frozen_regression(
+            weight,
+            bias,
+            threshold,
+            regression,
+            dict(recipe_config["regressionGates"]),
+        )
     model_path = args.output_dir / "model.onnx"
     replace_classifier(args.model, model_path, weight, bias)
     exported_hash = digest(model_path)
     parity_session = ort.InferenceSession(str(model_path), providers=providers)
-    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
-        expected = validation[0] @ weight + bias
-    if not np.isfinite(expected).all():
-        raise RuntimeError("Selected classifier produced non-finite reference logits")
-    actual: list[np.ndarray] = []
-    images_per_batch = max(1, args.batch_size // len(VARIANTS))
-    with ThreadPoolExecutor(max_workers=min(8, images_per_batch)) as executor:
-        for offset in range(0, len(validation_items), images_per_batch):
-            batch_items = validation_items[offset : offset + images_per_batch]
-            views = list(executor.map(lambda item: preprocess_views(item, False), batch_items))
-            tensor = np.stack([pixels for item_views in views for pixels in item_views])
-            actual.append(np.asarray(parity_session.run(["logits"], {"pixel_values": tensor})[0]).reshape(-1))
-    actual_values = np.concatenate(actual)
-    if not np.isfinite(actual_values).all():
-        raise RuntimeError("Exported classifier produced non-finite ONNX logits")
-    max_error = float(np.max(np.abs(expected - actual_values)))
-    if not math.isfinite(max_error) or max_error > 2e-4:
-        raise RuntimeError(f"Export parity error too high: {max_error}")
+    export_parity = {
+        "selector": exported_parity_error(
+            parity_session,
+            validation_items,
+            validation[0],
+            weight,
+            bias,
+            args.batch_size,
+        )
+    }
+    if regression is not None and regression_items is not None:
+        export_parity["regression"] = exported_parity_error(
+            parity_session,
+            regression_items,
+            regression[0],
+            weight,
+            bias,
+            args.batch_size,
+        )
+    max_error = max(export_parity.values())
     calibration_intercept = math.log(DISPLAY_THRESHOLD / (1 - DISPLAY_THRESHOLD)) - threshold
     calibration = {
         "schemaVersion": 1,
@@ -1060,6 +1289,7 @@ def main() -> None:
         "modelSha256": exported_hash,
         "trainManifestSha256": digest(train_manifest),
         "validationManifestSha256": digest(validation_manifest),
+        "regressionManifestSha256": digest(regression_manifest) if regression_manifest else None,
         "selectionSummarySha256": selection_summary_hash,
     }
     source_counts = {
@@ -1073,7 +1303,7 @@ def main() -> None:
             fresh_feature_run_id,
         )
     summary = {
-        "schemaVersion": 1,
+        "schemaVersion": 2 if regression is not None else 1,
         "seed": SEED,
         "pipelineVersion": PIPELINE_VERSION,
         "trainerSha256": digest(Path(__file__)),
@@ -1083,11 +1313,14 @@ def main() -> None:
         "upstreamModelSha256": model_hash,
         "trainManifestSha256": digest(train_manifest),
         "validationManifestSha256": digest(validation_manifest),
+        "regressionManifestSha256": digest(regression_manifest) if regression_manifest else None,
         "trainImages": len(train_items),
         "validationImages": len(validation_items),
         "viewsPerImage": len(VARIANTS),
         "trainFeatureViews": int(train[0].shape[0]),
         "validationFeatureViews": int(validation[0].shape[0]),
+        "regressionImages": len(regression_items) if regression_items is not None else None,
+        "regressionFeatureViews": int(regression[0].shape[0]) if regression is not None else None,
         "sourceBalancedSampling": False,
         "sourceBalancedLoss": True,
         "trainingEpochs": TRAINING_EPOCHS,
@@ -1117,7 +1350,41 @@ def main() -> None:
         "selectionKey": best[0],
         "thresholdLogit": threshold,
         "variants": values,
-        "model": {"path": str(model_path), "bytes": model_path.stat().st_size, "sha256": exported_hash, "maxAbsParityError": max_error},
+        "selector": {
+            "manifestSha256": digest(validation_manifest),
+            "role": regression_contract["selectorRole"] if regression_contract else "validation-selection",
+            "images": len(validation_items),
+            "featureViews": int(validation[0].shape[0]),
+            "gates": recipe_config.get("validationGates") if recipe_config else None,
+            "gatesPassed": True,
+            "thresholdLogit": threshold,
+            "variants": values,
+        },
+        "regression": {
+            "manifestSha256": digest(regression_manifest),
+            "dataRoot": str(regression_data_root),
+            "role": regression_contract["regressionRole"],
+            "images": len(regression_items),
+            "featureViews": int(regression[0].shape[0]),
+            "gates": recipe_config.get("regressionGates") if recipe_config else None,
+            "gatesPassed": True,
+            "thresholdLogitFromSelector": threshold,
+            "variants": regression_values,
+            "selectionInfluenced": False,
+        }
+        if regression is not None
+        and regression_items is not None
+        and regression_manifest is not None
+        and regression_data_root is not None
+        and regression_contract is not None
+        else None,
+        "model": {
+            "path": str(model_path),
+            "bytes": model_path.stat().st_size,
+            "sha256": exported_hash,
+            "maxAbsParityError": max_error,
+            "maxAbsParityErrorByPartition": export_parity,
+        },
         "candidateCount": len(candidates),
         "validCandidateCount": sum("selectionKey" in candidate for candidate in candidates),
         "environment": {

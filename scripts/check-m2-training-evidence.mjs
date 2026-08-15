@@ -25,6 +25,11 @@ import {
   validateM2PublicDocumentation,
   validateM2TrainingPacket,
 } from "./m2-training-contract.mjs";
+import {
+  M3_BASE_COMMIT,
+  M3_LOCK_EXPECTED,
+  M3_SOURCE_EXPECTED,
+} from "./m3-stage-policy.mjs";
 
 const ROOT = "benchmark/evidence/m2";
 
@@ -58,13 +63,28 @@ function parseJson(bytes, pathname) {
 requireCondition(git(["status", "--porcelain=v1", "--untracked-files=all"]) === "",
   "M2 final verification requires a completely clean repository");
 const head = git(["rev-parse", "HEAD"]);
-const headRows = rowsForCommit(head);
-const fixtureRecovery = head !== M2_PUBLICATION_COMMIT &&
-  git(["rev-parse", "HEAD^"]) === M2_PUBLICATION_COMMIT &&
-  matchesExpectedRows(headRows, M2_BROWSER_FIXTURE_RECOVERY_EXPECTED);
-requireCondition(head === M2_PUBLICATION_COMMIT || fixtureRecovery,
+const headParent = git(["rev-parse", "HEAD^"]);
+const m3SourceHead = headParent === M3_BASE_COMMIT &&
+  matchesExpectedRows(rowsForCommit(head), M3_SOURCE_EXPECTED);
+const m3PinnedSource = !m3SourceHead && headParent !== M3_BASE_COMMIT
+  ? headParent
+  : null;
+const m3PinnedHead = m3PinnedSource !== null &&
+  git(["rev-parse", `${m3PinnedSource}^`]) === M3_BASE_COMMIT &&
+  matchesExpectedRows(rowsForCommit(m3PinnedSource), M3_SOURCE_EXPECTED) &&
+  matchesExpectedRows(rowsForCommit(head), M3_LOCK_EXPECTED);
+requireCondition(head === M3_BASE_COMMIT || m3SourceHead || m3PinnedHead,
+  "M2 historical verification only permits the frozen M2 head or exact M3 source/lock descendants");
+const m2EvidenceHead = (m3SourceHead || m3PinnedHead) ? M3_BASE_COMMIT : head;
+const m2EvidenceRows = rowsForCommit(m2EvidenceHead);
+const fixtureRecovery = m2EvidenceHead !== M2_PUBLICATION_COMMIT &&
+  git(["rev-parse", `${m2EvidenceHead}^`]) === M2_PUBLICATION_COMMIT &&
+  matchesExpectedRows(m2EvidenceRows, M2_BROWSER_FIXTURE_RECOVERY_EXPECTED);
+requireCondition(m2EvidenceHead === M2_PUBLICATION_COMMIT || fixtureRecovery,
   "M2 final head is neither the frozen publication nor its exact browser-fixture recovery");
-const publicationCommit = head === M2_PUBLICATION_COMMIT ? head : git(["rev-parse", "HEAD^"]);
+const publicationCommit = m2EvidenceHead === M2_PUBLICATION_COMMIT
+  ? m2EvidenceHead
+  : git(["rev-parse", `${m2EvidenceHead}^`]);
 const documentationRecoveryCommit = git(["rev-parse", `${publicationCommit}^`]);
 const checkerRecoveryCommit = git(["rev-parse", `${documentationRecoveryCommit}^`]);
 requireCondition(git(["rev-list", "--parents", "-n", "1", head]).split(" ").length === 2 &&
@@ -88,7 +108,7 @@ requireCondition(publicationCommit === M2_PUBLICATION_COMMIT &&
   matchesExpectedRows(rowsForCommit(publicationCommit), M2_PUBLICATION_EXPECTED),
   "M2 publication changed outside its exact eleven-path packet");
 if (fixtureRecovery) {
-  requireCondition(matchesExpectedRows(headRows, M2_BROWSER_FIXTURE_RECOVERY_EXPECTED),
+  requireCondition(matchesExpectedRows(m2EvidenceRows, M2_BROWSER_FIXTURE_RECOVERY_EXPECTED),
     "M2 browser-fixture recovery changed outside its exact seven-path packet");
 }
 requireCondition(!existsSync("docs/COMPETITOR_AUDIT.md"), "Competitor audit must remain absent");

@@ -1,0 +1,269 @@
+{
+  "baseTraining": {
+    "compressedSha256": "fc84b9646d9ee91ff5dd40e7a79b38226fa4e83418dfd5fce974aef7daf533d8",
+    "dataRoot": "benchmark/data/m2-head",
+    "expandedSha256": "0d180f36fa8e0c2f099743a325b5f25fb4ad7aa0565223abdc89ddf47190710a",
+    "items": 105978,
+    "manifest": "benchmark/evidence/m2/train-manifest.jsonl.gz",
+    "trainingEvaluationPerceptualReview": {
+      "items": 100,
+      "path": "benchmark/manifests/training-evaluation-perceptual-review.json",
+      "sha256": "5862357df084da42175d8130522b1e4c38bae0d0d8932406efd4682e2569eec4"
+    }
+  },
+  "carriedForwardM2PerceptualReview": {
+    "path": "benchmark/manifests/training-evaluation-perceptual-review.json",
+    "policy": "The unchanged M2 prefix carries forward these previously reviewed visually distinct pairs; none comes from the new M3 rows.",
+    "reviewedPairCount": 100,
+    "sha256": "5862357df084da42175d8130522b1e4c38bae0d0d8932406efd4682e2569eec4"
+  },
+  "classCounts": {
+    "real": 57178,
+    "synthetic": 51200
+  },
+  "consumedDevelopmentRowsUsedForSelection": false,
+  "counts": {
+    "consumedMetProbe": 100,
+    "h3MetHoldout": 600,
+    "regression": 900,
+    "regressionFeatureViews": 3600,
+    "total": 108378,
+    "trainingFeatureViews": 133512,
+    "validation": 600,
+    "validationFeatureViews": 2400
+  },
+  "developmentProbeManifestSha256": "2da5abe33177c593b6e03d4448be37f1782e59a148a2a37903b8715724108282",
+  "evaluationExclusions": [
+    {
+      "dataRoot": "benchmark/data/m3-head",
+      "path": "benchmark/evidence/m3/validation-manifest.jsonl",
+      "role": "fresh-m3-selection-validation",
+      "rows": 600,
+      "sha256": "86b7b9119fc7a118ee8b0a85e1a6b7dce6635154b3eff49cc1197b9d40fca2ff"
+    },
+    {
+      "dataRoot": "benchmark/data/h3-dev/met",
+      "path": "benchmark/manifests/met-development-probe-v1.jsonl",
+      "role": "consumed-met-development-probe",
+      "rows": 100,
+      "sha256": "2da5abe33177c593b6e03d4448be37f1782e59a148a2a37903b8715724108282"
+    },
+    {
+      "dataRoot": "benchmark/data/h3-met-holdout-v1",
+      "path": "benchmark/evidence/m3/h3-met-holdout-manifest.jsonl",
+      "role": "untouched-h3-met-holdout",
+      "rows": 600,
+      "sha256": "50574778ab0d58f839f1dccc3c99da5f6dca98150186f13aeca8d9ba052e9547"
+    },
+    {
+      "dataRoot": "benchmark/data",
+      "path": "benchmark/manifests/test.jsonl",
+      "role": "consumed-v1-confirmatory",
+      "rows": 600,
+      "sha256": "28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae"
+    },
+    {
+      "dataRoot": "benchmark/data/web-negative",
+      "path": "benchmark/manifests/web-negative.jsonl",
+      "role": "frozen-v1-web-negative",
+      "rows": 319,
+      "sha256": "ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824"
+    },
+    {
+      "dataRoot": "benchmark/data/replacement-v2",
+      "path": "benchmark/manifests/test-v2.jsonl",
+      "role": "consumed-v2-confirmatory",
+      "rows": 600,
+      "sha256": "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8"
+    },
+    {
+      "dataRoot": "benchmark/data/replacement-v2",
+      "path": "benchmark/manifests/web-negative-v2.jsonl",
+      "role": "consumed-v2-web-negative",
+      "rows": 319,
+      "sha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9"
+    }
+  ],
+  "exclusionCountsBeforeProbe": {
+    "ids": 109616,
+    "imageSha256": 109616,
+    "perceptualDhash64": 109616,
+    "sourceGroupIds": 107137
+  },
+  "fluxSourceIndexExpandedSha256": "1b878d530f50ddf3a2a0db9498daa53e7b5ee36236af9ffe30e0a406076dc64c",
+  "historicalCounts": {
+    "ids": 106019,
+    "imageSha256": 106019,
+    "perceptualDhash64": 106019,
+    "sourceGroupIds": 103540
+  },
+  "holdoutManifestSha256": "50574778ab0d58f839f1dccc3c99da5f6dca98150186f13aeca8d9ba052e9547",
+  "holdoutReservedBeforeTrainingSelection": true,
+  "manifestSha256": "a0cb9994018b44fa958e312816460b15b5fbab43d489e75b1a9f5647bd70d261",
+  "materializationRejectCounts": {
+    "imageSha256": 4,
+    "perceptualDhash64": 758,
+    "source-policy-or-download": 83
+  },
+  "metCsvPolicyRejectCounts": {
+    "missing-primary-image-small": 5809,
+    "not-in-official-policy-pool": 187164,
+    "not-public-domain": 236484,
+    "too-recent": 376
+  },
+  "newM3OverlapWithEvaluation": {
+    "ids": 0,
+    "imageHashes": 0,
+    "perceptualDhashPairsAtOrBelowThreshold": 0,
+    "policy": "Every new Met or FLUX cross-pool match at or below the frozen threshold was rejected; no exceptions were retained.",
+    "sourceGroupIds": 0
+  },
+  "overlapWithEvaluation": {
+    "ids": 0,
+    "imageHashes": 0,
+    "reviewedVisuallyDistinctDhashPairsAtOrBelowThreshold": 100,
+    "sourceGroupIds": 0,
+    "unreviewedPerceptualDhashPairsAtOrBelowThreshold": 0
+  },
+  "perceptualOverlapReview": {
+    "hammingThreshold": 8,
+    "path": "benchmark/evidence/m3/perceptual-review.json",
+    "reviewedPairCount": 0,
+    "sha256": "bf952628c07c4fc8738b58fd622a79cf51f595b91e4aa2f05f59aa16eee60827"
+  },
+  "publicArtifacts": {
+    "attribution": {
+      "path": "benchmark/evidence/m3/attribution.json",
+      "sha256": "9296cc864519e13973456bebe67851efa5f9c42ad1a47ee33fe896e7136c1c72"
+    },
+    "developmentProbeManifest": {
+      "path": "benchmark/manifests/met-development-probe-v1.jsonl",
+      "sha256": "2da5abe33177c593b6e03d4448be37f1782e59a148a2a37903b8715724108282"
+    },
+    "fluxSourceIndex": {
+      "compressedSha256": "5f5f075e578b0c4981b82382c32d58dbb02133b646f83e9aeeda53220f4d6059",
+      "expandedSha256": "1b878d530f50ddf3a2a0db9498daa53e7b5ee36236af9ffe30e0a406076dc64c",
+      "path": "benchmark/evidence/m3/flux-source-index.json.gz"
+    },
+    "h3MetHoldoutManifest": {
+      "path": "benchmark/evidence/m3/h3-met-holdout-manifest.jsonl",
+      "sha256": "50574778ab0d58f839f1dccc3c99da5f6dca98150186f13aeca8d9ba052e9547"
+    },
+    "perceptualReview": {
+      "path": "benchmark/evidence/m3/perceptual-review.json",
+      "sha256": "bf952628c07c4fc8738b58fd622a79cf51f595b91e4aa2f05f59aa16eee60827"
+    },
+    "rejects": {
+      "compressedSha256": "db6fd1a9def392a66edc7e82246fb15300800adf59c768c031b13cd5935f96ee",
+      "expandedSha256": "020837cf21253c04e48e47e3b4273d7877a67c7f3a8bdd046c2749551416c47d",
+      "path": "benchmark/evidence/m3/rejects.jsonl.gz"
+    },
+    "trainManifest": {
+      "compressedSha256": "87bcd95c92582760ec444acdd467be4b824251a5c4763260790717bbcbc2ced3",
+      "expandedSha256": "a0cb9994018b44fa958e312816460b15b5fbab43d489e75b1a9f5647bd70d261",
+      "path": "benchmark/evidence/m3/train-manifest.jsonl.gz"
+    },
+    "trainingEvaluationPerceptualReview": {
+      "path": "benchmark/evidence/m3/training-evaluation-perceptual-review.json",
+      "sha256": "5862357df084da42175d8130522b1e4c38bae0d0d8932406efd4682e2569eec4"
+    },
+    "validationManifest": {
+      "path": "benchmark/evidence/m3/validation-manifest.jsonl",
+      "sha256": "86b7b9119fc7a118ee8b0a85e1a6b7dce6635154b3eff49cc1197b9d40fca2ff"
+    }
+  },
+  "recipeSha256": "df3537f308c413fb37ed8771bcc420ae735dfa52ca7f8434f9085a0aab91129c",
+  "regressionValidation": {
+    "dataRoot": "benchmark/data/m2-head",
+    "featureViews": 3600,
+    "items": 900,
+    "manifest": "benchmark/evidence/m2/validation-manifest.jsonl",
+    "role": "consumed-m2-post-selection-regression",
+    "sha256": "a63953148040e1a4223f16fa04ebf4b85c4022da65531ead0b25ce46434eab93"
+  },
+  "schemaVersion": 3,
+  "scoresReadDuringSelection": false,
+  "selectionOrder": [
+    "h3-met-holdout",
+    "m3-met-development",
+    "m3-flux-development",
+    "m3-met-training"
+  ],
+  "selectorClassCounts": {
+    "real": 300,
+    "synthetic": 300
+  },
+  "selectorSourceCounts": {
+    "flux-1-dev-development": 300,
+    "met-open-access": 300
+  },
+  "sourceCounts": {
+    "FLUX.2-pro": 80,
+    "FLUX.2_max": 80,
+    "GPT-Image-1": 80,
+    "GPT-Image-1.5": 80,
+    "Imagen-4.0": 80,
+    "Imagen-4.0-Ultra": 80,
+    "Qwen-Image": 80,
+    "Qwen-Image-2.0-pro": 80,
+    "Qwen-Image-2512": 80,
+    "Seedream-4.0": 80,
+    "Seedream-4.5": 80,
+    "Seedream-5.0": 80,
+    "diffusiondb-stable-diffusion": 50000,
+    "docci-train": 1200,
+    "gpt-image-2": 80,
+    "met-open-access": 2400,
+    "nano-banana-2.0": 80,
+    "nano-banana-pro": 80,
+    "open-images": 1200,
+    "open-images-train": 50000,
+    "stockimages-cc0": 2378
+  },
+  "sourceLocks": {
+    "fluxSourceIndex": {
+      "compressedSha256": "5f5f075e578b0c4981b82382c32d58dbb02133b646f83e9aeeda53220f4d6059",
+      "dataset": "LukasT9/Flux-1-Dev-Images-1k",
+      "expandedSha256": "1b878d530f50ddf3a2a0db9498daa53e7b5ee36236af9ffe30e0a406076dc64c",
+      "revision": "ade8147d5f10bac016d691fd2b564e877e6315f7",
+      "rows": 1000
+    },
+    "metCsv": {
+      "bytes": 317650992,
+      "commit": "e901de145e60258542243571098245826a01fe47",
+      "path": "benchmark/data/h3-dev/met-source/MetObjects.csv",
+      "sha256": "de617b9c947458e426111207f81a65bd1379a151c0077d3ce29cfc22fc0b9183",
+      "url": "https://media.githubusercontent.com/media/metmuseum/openaccess/e901de145e60258542243571098245826a01fe47/MetObjects.csv"
+    },
+    "metImageMetadata": {
+      "bytes": 28227046,
+      "dataset": "metmuseum/openaccess",
+      "downloadUrl": "https://huggingface.co/datasets/metmuseum/openaccess/resolve/c65f8d6041aea7b3bc767a54d93772c3c6a365f6/source/metadata_images.csv.gz?download=true",
+      "path": "benchmark/data/m3-source/met/metadata_images.csv.gz",
+      "repositoryPath": "source/metadata_images.csv.gz",
+      "revision": "c65f8d6041aea7b3bc767a54d93772c3c6a365f6",
+      "sha256": "73c4bc4381e0a09ce9f199fda52568c92d9088337f1464fc4b3fead461410fbc",
+      "sourceReportedLicense": "CC0-1.0"
+    }
+  },
+  "trainingPerceptualOverlapReview": {
+    "hammingThreshold": 8,
+    "path": "benchmark/evidence/m3/training-evaluation-perceptual-review.json",
+    "reviewedPairCount": 100,
+    "sha256": "5862357df084da42175d8130522b1e4c38bae0d0d8932406efd4682e2569eec4"
+  },
+  "upstreamModel": {
+    "bytes": 87442080,
+    "finalizationReceipt": "benchmark/evidence/m2/finalization-receipt.json",
+    "finalizationReceiptSha256": "62c55bf9fd25e59e97d54db793131306c2d049fee0f30bf804ec5987d3dad91c",
+    "modelLock": "model-lock.json",
+    "modelLockSha256": "2a818b7b2582bc9614f02f178d9af997f46628734ea078a79415c3d68d3061f0",
+    "path": "weights/prooflens-cf384.onnx",
+    "selectionSummary": "benchmark/evidence/m2/selection-summary.json",
+    "selectionSummarySha256": "f619f334d3263c609262b90844d6dcefacbb4333a1b7c215b6d386d5f517bd0c",
+    "sha256": "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+    "trainingSummary": "benchmark/evidence/m2/training-summary.json",
+    "trainingSummarySha256": "c3d49719e50b1fbf5fdc9ba5b8c1df57712910af0f0284a3c3acdf6bad931c04"
+  },
+  "validationManifestSha256": "86b7b9119fc7a118ee8b0a85e1a6b7dce6635154b3eff49cc1197b9d40fca2ff"
+}
