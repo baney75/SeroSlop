@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { posix as path } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { readFile } from "node:fs/promises";
@@ -11,6 +12,7 @@ const VARIANTS = ["original", "screenshot", "social-q75", "social-heavy"];
 const VALIDATION_SYNTHETIC_SOURCES = ["GLM-Image", "HunyuanImage-3.0"];
 const UPSTREAM_MODEL_SHA256 = "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1";
 const M1_TRAINER_SHA256 = "6a4199d2be6fead9a10c483ce4c9648951d87ae18721499cc42a98db5f05bf56";
+const M1_SOURCE_COMMIT = "1323c10a151bdd0b96640962b447607371607b90";
 const EXPECTED_TRAINING_ARGUMENTS = [
   "--model", "benchmark/candidates/upstream-cf384.onnx",
   "--expected-model-sha256", UPSTREAM_MODEL_SHA256,
@@ -76,6 +78,13 @@ function requireCondition(condition, message) {
 
 function digest(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+function committedBytes(pathname) {
+  return execFileSync("git", ["show", `${M1_SOURCE_COMMIT}:${pathname}`], {
+    encoding: null,
+    maxBuffer: 128 * 1024 * 1024,
+  });
 }
 
 function parseJson(bytes, file) {
@@ -509,11 +518,13 @@ requireCondition(selected === deterministicBest,
   "Selected candidate is not the deterministic lexicographic maximum (stable grid order breaks ties)");
 requireVariantGates(trainingSummary.variants, recipe.validationGates, "selected candidate");
 
-const shippedModelBytes = await readFile("weights/prooflens-cf384.onnx");
+// M1 becomes immutable historical evidence after M2 promotion. Read its shipped
+// bytes from the public v3 source commit instead of reinterpreting the current model.
+const shippedModelBytes = committedBytes("weights/prooflens-cf384.onnx");
 const shippedModelSha256 = digest(shippedModelBytes);
-const modelLockBytes = await readFile("model-lock.json");
+const modelLockBytes = committedBytes("model-lock.json");
 const modelLock = parseJson(modelLockBytes, "model-lock.json");
-const weightsReadmeBytes = await readFile("weights/README.md");
+const weightsReadmeBytes = committedBytes("weights/README.md");
 const expectedTrainingRecipe = `prooflens-cf384-large-head-v1:${digest(recipeBytes)}:${selectionSummarySha256}`;
 requireCondition(modelLock.schemaVersion === 2 && modelLock.artifact === "weights/prooflens-cf384.onnx" &&
   modelLock.bytes === shippedModelBytes.length && modelLock.sha256 === shippedModelSha256 &&
@@ -632,6 +643,7 @@ console.log(JSON.stringify({
     validCandidates: validCandidates.length,
     modelSha256: shippedModelSha256,
     classifierOnly: true,
+    historicalSourceCommit: M1_SOURCE_COMMIT,
   },
   policy: "pass",
 }));

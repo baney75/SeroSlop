@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { classifyReleaseStage, FREEZE_PATH, LEGACY_FREEZE_PATH } from "./release-stage-policy.mjs";
+import { classifyM2Stage } from "./m2-stage-policy.mjs";
 
 function git(arguments_) {
   return execFileSync("git", arguments_, { encoding: "utf8" }).trim();
@@ -17,10 +18,15 @@ if (additions.length > 1 || (freezeExists && additions.length !== 1)) {
   throw new Error("The pre-score freeze must have exactly one committed addition");
 }
 const stage = classifyReleaseStage({ freezeExists, head, freezeCommit: additions[0], legacyRecoverySource });
-const effectiveStage = m2SelectionExists && !m2TrainingExists ? "m2-source" : stage;
+const effectiveStage = classifyM2Stage({
+  selectionExists: m2SelectionExists,
+  trainingExists: m2TrainingExists,
+}) ?? stage;
 const script = effectiveStage === "m2-source"
   ? "verify:m2-source"
-  : (effectiveStage === "final" ? "verify:final" : "verify:pre-score");
+  : (effectiveStage === "m2-final"
+    ? "verify:m2-final"
+    : (effectiveStage === "final" ? "verify:final" : "verify:pre-score"));
 console.log(JSON.stringify({ stage: effectiveStage, script }));
 const result = spawnSync("npm", ["run", script], { stdio: "inherit" });
 if (result.error) throw result.error;

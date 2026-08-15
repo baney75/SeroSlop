@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import {
+  M2_FINALIZER_SOURCE_EXPECTED,
+  M2_RECOVERY_COMMIT,
+  matchesExpectedRows,
+} from "./m2-stage-policy.mjs";
 
 const F2_COMMIT = "163a4c8e0e56888b506be6ab3f2ed3f6d888f45b";
 const FAILED_SOURCE_COMMIT = "937605085ab8e4278c44591b174eb9b90eccacb2";
@@ -33,6 +38,7 @@ const RECOVERY_EXPECTED = new Map([
   ["benchmark/m2/test_prepare.py", "M"],
   ["scripts/check-m2-source-stage.mjs", "M"],
 ]);
+const M2_RECOVERY_TREE = "95e220071b0d1f03ffc460c2de8521cdded1640f";
 
 function requireCondition(condition, message) {
   if (!condition) throw new Error(message);
@@ -60,16 +66,28 @@ const failedRows = git(["diff-tree", "--no-commit-id", "--no-renames", "--name-s
 requireCondition(failedRows.length === FAILED_SOURCE_EXPECTED.size &&
   failedRows.every(([path, status]) => FAILED_SOURCE_EXPECTED.get(path) === status),
   "The failed M2 source commit changed outside its frozen 20-path packet");
-requireCondition(git(["rev-parse", "HEAD^"]) === FAILED_SOURCE_COMMIT,
-  "The repaired M2 source freeze must be the failed source commit's direct child");
-const rows = git(["diff-tree", "--no-commit-id", "--no-renames", "--name-status", "-r", head])
+requireCondition(git(["rev-parse", `${M2_RECOVERY_COMMIT}^`]) === FAILED_SOURCE_COMMIT &&
+  git(["rev-parse", `${M2_RECOVERY_COMMIT}^{tree}`]) === M2_RECOVERY_TREE,
+"The repaired M2 source commit no longer has its frozen parent or tree");
+const recoveryRows = git(["diff-tree", "--no-commit-id", "--no-renames", "--name-status", "-r", M2_RECOVERY_COMMIT])
   .split("\n").filter(Boolean).map((line) => {
     const [status, path] = line.split("\t");
     return [path, status];
   });
-requireCondition(rows.length === RECOVERY_EXPECTED.size &&
-  rows.every(([path, status]) => RECOVERY_EXPECTED.get(path) === status),
+requireCondition(matchesExpectedRows(recoveryRows, RECOVERY_EXPECTED),
   "The M2 source recovery changed an unexpected path or status");
+let sourceRows = [];
+if (head !== M2_RECOVERY_COMMIT) {
+  requireCondition(git(["rev-parse", "HEAD^"]) === M2_RECOVERY_COMMIT,
+    "The M2 finalizer source must be the repaired source commit's direct child");
+  sourceRows = git(["diff-tree", "--no-commit-id", "--no-renames", "--name-status", "-r", head])
+    .split("\n").filter(Boolean).map((line) => {
+      const [status, path] = line.split("\t");
+      return [path, status];
+    });
+  requireCondition(matchesExpectedRows(sourceRows, M2_FINALIZER_SOURCE_EXPECTED),
+    "The M2 finalizer source changed outside its frozen source-only packet");
+}
 requireCondition(digest(readFileSync(F2_FAILURE_RECEIPT)) === F2_FAILURE_SHA256,
   "The consumed v2 failure receipt changed");
 for (const path of [
@@ -83,10 +101,11 @@ requireCondition(!existsSync("docs/COMPETITOR_AUDIT.md"), "Competitor audit must
 
 console.log(JSON.stringify({
   head,
-  parent: FAILED_SOURCE_COMMIT,
+  parent: head === M2_RECOVERY_COMMIT ? FAILED_SOURCE_COMMIT : M2_RECOVERY_COMMIT,
   failedSourceParent: F2_COMMIT,
   failedSourcePaths: failedRows.length,
-  recoveryPaths: rows.length,
+  recoveryPaths: recoveryRows.length,
+  finalizerSourcePaths: sourceRows.length,
   stage: "m2-source",
   policy: "pass",
 }));

@@ -32,6 +32,7 @@ from fresh_feature_run import (  # noqa: E402
     marker_sha256,
     open_or_create_fresh_feature_run,
 )
+import finalize_training_evidence as finalizer  # noqa: E402
 from finalize_training_evidence import build_model_lock, publish_with_rollback  # noqa: E402
 from prediction_contract import require_logit_probability_consistency, sigmoid_scalar  # noqa: E402
 
@@ -756,6 +757,116 @@ class IntegrityContractsTest(unittest.TestCase):
             self.assertEqual(first_target.read_bytes(), b"old")
             self.assertFalse(second_target.exists())
 
+    def test_publication_rolls_back_when_replacement_raises_after_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "published" / "model.bin"
+            target.parent.mkdir()
+            target.write_bytes(b"old")
+            stage = root / "model.stage"
+            stage.write_bytes(b"new")
+            original_replace = finalizer.replace_from_stage
+
+            def replace_then_interrupt(source: Path, destination: Path) -> None:
+                original_replace(source, destination)
+                if source == stage:
+                    raise KeyboardInterrupt("injected post-replace interruption")
+
+            finalizer.replace_from_stage = replace_then_interrupt
+            try:
+                with self.assertRaises(KeyboardInterrupt):
+                    publish_with_rollback([(stage, target)], root / "backups")
+            finally:
+                finalizer.replace_from_stage = original_replace
+            self.assertEqual(target.read_bytes(), b"old")
+
+    def test_publication_rejects_duplicate_destination_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "published.bin"
+            target.write_bytes(b"old")
+            first = root / "first.stage"
+            second = root / "second.stage"
+            first.write_bytes(b"first")
+            second.write_bytes(b"second")
+            with self.assertRaisesRegex(ValueError, "Duplicate publication target"):
+                publish_with_rollback([(first, target), (second, target)], root / "backups")
+            self.assertEqual(target.read_bytes(), b"old")
+
+    def test_finalizer_rejects_nonfinite_and_boolean_gate_metrics(self) -> None:
+        gates = {
+            "minimumBalancedAccuracyPerVariant": 0.85,
+            "minimumRealRecallPerVariant": 0.85,
+            "minimumSyntheticRecallPerVariant": 0.75,
+            "minimumSyntheticRecallPerFamily": 0.6,
+            "minimumRealRecallBySource": {"stockimages-cc0": 0.93},
+        }
+        valid_metrics = {
+            variant: {
+                "balancedAccuracy": 0.95,
+                "realRecall": 0.95,
+                "syntheticRecall": 0.95,
+                "syntheticRecallBySource": {"GLM-Image": 0.9},
+                "realRecallBySource": {"stockimages-cc0": 0.95},
+            }
+            for variant in finalizer.VARIANTS
+        }
+        finalizer.require_variant_gates(valid_metrics, gates, label="fixture")
+        for invalid in (float("nan"), float("inf"), float("-inf"), True):
+            malformed = json.loads(json.dumps(valid_metrics))
+            malformed["original"]["balancedAccuracy"] = invalid
+            with self.assertRaisesRegex(ValueError, "minimumBalancedAccuracyPerVariant"):
+                finalizer.require_variant_gates(malformed, gates, label="fixture")
+            self.assertFalse(finalizer.finite_number(invalid))
+
+    def test_m2_publication_profile_is_closed_to_reviewed_paths_and_hashes(self) -> None:
+        profile = finalizer.PROFILES["m2"]
+        self.assertEqual(profile.identity, "prooflens-cf384-m2-head-v1")
+        self.assertEqual(profile.candidate_dir, Path("benchmark/candidates/prooflens-cf384-m2"))
+        self.assertEqual(profile.recipe, Path("benchmark/m2/recipe.json"))
+        self.assertEqual(profile.selection_summary, Path("benchmark/evidence/m2/selection-summary.json"))
+        self.assertEqual(profile.evidence_dir, Path("benchmark/evidence/m2"))
+        self.assertEqual(
+            profile.expected_model_sha256,
+            "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+        )
+        self.assertEqual(
+            profile.expected_model_comparison_sha256,
+            "7e037912f28a69ac7ea9620471f1410b7b1ab445b7bb30ce9d7bdbe0c24f96ac",
+        )
+
+    def test_finalizer_rejects_non_classifier_model_comparison(self) -> None:
+        comparison = {
+            "schemaVersion": 1,
+            "base": {
+                "path": "benchmark/candidates/upstream-cf384.onnx",
+                "sha256": finalizer.UPSTREAM_SHA256,
+            },
+            "candidate": {
+                "path": "benchmark/candidates/prooflens-cf384-m2/model.onnx",
+                "sha256": finalizer.PROFILES["m2"].expected_model_sha256,
+                "bytes": 87_442_080,
+            },
+            "changedInitializers": [
+                {"name": "classifier.bias", "beforeSha256": "1" * 64,
+                 "afterSha256": "2" * 64, "dimensions": [1]},
+                {"name": "encoder.weight", "beforeSha256": "3" * 64,
+                 "afterSha256": "4" * 64, "dimensions": [384, 384]},
+            ],
+            "unchangedInitializerCount": 198,
+            "graphNodesSha256": "5" * 64,
+            "graphInputsSha256": "6" * 64,
+            "graphOutputsSha256": "7" * 64,
+            "opsetsSha256": "8" * 64,
+        }
+        with self.assertRaisesRegex(ValueError, "Classifier-only model comparison"):
+            finalizer.validate_model_comparison(
+                comparison,
+                profile=finalizer.PROFILES["m2"],
+                candidate_sha256=finalizer.PROFILES["m2"].expected_model_sha256,
+                candidate_bytes=87_442_080,
+            )
+
     def test_final_model_lock_binds_large_recipe_and_calibration(self) -> None:
         template = {
             "artifact": "weights/prooflens-cf384.onnx",
@@ -786,6 +897,44 @@ class IntegrityContractsTest(unittest.TestCase):
         self.assertEqual(lock["trainingEvidence"]["recipeSha256"], "c" * 64)
         self.assertEqual(lock["trainingEvidence"]["selectionSummarySha256"], "d" * 64)
         self.assertEqual(lock["calibration"]["displayThreshold"], 0.65)
+
+    def test_final_model_lock_binds_m2_profile_without_cross_writing_m1(self) -> None:
+        template = {
+            "artifact": "weights/prooflens-cf384.onnx",
+            "format": "ONNX FP32",
+            "input": {"name": "pixel_values"},
+            "output": {"name": "logits"},
+            "upstream": {"artifactSha256": "a" * 64},
+        }
+        lock = build_model_lock(
+            template,
+            candidate_sha256="b" * 64,
+            candidate_bytes=123,
+            calibration={
+                "slope": 1,
+                "intercept": 0.25,
+                "displayThreshold": 0.65,
+                "validationThresholdLogit": 0.3,
+            },
+            recipe_sha256="c" * 64,
+            selection_summary_sha256="d" * 64,
+            train_manifest_sha256="e" * 64,
+            training_summary_sha256="f" * 64,
+            calibration_sha256="1" * 64,
+            candidate_grid_sha256="2" * 64,
+            training_recipe_identity="prooflens-cf384-m2-head-v1",
+            recipe_path="benchmark/m2/recipe.json",
+            selection_summary_path="benchmark/evidence/m2/selection-summary.json",
+        )
+        self.assertEqual(
+            lock["trainingRecipe"],
+            f"prooflens-cf384-m2-head-v1:{'c' * 64}:{'d' * 64}",
+        )
+        self.assertEqual(lock["trainingEvidence"]["recipe"], "benchmark/m2/recipe.json")
+        self.assertEqual(
+            lock["trainingEvidence"]["selectionSummary"],
+            "benchmark/evidence/m2/selection-summary.json",
+        )
 
 
 if __name__ == "__main__":
