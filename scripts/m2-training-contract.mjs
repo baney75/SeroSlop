@@ -377,3 +377,44 @@ export function validateM2PublicationMetadata({
     jsonEqual(receipt.publishedRepositorySha256, repositoryHashes),
   "M2 finalization receipt changed");
 }
+
+export function validateM2OnnxEvidence({ upstreamStructure, shippedStructure, comparison }) {
+  for (const name of ["graphNodesSha256", "graphInputsSha256", "graphOutputsSha256", "opsetsSha256"]) {
+    requireCondition(shippedStructure[name] === upstreamStructure[name],
+      `M2 shipped ONNX ${name} changed`);
+    requireCondition(HEX64.test(comparison[name] ?? ""),
+      `M2 Python comparison ${name} is malformed`);
+  }
+  requireCondition(Array.isArray(upstreamStructure.initializers) &&
+    Array.isArray(shippedStructure.initializers) && upstreamStructure.initializers.length === 200 &&
+    shippedStructure.initializers.length === 200, "M2 ONNX initializer count changed");
+  const upstreamByName = new Map(upstreamStructure.initializers.map((row) => [row.name, row]));
+  requireCondition(upstreamByName.size === 200, "M2 upstream ONNX contains duplicate initializers");
+  const independentlyChanged = [];
+  for (const initializer of shippedStructure.initializers) {
+    const upstream = upstreamByName.get(initializer.name);
+    requireCondition(upstream && jsonEqual(initializer.dimensions, upstream.dimensions),
+      `M2 initializer shape changed: ${initializer.name}`);
+    if (initializer.sha256 !== upstream.sha256) independentlyChanged.push({
+      name: initializer.name,
+      dimensions: initializer.dimensions,
+    });
+  }
+  requireCondition(jsonEqual(independentlyChanged.map((row) => row.name).sort(),
+    ["classifier.bias", "classifier.weight"]), "M2 changed initializers outside the classifier head");
+  requireCondition(Array.isArray(comparison.changedInitializers) && comparison.changedInitializers.length === 2,
+    "M2 Python comparison changed-initializer count is malformed");
+  const comparisonByName = new Map(comparison.changedInitializers.map((row) => [row.name, row]));
+  requireCondition(comparisonByName.size === 2, "M2 Python comparison contains duplicate initializers");
+  for (const row of independentlyChanged) {
+    const recorded = comparisonByName.get(row.name);
+    requireCondition(recorded && jsonEqual(recorded.dimensions, row.dimensions) &&
+      HEX64.test(recorded.beforeSha256 ?? "") && HEX64.test(recorded.afterSha256 ?? "") &&
+      recorded.beforeSha256 !== recorded.afterSha256,
+    `M2 Python comparison is malformed: ${row.name}`);
+  }
+  // Python and onnxruntime-web use different protobuf serialization domains.
+  // Each domain proves base-to-candidate equality independently; their digests
+  // must not be compared byte-for-byte across implementations.
+  return independentlyChanged;
+}

@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { inspectOnnxStructure } from "./onnx-structure.mjs";
 import {
+  M2_CHECKER_RECOVERY_EXPECTED,
+  M2_FINALIZER_SOURCE_COMMIT,
   M2_FINALIZER_SOURCE_EXPECTED,
   M2_PUBLICATION_EXPECTED,
   M2_RECOVERY_COMMIT,
@@ -14,6 +16,7 @@ import {
   jsonEqual,
   requireCondition,
   validateM2PublicationMetadata,
+  validateM2OnnxEvidence,
   validateM2TrainingPacket,
 } from "./m2-training-contract.mjs";
 
@@ -49,14 +52,18 @@ function parseJson(bytes, pathname) {
 requireCondition(git(["status", "--porcelain=v1", "--untracked-files=all"]) === "",
   "M2 final verification requires a completely clean repository");
 const head = git(["rev-parse", "HEAD"]);
-const sourceCommit = git(["rev-parse", "HEAD^"]);
+const checkerRecoveryCommit = git(["rev-parse", "HEAD^"]);
 requireCondition(git(["rev-list", "--parents", "-n", "1", head]).split(" ").length === 2 &&
-  git(["rev-list", "--parents", "-n", "1", sourceCommit]).split(" ").length === 2,
-"M2 source and publication commits must each have one direct parent");
-requireCondition(git(["rev-parse", `${sourceCommit}^`]) === M2_RECOVERY_COMMIT,
+  git(["rev-list", "--parents", "-n", "1", checkerRecoveryCommit]).split(" ").length === 2 &&
+  git(["rev-list", "--parents", "-n", "1", M2_FINALIZER_SOURCE_COMMIT]).split(" ").length === 2,
+"M2 source, checker recovery, and publication commits must each have one direct parent");
+requireCondition(git(["rev-parse", `${M2_FINALIZER_SOURCE_COMMIT}^`]) === M2_RECOVERY_COMMIT,
   "M2 finalizer source is not the repaired M2 source commit's direct child");
-requireCondition(matchesExpectedRows(rowsForCommit(sourceCommit), M2_FINALIZER_SOURCE_EXPECTED),
+requireCondition(matchesExpectedRows(rowsForCommit(M2_FINALIZER_SOURCE_COMMIT), M2_FINALIZER_SOURCE_EXPECTED),
   "M2 finalizer source changed outside its frozen source-only packet");
+requireCondition(git(["rev-parse", `${checkerRecoveryCommit}^`]) === M2_FINALIZER_SOURCE_COMMIT &&
+  matchesExpectedRows(rowsForCommit(checkerRecoveryCommit), M2_CHECKER_RECOVERY_EXPECTED),
+"M2 checker recovery changed outside its direct six-path packet");
 requireCondition(matchesExpectedRows(rowsForCommit(head), M2_PUBLICATION_EXPECTED),
   "M2 publication changed outside its exact eight-path packet");
 requireCondition(!existsSync("docs/COMPETITOR_AUDIT.md"), "Competitor audit must remain absent");
@@ -136,39 +143,13 @@ requireCondition(upstreamStructure.schemaVersion === 1 &&
   Array.isArray(upstreamStructure.initializers) && upstreamStructure.initializers.length === 200,
 "Pinned upstream ONNX structure changed");
 const shippedStructure = inspectOnnxStructure(entries.model);
-for (const name of ["graphNodesSha256", "graphInputsSha256", "graphOutputsSha256", "opsetsSha256"]) {
-  requireCondition(shippedStructure[name] === upstreamStructure[name] && comparison[name] === shippedStructure[name],
-    `M2 shipped ONNX ${name} changed`);
-}
-const upstreamByName = new Map(upstreamStructure.initializers.map((row) => [row.name, row]));
-requireCondition(upstreamByName.size === 200 && shippedStructure.initializers.length === 200,
-  "M2 shipped ONNX initializer count changed");
-const independentlyChanged = [];
-for (const initializer of shippedStructure.initializers) {
-  const upstream = upstreamByName.get(initializer.name);
-  requireCondition(upstream && jsonEqual(initializer.dimensions, upstream.dimensions),
-    `M2 initializer shape changed: ${initializer.name}`);
-  if (initializer.sha256 !== upstream.sha256) independentlyChanged.push({
-    name: initializer.name,
-    dimensions: initializer.dimensions,
-    beforeSha256: upstream.sha256,
-    afterSha256: initializer.sha256,
-  });
-}
-requireCondition(jsonEqual(independentlyChanged.map((row) => row.name).sort(),
-  ["classifier.bias", "classifier.weight"]), "M2 changed initializers outside the classifier head");
-const comparisonByName = new Map(comparison.changedInitializers.map((row) => [row.name, row]));
-for (const row of independentlyChanged) {
-  const recorded = comparisonByName.get(row.name);
-  requireCondition(recorded && jsonEqual(recorded.dimensions, row.dimensions) &&
-    recorded.beforeSha256 === row.beforeSha256 && recorded.afterSha256 === row.afterSha256,
-  `M2 comparison does not match independent ONNX evidence: ${row.name}`);
-}
+validateM2OnnxEvidence({ upstreamStructure, shippedStructure, comparison });
 
 console.log(JSON.stringify({
   stage: "m2-final",
   head,
-  sourceCommit,
+  finalizerSourceCommit: M2_FINALIZER_SOURCE_COMMIT,
+  checkerRecoveryCommit,
   modelSha256: M2.modelSha256,
   trainingSummarySha256: M2.trainingSummarySha256,
   calibrationSha256: M2.calibrationSha256,

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  M2_CHECKER_RECOVERY_EXPECTED,
   M2_FINALIZER_SOURCE_EXPECTED,
   M2_PUBLICATION_EXPECTED,
   classifyM2Stage,
@@ -16,6 +17,7 @@ assert.throws(
 
 const sourceRows = [...M2_FINALIZER_SOURCE_EXPECTED].map(([pathname, status]) => [pathname, status]);
 const publicationRows = [...M2_PUBLICATION_EXPECTED].map(([pathname, status]) => [pathname, status]);
+const checkerRecoveryRows = [...M2_CHECKER_RECOVERY_EXPECTED].map(([pathname, status]) => [pathname, status]);
 assert.equal(matchesExpectedRows(sourceRows, M2_FINALIZER_SOURCE_EXPECTED), true);
 assert.equal(matchesExpectedRows(sourceRows.slice(1), M2_FINALIZER_SOURCE_EXPECTED), false);
 assert.equal(matchesExpectedRows([...sourceRows, ["README.md", "M"]], M2_FINALIZER_SOURCE_EXPECTED), false);
@@ -28,6 +30,8 @@ assert.equal(matchesExpectedRows(
   M2_FINALIZER_SOURCE_EXPECTED,
 ), false);
 assert.equal(matchesExpectedRows(publicationRows, M2_PUBLICATION_EXPECTED), true);
+assert.equal(matchesExpectedRows(checkerRecoveryRows, M2_CHECKER_RECOVERY_EXPECTED), true);
+assert.equal(matchesExpectedRows(checkerRecoveryRows.slice(1), M2_CHECKER_RECOVERY_EXPECTED), false);
 assert.equal(matchesExpectedRows(
   publicationRows.map(([pathname, status]) => [
     pathname === "weights/prooflens-cf384.onnx" ? "benchmark/evidence/large/training-summary.json" : pathname,
@@ -36,4 +40,4 @@ assert.equal(matchesExpectedRows(
   M2_PUBLICATION_EXPECTED,
 ), false);
 
-console.log(JSON.stringify({ cases: 11, policy: "pass" }));
+console.log(JSON.stringify({ cases: 13, policy: "pass" }));

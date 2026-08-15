@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import {
+  M2_CHECKER_RECOVERY_EXPECTED,
+  M2_FINALIZER_SOURCE_COMMIT,
   M2_FINALIZER_SOURCE_EXPECTED,
   M2_RECOVERY_COMMIT,
   matchesExpectedRows,
@@ -76,17 +78,28 @@ const recoveryRows = git(["diff-tree", "--no-commit-id", "--no-renames", "--name
   });
 requireCondition(matchesExpectedRows(recoveryRows, RECOVERY_EXPECTED),
   "The M2 source recovery changed an unexpected path or status");
-let sourceRows = [];
-if (head !== M2_RECOVERY_COMMIT) {
-  requireCondition(git(["rev-parse", "HEAD^"]) === M2_RECOVERY_COMMIT,
-    "The M2 finalizer source must be the repaired source commit's direct child");
-  sourceRows = git(["diff-tree", "--no-commit-id", "--no-renames", "--name-status", "-r", head])
+requireCondition(git(["rev-parse", `${M2_FINALIZER_SOURCE_COMMIT}^`]) === M2_RECOVERY_COMMIT,
+  "The M2 finalizer source no longer has the repaired source commit as its parent");
+const sourceRows = git([
+  "diff-tree", "--no-commit-id", "--no-renames", "--name-status", "-r", M2_FINALIZER_SOURCE_COMMIT,
+])
+  .split("\n").filter(Boolean).map((line) => {
+    const [status, path] = line.split("\t");
+    return [path, status];
+  });
+requireCondition(matchesExpectedRows(sourceRows, M2_FINALIZER_SOURCE_EXPECTED),
+  "The M2 finalizer source changed outside its frozen source-only packet");
+let checkerRecoveryRows = [];
+if (head !== M2_FINALIZER_SOURCE_COMMIT) {
+  requireCondition(git(["rev-parse", "HEAD^"]) === M2_FINALIZER_SOURCE_COMMIT,
+    "The M2 checker recovery must be the finalizer source commit's direct child");
+  checkerRecoveryRows = git(["diff-tree", "--no-commit-id", "--no-renames", "--name-status", "-r", head])
     .split("\n").filter(Boolean).map((line) => {
       const [status, path] = line.split("\t");
       return [path, status];
     });
-  requireCondition(matchesExpectedRows(sourceRows, M2_FINALIZER_SOURCE_EXPECTED),
-    "The M2 finalizer source changed outside its frozen source-only packet");
+  requireCondition(matchesExpectedRows(checkerRecoveryRows, M2_CHECKER_RECOVERY_EXPECTED),
+    "The M2 checker recovery changed outside its frozen six-path packet");
 }
 requireCondition(digest(readFileSync(F2_FAILURE_RECEIPT)) === F2_FAILURE_SHA256,
   "The consumed v2 failure receipt changed");
@@ -101,11 +114,12 @@ requireCondition(!existsSync("docs/COMPETITOR_AUDIT.md"), "Competitor audit must
 
 console.log(JSON.stringify({
   head,
-  parent: head === M2_RECOVERY_COMMIT ? FAILED_SOURCE_COMMIT : M2_RECOVERY_COMMIT,
+  parent: head === M2_FINALIZER_SOURCE_COMMIT ? M2_RECOVERY_COMMIT : M2_FINALIZER_SOURCE_COMMIT,
   failedSourceParent: F2_COMMIT,
   failedSourcePaths: failedRows.length,
   recoveryPaths: recoveryRows.length,
   finalizerSourcePaths: sourceRows.length,
+  checkerRecoveryPaths: checkerRecoveryRows.length,
   stage: "m2-source",
   policy: "pass",
 }));

@@ -10,6 +10,7 @@ import {
   M2_VARIANTS,
   digest,
   validateM2PublicationMetadata,
+  validateM2OnnxEvidence,
   validateM2TrainingPacket,
 } from "./m2-training-contract.mjs";
 
@@ -278,4 +279,59 @@ const missingComparison = clone(publication);
 delete missingComparison.receipt.publishedEvidenceSha256["model-comparison.json"];
 assert.throws(() => validateM2PublicationMetadata(missingComparison), /receipt changed/u);
 
-console.log(JSON.stringify({ cases: 14, policy: "pass" }));
+const upstreamInitializers = Array.from({ length: 198 }, (_, index) => ({
+  name: `encoder.${index}`,
+  dimensions: [1],
+  sha256: hash(`upstream-${index}`),
+})).concat([
+  { name: "classifier.bias", dimensions: [1], sha256: hash("js-upstream-bias") },
+  { name: "classifier.weight", dimensions: [1, 384], sha256: hash("js-upstream-weight") },
+]);
+const graphDigests = {
+  graphNodesSha256: hash("js-graph-nodes"),
+  graphInputsSha256: hash("js-graph-inputs"),
+  graphOutputsSha256: hash("js-graph-outputs"),
+  opsetsSha256: hash("js-opsets"),
+};
+const upstreamStructure = { ...graphDigests, initializers: upstreamInitializers };
+const shippedStructure = {
+  ...graphDigests,
+  initializers: upstreamInitializers.map((row) => ({
+    ...row,
+    sha256: row.name.startsWith("classifier.") ? hash(`js-candidate-${row.name}`) : row.sha256,
+  })),
+};
+const crossDomainComparison = {
+  graphNodesSha256: hash("python-graph-nodes"),
+  graphInputsSha256: hash("python-graph-inputs"),
+  graphOutputsSha256: hash("python-graph-outputs"),
+  opsetsSha256: hash("python-opsets"),
+  changedInitializers: [
+    {
+      name: "classifier.bias", dimensions: [1],
+      beforeSha256: hash("python-upstream-bias"), afterSha256: hash("python-candidate-bias"),
+    },
+    {
+      name: "classifier.weight", dimensions: [1, 384],
+      beforeSha256: hash("python-upstream-weight"), afterSha256: hash("python-candidate-weight"),
+    },
+  ],
+};
+validateM2OnnxEvidence({ upstreamStructure, shippedStructure, comparison: crossDomainComparison });
+const changedGraph = clone(shippedStructure);
+changedGraph.graphNodesSha256 = hash("changed-js-graph");
+assert.throws(() => validateM2OnnxEvidence({
+  upstreamStructure, shippedStructure: changedGraph, comparison: crossDomainComparison,
+}), /graphNodesSha256 changed/u);
+const extraInitializer = clone(shippedStructure);
+extraInitializer.initializers[0].sha256 = hash("changed-encoder");
+assert.throws(() => validateM2OnnxEvidence({
+  upstreamStructure, shippedStructure: extraInitializer, comparison: crossDomainComparison,
+}), /outside the classifier head/u);
+const wrongPythonShape = clone(crossDomainComparison);
+wrongPythonShape.changedInitializers[0].dimensions = [2];
+assert.throws(() => validateM2OnnxEvidence({
+  upstreamStructure, shippedStructure, comparison: wrongPythonShape,
+}), /comparison is malformed/u);
+
+console.log(JSON.stringify({ cases: 18, policy: "pass" }));
