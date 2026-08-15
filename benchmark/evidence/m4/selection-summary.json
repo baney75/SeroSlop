@@ -1,0 +1,4452 @@
+{
+  "freshSelector": {
+    "classCounts": {
+      "real": 300,
+      "synthetic": 300
+    },
+    "featureViews": 2400,
+    "items": 600,
+    "sourceCounts": {
+      "british-library-plates": 300,
+      "rapidata-dalle-3": 75,
+      "rapidata-flux": 75,
+      "rapidata-midjourney": 75,
+      "rapidata-stable-diffusion": 75
+    }
+  },
+  "h3ManifestSha256": "50574778ab0d58f839f1dccc3c99da5f6dca98150186f13aeca8d9ba052e9547",
+  "h3PixelsRead": false,
+  "modelOutputsRead": false,
+  "overlap": {
+    "admittedCrossPoolMatches": 0,
+    "exclusionCounts": {
+      "baseTrainingItems": 108378,
+      "explicitExclusionRows": 4038,
+      "historicalItems": 106019,
+      "uniqueIds": 113316,
+      "uniqueImageSha256": 113316,
+      "uniquePerceptualOwners": 113316,
+      "uniqueSourceGroups": 110837
+    },
+    "rejectCount": 488,
+    "reviewExceptions": 0,
+    "threshold": 8
+  },
+  "partitionGroups": {
+    "britishSelectorBooks": 300,
+    "britishTrainingBooks": 2400,
+    "rapidataPreOverlapReserveGroups": 43,
+    "rapidataSelectorPrompts": 75,
+    "rapidataTrainingGroupsRejectedMissingFamily": 3,
+    "rapidataTrainingImageLevelPerceptualRejects": 156,
+    "rapidataTrainingImages": 1784,
+    "rapidataTrainingImagesByFamily": {
+      "dalle-3": 456,
+      "flux": 443,
+      "mj": 457,
+      "stable_diffusion": 428
+    },
+    "rapidataTrainingPrompts": 120,
+    "rapidataUnassignedCompleteGroups": 20
+  },
+  "publicArtifacts": {
+    "attribution.json": {
+      "bytes": 1204,
+      "path": "benchmark/evidence/m4/attribution.json",
+      "sha256": "e534ca8128fed143a42e9b07dd3f48f6f4babd5ca9e637a59479331dbbd605ad"
+    },
+    "british-source-index.json": {
+      "bytes": 2151010,
+      "compressedSha256": "1b1b45cd7f239f4b8e3563884fcbe33910688a7f9b49a0c9db473c43875f9718",
+      "expandedSha256": "8535dad8abef49174a914c59c3d77ffdb56050b083416a6b41f36fcd9f6c7610",
+      "path": "benchmark/evidence/m4/british-source-index.json.gz"
+    },
+    "perceptual-review.json": {
+      "bytes": 241,
+      "path": "benchmark/evidence/m4/perceptual-review.json",
+      "sha256": "bd493388dd0675de07eb1a0fea51ab21582148e1a2b478453d50d995038cfc88"
+    },
+    "rapidata-source-index.json": {
+      "bytes": 339549,
+      "compressedSha256": "0943c4f332492d24866130d6626127bf1d37ead72b25fff5b178da9ce7cb8ead",
+      "expandedSha256": "4671df085c19956d4ee5037b9b7da2a3d4779c0c8976b0f74ac609910d14bfae",
+      "path": "benchmark/evidence/m4/rapidata-source-index.json.gz"
+    },
+    "rejects.jsonl": {
+      "bytes": 17374,
+      "compressedSha256": "37d3d9abc026fef61ed416d8c4618e5e4bac4615d08813d8cc44a0af163aa6ef",
+      "expandedSha256": "260de72b012de9ca261b167d0f950d7b3086c8b0043a4b1076e6fa34fa4fd8cb",
+      "path": "benchmark/evidence/m4/rejects.jsonl.gz"
+    },
+    "train-manifest.jsonl": {
+      "bytes": 18906386,
+      "compressedSha256": "e5dfc79869541ae5c6703b60de250930f1fb8247790f55b67bb1805f5ac73a93",
+      "expandedSha256": "33ef93361be0da1b7942e5b3c15368e1cf1d87351fbaea214dab8c72e90cf43e",
+      "path": "benchmark/evidence/m4/train-manifest.jsonl.gz"
+    },
+    "validation-manifest.jsonl": {
+      "bytes": 666194,
+      "path": "benchmark/evidence/m4/validation-manifest.jsonl",
+      "sha256": "643eb365a603309b94b112403ef4250b565b9863d2ec61a5cc48aa80d5f85caa"
+    }
+  },
+  "recipeSha256": "a0bd95b146767160be4d4145643c8ff3beef79fb2fabb3838ef7eac7a4c9dd88",
+  "schemaVersion": 1,
+  "scoreBlind": true,
+  "selectionOrder": [
+    "british-selector",
+    "rapidata-selector",
+    "british-training",
+    "rapidata-training"
+  ],
+  "sourceEligibility": {
+    "britishLibrary": {
+      "eligibleCandidateRows": 18451,
+      "rejectedDateCounts": {
+        "1754": 1,
+        "1777": 13,
+        "Unknown": 595
+      },
+      "rejectedItems": [
+        {
+          "rawDate": "1754",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 271,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 272,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 273,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 274,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 275,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 276,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 277,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 278,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 279,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 280,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 281,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 282,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 283,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "1777",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 284,
+          "sourceShard": "plates/part-01622.parquet",
+          "sourceShardSha256": "da4d8ced9511594d8533a3524a5d7c3ee8caa25dccf143a5fe17d9f26b5d866c"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 0,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 1,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 2,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 3,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 4,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 5,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 6,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 7,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 8,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 9,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 10,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 11,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 12,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 13,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 14,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 15,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 16,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 17,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 18,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 19,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 20,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 21,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 22,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 23,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 24,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 25,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 26,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 27,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 28,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 29,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 30,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 31,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 32,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 33,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 34,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 35,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 36,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 37,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 38,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 39,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 40,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 41,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 42,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 43,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 44,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 45,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 46,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 47,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 48,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 49,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 50,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 51,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 52,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 53,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 54,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 55,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 56,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 57,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 58,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 59,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 60,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 61,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 62,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 63,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 64,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 65,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 66,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 67,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 68,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 69,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 70,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 71,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 72,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 73,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 74,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 75,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 76,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 77,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 78,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 79,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 80,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 81,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 82,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 83,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 84,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 85,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 86,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 87,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 88,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 89,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 90,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 91,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 92,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 93,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 94,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 95,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 96,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 97,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 98,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 99,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 100,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 101,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 102,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 103,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 104,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 105,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 106,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 107,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 108,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 109,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 110,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 111,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 112,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 113,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 114,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 115,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 116,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 117,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 118,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 119,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 120,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 121,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 122,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 123,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 124,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 125,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 126,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 127,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 128,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 129,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 130,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 131,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 132,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 133,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 134,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 135,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 136,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 137,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 138,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 139,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 140,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 141,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 142,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 143,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 144,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 145,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 146,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 147,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 148,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 149,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 150,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 151,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 152,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 153,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 154,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 155,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 156,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 157,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 158,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 159,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 160,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 161,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 162,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 163,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 164,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 165,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 166,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 167,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 168,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 169,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 170,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 171,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 172,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 173,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 174,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 175,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 176,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 177,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 178,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 179,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 180,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 181,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 182,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 183,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 184,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 185,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 186,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 187,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 188,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 189,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 190,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 191,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 192,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 193,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 194,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 195,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 196,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 197,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 198,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 199,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 200,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 201,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 202,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 203,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 204,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 205,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 206,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 207,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 208,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 209,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 210,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 211,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 212,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 213,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 214,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 215,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 216,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 217,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 218,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 219,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 220,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 221,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 222,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 223,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 224,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 225,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 226,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 227,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 228,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 229,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 230,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 231,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 232,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 233,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 234,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 235,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 236,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 237,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 238,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 239,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 240,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 241,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 242,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 243,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 244,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 245,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 246,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 247,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 248,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 249,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 250,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 251,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 252,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 253,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 254,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 255,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 256,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 257,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 258,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 259,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 260,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 261,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 262,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 263,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 264,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 265,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 266,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 267,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 268,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 269,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 270,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 271,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 272,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 273,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 274,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 275,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 276,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 277,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 278,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 279,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 280,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 281,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 282,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 283,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 284,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 285,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 286,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 287,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 288,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 289,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 290,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 291,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 292,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 293,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 294,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 295,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 296,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 297,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 298,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 299,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 300,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 301,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 302,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 303,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 304,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 305,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 306,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 307,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 308,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 309,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 310,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 311,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 312,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 313,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 314,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 315,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 316,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 317,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 318,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 319,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 320,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 321,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 322,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 323,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 324,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 325,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 326,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 327,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 328,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 329,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 330,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 331,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 332,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 333,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 334,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 335,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 336,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 337,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 338,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 339,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 340,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 341,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 342,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 343,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 344,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 345,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 346,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 347,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 348,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 349,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 350,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 351,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 352,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 353,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 354,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 355,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 356,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 357,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 358,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 359,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 360,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 361,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 362,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 363,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 364,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 365,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 366,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 367,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 368,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 369,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 370,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 371,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 372,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 373,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 374,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 375,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 376,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 377,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 378,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 379,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 380,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 381,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 382,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 383,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 384,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 385,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 386,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 387,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 388,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 389,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 390,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 391,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 392,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 393,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 394,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 395,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 396,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 397,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 398,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 399,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 400,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 401,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 402,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 403,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 404,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 405,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 406,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 407,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 408,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 409,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 410,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 411,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 412,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 413,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 414,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 415,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 416,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 417,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 418,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 419,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 420,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 421,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 422,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 423,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 424,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 425,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 426,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 427,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 428,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 429,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 430,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 431,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 432,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 433,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 434,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 435,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 436,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 437,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 438,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 439,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 440,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 441,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 442,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 443,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 444,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 445,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 446,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 447,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 448,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 449,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 450,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 451,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 452,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 453,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 454,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 455,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 456,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 457,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 458,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 459,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 460,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 461,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 462,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 463,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 464,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 465,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 466,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 467,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 468,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 469,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 470,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 471,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 472,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 473,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 474,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 475,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 476,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 477,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 478,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 479,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 480,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 481,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 482,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 483,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 484,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 485,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 486,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 487,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 488,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 489,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 490,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 491,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 492,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 493,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 494,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 495,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 496,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 497,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 498,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 499,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 500,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 501,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 502,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 503,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 504,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 505,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 506,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 507,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 508,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 509,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 510,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 511,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 512,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 513,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 514,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 515,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 516,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 517,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 518,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 519,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 520,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 521,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 522,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 523,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 524,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 525,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 526,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 527,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 528,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 529,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 530,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 531,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 532,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 533,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 534,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 535,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 536,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 537,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 538,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 539,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 540,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 541,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 542,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 543,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 544,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 545,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 546,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 547,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 548,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 549,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 550,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 551,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 552,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 553,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 554,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 555,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 556,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 557,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 558,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 559,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 560,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 561,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 562,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 563,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 564,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 565,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 566,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 567,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 568,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 569,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 570,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 571,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 572,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 573,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 574,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 575,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 576,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 577,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 578,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 579,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 580,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 581,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 582,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 583,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 584,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 585,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 586,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 587,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 588,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 589,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 590,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 591,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 592,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 593,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        },
+        {
+          "rawDate": "Unknown",
+          "reason": "date-not-in-frozen-strata",
+          "sourceRow": 594,
+          "sourceShard": "plates/part-01750.parquet",
+          "sourceShardSha256": "08ea35987de2ab26508441bae28eb6cd641ddc88cf320eb6666d5def9a5c1a3e"
+        }
+      ],
+      "rejectedSourceRows": 609,
+      "sourceRowCounts": {
+        "plates/part-01176.parquet": 596,
+        "plates/part-01185.parquet": 596,
+        "plates/part-01227.parquet": 596,
+        "plates/part-01234.parquet": 596,
+        "plates/part-01250.parquet": 596,
+        "plates/part-01256.parquet": 596,
+        "plates/part-01260.parquet": 596,
+        "plates/part-01262.parquet": 596,
+        "plates/part-01304.parquet": 596,
+        "plates/part-01308.parquet": 596,
+        "plates/part-01313.parquet": 596,
+        "plates/part-01318.parquet": 596,
+        "plates/part-01361.parquet": 596,
+        "plates/part-01387.parquet": 596,
+        "plates/part-01389.parquet": 596,
+        "plates/part-01395.parquet": 596,
+        "plates/part-01402.parquet": 596,
+        "plates/part-01405.parquet": 596,
+        "plates/part-01442.parquet": 596,
+        "plates/part-01474.parquet": 596,
+        "plates/part-01501.parquet": 595,
+        "plates/part-01544.parquet": 595,
+        "plates/part-01570.parquet": 595,
+        "plates/part-01622.parquet": 595,
+        "plates/part-01625.parquet": 595,
+        "plates/part-01627.parquet": 595,
+        "plates/part-01628.parquet": 595,
+        "plates/part-01718.parquet": 595,
+        "plates/part-01727.parquet": 595,
+        "plates/part-01737.parquet": 595,
+        "plates/part-01750.parquet": 595,
+        "plates/part-01812.parquet": 595
+      },
+      "sourceRows": 19060
+    }
+  },
+  "sourceLocksSha256": "bf44ceba6f32d322de04f9fae994c0fed7fdcd00e2bcfff9de39c6d852a01394",
+  "training": {
+    "baseExpandedSha256": "a0cb9994018b44fa958e312816460b15b5fbab43d489e75b1a9f5647bd70d261",
+    "basePrefixItems": 108378,
+    "classCounts": {
+      "real": 59578,
+      "synthetic": 52984
+    },
+    "featureViews": 150248,
+    "items": 112562,
+    "sourceCounts": {
+      "FLUX.2-pro": 80,
+      "FLUX.2_max": 80,
+      "GPT-Image-1": 80,
+      "GPT-Image-1.5": 80,
+      "Imagen-4.0": 80,
+      "Imagen-4.0-Ultra": 80,
+      "Qwen-Image": 80,
+      "Qwen-Image-2.0-pro": 80,
+      "Qwen-Image-2512": 80,
+      "Seedream-4.0": 80,
+      "Seedream-4.5": 80,
+      "Seedream-5.0": 80,
+      "british-library-plates": 2400,
+      "diffusiondb-stable-diffusion": 50000,
+      "docci-train": 1200,
+      "gpt-image-2": 80,
+      "met-open-access": 2400,
+      "nano-banana-2.0": 80,
+      "nano-banana-pro": 80,
+      "open-images": 1200,
+      "open-images-train": 50000,
+      "rapidata-dalle-3": 456,
+      "rapidata-flux": 443,
+      "rapidata-midjourney": 457,
+      "rapidata-stable-diffusion": 428,
+      "stockimages-cc0": 2378
+    }
+  }
+}

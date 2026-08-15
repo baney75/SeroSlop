@@ -1,0 +1,18 @@
+{
+  "britishLibrary": {
+    "dataset": "biglam/british-library-book-images",
+    "notice": "The plates config is an algorithmic page-layout category. Selected bytes remain under ignored benchmark/data; the public repository distributes pixel-free provenance only. Source labels do not independently clear depicted or third-party rights.",
+    "revision": "c288990ce59b055e7bf9411f663d0f672ae16102",
+    "sourceReportedLicense": "HF metadata reports CC0-1.0; the card describes Public Domain Mark / no known copyright restrictions"
+  },
+  "rapidata": {
+    "dataset": "Rapidata/700k_Human_Preference_Dataset_FLUX_SD3_MJ_DALLE3",
+    "developmentOnly": true,
+    "neverAcceptanceEvidence": true,
+    "notice": "Publisher-authored family labels do not identify exact generator revisions or seeds and are not independent rights clearance. Selected bytes remain local-only.",
+    "revision": "96a4db1d70fbf08f1054dff771f465dccab94535",
+    "sourceReportedLicense": "CDLA-Permissive-2.0",
+    "sourceReportedProvenance": "Publisher card and paper report model-family labels, prompts, paired outputs, and annotation methodology; exact generator revisions and seeds are not supplied"
+  },
+  "schemaVersion": 1
+}

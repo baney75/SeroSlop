@@ -1,0 +1,7 @@
+{
+  "algorithm": "EXIF-oriented RGB dHash 64-bit, LANCZOS 9x8 grayscale",
+  "items": [],
+  "maximumHammingDistance": 8,
+  "policy": "No cross-pool dHash exceptions; every match at or below the threshold is rejected.",
+  "schemaVersion": 1
+}
