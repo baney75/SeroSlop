@@ -4,9 +4,9 @@ import { existsSync, readFileSync } from "node:fs";
 
 import {
   M4_BASE_COMMIT,
-  M4_BASE_TREE,
-  M4_PROTOCOL_EXPECTED,
+  M4_FAILED_PROTOCOL_COMMIT,
   M4_SOURCE_EXPECTED,
+  matchesM4ProtocolRecoveryLineage,
   matchesExpectedRows,
 } from "./m4-stage-policy.mjs";
 
@@ -54,12 +54,14 @@ const sourceParents = parents(head);
 requireCondition(sourceParents.length === 1, "The M4 source commit must have one parent");
 const protocol = sourceParents[0];
 const protocolParents = parents(protocol);
-requireCondition(protocolParents.length === 1 && protocolParents[0] === M4_BASE_COMMIT,
-  "The M4 source packet is not the protocol commit's direct child");
-requireCondition(git(["rev-parse", `${M4_BASE_COMMIT}^{tree}`]) === M4_BASE_TREE,
-  "The frozen M4 base tree changed");
-requireCondition(matchesExpectedRows(commitRows(protocol), M4_PROTOCOL_EXPECTED),
-  "The M4 protocol commit changed outside its exact packet");
+requireCondition(matchesM4ProtocolRecoveryLineage({
+  protocolParents,
+  protocolRows: commitRows(protocol),
+  failedProtocolParents: parents(M4_FAILED_PROTOCOL_COMMIT),
+  failedProtocolRows: commitRows(M4_FAILED_PROTOCOL_COMMIT),
+  failedProtocolTree: git(["rev-parse", `${M4_FAILED_PROTOCOL_COMMIT}^{tree}`]),
+  baseTree: git(["rev-parse", `${M4_BASE_COMMIT}^{tree}`]),
+}), "The M4 source packet is not the recovered protocol's direct child");
 requireCondition(matchesExpectedRows(commitRows(head), M4_SOURCE_EXPECTED),
   "The M4 source commit changed outside its exact score-blind packet");
 for (const pathname of FORBIDDEN) {

@@ -7,12 +7,12 @@ import { validateM4FailurePacket } from "./m4-failure-contract.mjs";
 import { digest, jsonEqual, parseManifestMetadata, requireCondition } from "./m4-training-contract.mjs";
 import {
   M4_BASE_COMMIT,
-  M4_BASE_TREE,
+  M4_FAILED_PROTOCOL_COMMIT,
   M4_FAILURE_EXPECTED,
   M4_FAILURE_PATH,
-  M4_PROTOCOL_EXPECTED,
   M4_PUBLICATION_LOCK_PATH,
   M4_SOURCE_EXPECTED,
+  matchesM4ProtocolRecoveryLineage,
   matchesExpectedRows,
 } from "./m4-stage-policy.mjs";
 
@@ -76,11 +76,15 @@ const sourceParents = parents(source);
 requireCondition(sourceParents.length === 1, "The M4 source commit must have one parent");
 const protocol = sourceParents[0];
 const protocolParents = parents(protocol);
-requireCondition(protocolParents.length === 1 && protocolParents[0] === M4_BASE_COMMIT &&
-  git(["rev-parse", `${M4_BASE_COMMIT}^{tree}`]) === M4_BASE_TREE,
-"The M4 failure lineage changed before the protocol commit");
-requireCondition(matchesExpectedRows(commitRows(protocol), M4_PROTOCOL_EXPECTED) &&
-  matchesExpectedRows(commitRows(source), M4_SOURCE_EXPECTED) &&
+requireCondition(matchesM4ProtocolRecoveryLineage({
+  protocolParents,
+  protocolRows: commitRows(protocol),
+  failedProtocolParents: parents(M4_FAILED_PROTOCOL_COMMIT),
+  failedProtocolRows: commitRows(M4_FAILED_PROTOCOL_COMMIT),
+  failedProtocolTree: git(["rev-parse", `${M4_FAILED_PROTOCOL_COMMIT}^{tree}`]),
+  baseTree: git(["rev-parse", `${M4_BASE_COMMIT}^{tree}`]),
+}), "The M4 failure lineage changed before the recovered protocol commit");
+requireCondition(matchesExpectedRows(commitRows(source), M4_SOURCE_EXPECTED) &&
   matchesExpectedRows(commitRows(head), M4_FAILURE_EXPECTED),
 "The M4 failure lineage changed outside an exact stage packet");
 for (const pathname of SUCCESS_OUTPUTS) {

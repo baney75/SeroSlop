@@ -3,9 +3,11 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import {
   M4_BASE_COMMIT,
-  M4_BASE_TREE,
+  M4_FAILED_PROTOCOL_COMMIT,
+  M4_FAILED_PROTOCOL_TREE,
   M4_PROTOCOL_EXPECTED,
-  matchesExpectedRows,
+  M4_PROTOCOL_RECOVERY_EXPECTED,
+  matchesM4ProtocolRecoveryLineage,
 } from "./m4-stage-policy.mjs";
 
 const MODEL_SHA256 = "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47";
@@ -52,12 +54,16 @@ requireCondition(git(["status", "--porcelain=v1", "--untracked-files=all"]) === 
   "M4 protocol verification requires a completely clean repository");
 const head = git(["rev-parse", "HEAD"]);
 const parents = git(["show", "-s", "--format=%P", head]).split(" ").filter(Boolean);
-requireCondition(parents.length === 1 && parents[0] === M4_BASE_COMMIT,
-  "The M4 protocol must be the M3 failure commit's direct single-parent child");
-requireCondition(git(["rev-parse", `${M4_BASE_COMMIT}^{tree}`]) === M4_BASE_TREE,
-  "The frozen M4 base tree changed");
-requireCondition(matchesExpectedRows(commitRows(head), M4_PROTOCOL_EXPECTED),
-  "The M4 protocol commit changed outside its exact pre-materialization packet");
+const failedProtocolParents = git(["show", "-s", "--format=%P", M4_FAILED_PROTOCOL_COMMIT])
+  .split(" ").filter(Boolean);
+requireCondition(matchesM4ProtocolRecoveryLineage({
+  protocolParents: parents,
+  protocolRows: commitRows(head),
+  failedProtocolParents,
+  failedProtocolRows: commitRows(M4_FAILED_PROTOCOL_COMMIT),
+  failedProtocolTree: git(["rev-parse", `${M4_FAILED_PROTOCOL_COMMIT}^{tree}`]),
+  baseTree: git(["rev-parse", `${M4_BASE_COMMIT}^{tree}`]),
+}), "The M4 protocol recovery lineage or exact packet changed");
 for (const pathname of FORBIDDEN_OUTPUTS) {
   requireCondition(!existsSync(pathname), `M4 protocol freeze must precede materialization/training: ${pathname}`);
 }
@@ -75,8 +81,10 @@ requireCondition(git(["ls-files", "benchmark/data/m4-head", "benchmark/data/m4-s
 console.log(JSON.stringify({
   stage: "m4-protocol",
   head,
-  parent: M4_BASE_COMMIT,
-  paths: M4_PROTOCOL_EXPECTED.size,
+  parent: M4_FAILED_PROTOCOL_COMMIT,
+  failedProtocolTree: M4_FAILED_PROTOCOL_TREE,
+  originalProtocolPaths: M4_PROTOCOL_EXPECTED.size,
+  recoveryPaths: M4_PROTOCOL_RECOVERY_EXPECTED.size,
   modelSha256: MODEL_SHA256,
   materializationOutputsPresent: false,
   h3AcceptedAsInput: false,
