@@ -1,5 +1,6 @@
 export const M2_RECOVERY_COMMIT = "31b2ea718016b9aac13e62de64e3457d2e2b3008";
 export const M2_FINALIZER_SOURCE_COMMIT = "6cb3ca1c6865fe8dbd9d601cbcec1c018c69dd67";
+export const M2_CHECKER_RECOVERY_COMMIT = "46607dc2f9b9f878b059348db7c81faf433c1ffe";
 
 export const M2_FINALIZER_SOURCE_EXPECTED = new Map([
   ["benchmark/finalize_training_evidence.py", "M"],
@@ -16,6 +17,9 @@ export const M2_FINALIZER_SOURCE_EXPECTED = new Map([
 ]);
 
 export const M2_PUBLICATION_EXPECTED = new Map([
+  ["BENCHMARK.md", "M"],
+  ["MODEL_CARD.md", "M"],
+  ["README.md", "M"],
   ["benchmark/evidence/m2/calibration.json", "A"],
   ["benchmark/evidence/m2/candidate-grid.json", "A"],
   ["benchmark/evidence/m2/finalization-receipt.json", "A"],
@@ -27,6 +31,15 @@ export const M2_PUBLICATION_EXPECTED = new Map([
 ]);
 
 export const M2_CHECKER_RECOVERY_EXPECTED = new Map([
+  ["scripts/check-m2-source-stage.mjs", "M"],
+  ["scripts/check-m2-training-evidence.mjs", "M"],
+  ["scripts/m2-stage-policy.mjs", "M"],
+  ["scripts/m2-training-contract.mjs", "M"],
+  ["scripts/test-m2-stage-policy.mjs", "M"],
+  ["scripts/test-m2-training-contract.mjs", "M"],
+]);
+
+export const M2_DOCUMENTATION_RECOVERY_EXPECTED = new Map([
   ["scripts/check-m2-source-stage.mjs", "M"],
   ["scripts/check-m2-training-evidence.mjs", "M"],
   ["scripts/m2-stage-policy.mjs", "M"],

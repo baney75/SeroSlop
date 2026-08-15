@@ -3,7 +3,9 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { inspectOnnxStructure } from "./onnx-structure.mjs";
 import {
+  M2_CHECKER_RECOVERY_COMMIT,
   M2_CHECKER_RECOVERY_EXPECTED,
+  M2_DOCUMENTATION_RECOVERY_EXPECTED,
   M2_FINALIZER_SOURCE_COMMIT,
   M2_FINALIZER_SOURCE_EXPECTED,
   M2_PUBLICATION_EXPECTED,
@@ -17,6 +19,7 @@ import {
   requireCondition,
   validateM2PublicationMetadata,
   validateM2OnnxEvidence,
+  validateM2PublicDocumentation,
   validateM2TrainingPacket,
 } from "./m2-training-contract.mjs";
 
@@ -52,8 +55,10 @@ function parseJson(bytes, pathname) {
 requireCondition(git(["status", "--porcelain=v1", "--untracked-files=all"]) === "",
   "M2 final verification requires a completely clean repository");
 const head = git(["rev-parse", "HEAD"]);
-const checkerRecoveryCommit = git(["rev-parse", "HEAD^"]);
+const documentationRecoveryCommit = git(["rev-parse", "HEAD^"]);
+const checkerRecoveryCommit = git(["rev-parse", `${documentationRecoveryCommit}^`]);
 requireCondition(git(["rev-list", "--parents", "-n", "1", head]).split(" ").length === 2 &&
+  git(["rev-list", "--parents", "-n", "1", documentationRecoveryCommit]).split(" ").length === 2 &&
   git(["rev-list", "--parents", "-n", "1", checkerRecoveryCommit]).split(" ").length === 2 &&
   git(["rev-list", "--parents", "-n", "1", M2_FINALIZER_SOURCE_COMMIT]).split(" ").length === 2,
 "M2 source, checker recovery, and publication commits must each have one direct parent");
@@ -61,11 +66,15 @@ requireCondition(git(["rev-parse", `${M2_FINALIZER_SOURCE_COMMIT}^`]) === M2_REC
   "M2 finalizer source is not the repaired M2 source commit's direct child");
 requireCondition(matchesExpectedRows(rowsForCommit(M2_FINALIZER_SOURCE_COMMIT), M2_FINALIZER_SOURCE_EXPECTED),
   "M2 finalizer source changed outside its frozen source-only packet");
-requireCondition(git(["rev-parse", `${checkerRecoveryCommit}^`]) === M2_FINALIZER_SOURCE_COMMIT &&
+requireCondition(checkerRecoveryCommit === M2_CHECKER_RECOVERY_COMMIT &&
+  git(["rev-parse", `${checkerRecoveryCommit}^`]) === M2_FINALIZER_SOURCE_COMMIT &&
   matchesExpectedRows(rowsForCommit(checkerRecoveryCommit), M2_CHECKER_RECOVERY_EXPECTED),
 "M2 checker recovery changed outside its direct six-path packet");
+requireCondition(git(["rev-parse", `${documentationRecoveryCommit}^`]) === checkerRecoveryCommit &&
+  matchesExpectedRows(rowsForCommit(documentationRecoveryCommit), M2_DOCUMENTATION_RECOVERY_EXPECTED),
+"M2 documentation recovery changed outside its direct six-path packet");
 requireCondition(matchesExpectedRows(rowsForCommit(head), M2_PUBLICATION_EXPECTED),
-  "M2 publication changed outside its exact eight-path packet");
+  "M2 publication changed outside its exact eleven-path packet");
 requireCondition(!existsSync("docs/COMPETITOR_AUDIT.md"), "Competitor audit must remain absent");
 
 const paths = {
@@ -79,6 +88,9 @@ const paths = {
   model: "weights/prooflens-cf384.onnx",
   modelLock: "model-lock.json",
   weightsReadme: "weights/README.md",
+  publicReadme: "README.md",
+  modelCard: "MODEL_CARD.md",
+  benchmark: "BENCHMARK.md",
   upstreamStructure: "benchmark/evidence/large/upstream-model-structure.json",
 };
 const entries = Object.fromEntries(await Promise.all(Object.entries(paths).map(async ([name, pathname]) =>
@@ -135,6 +147,11 @@ validateM2PublicationMetadata({
   comparison,
   repositoryHashes,
 });
+validateM2PublicDocumentation({
+  readme: entries.publicReadme.toString("utf8"),
+  modelCard: entries.modelCard.toString("utf8"),
+  benchmark: entries.benchmark.toString("utf8"),
+});
 requireCondition(digest(entries.comparison) === M2.modelComparisonSha256,
   "M2 model-comparison bytes changed");
 
@@ -150,6 +167,7 @@ console.log(JSON.stringify({
   head,
   finalizerSourceCommit: M2_FINALIZER_SOURCE_COMMIT,
   checkerRecoveryCommit,
+  documentationRecoveryCommit,
   modelSha256: M2.modelSha256,
   trainingSummarySha256: M2.trainingSummarySha256,
   calibrationSha256: M2.calibrationSha256,

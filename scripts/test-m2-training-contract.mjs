@@ -11,6 +11,7 @@ import {
   digest,
   validateM2PublicationMetadata,
   validateM2OnnxEvidence,
+  validateM2PublicDocumentation,
   validateM2TrainingPacket,
 } from "./m2-training-contract.mjs";
 
@@ -272,6 +273,84 @@ publication.receipt = {
   publishedRepositorySha256: publication.repositoryHashes,
 };
 validateM2PublicationMetadata(publication);
+const currentStart = "<!-- PROOFLENS_CURRENT_M2_START -->";
+const currentEnd = "<!-- PROOFLENS_CURRENT_M2_END -->";
+const historyStart = "<!-- PROOFLENS_HISTORICAL_M1_START -->";
+const historyEnd = "<!-- PROOFLENS_HISTORICAL_M1_END -->";
+const readmeFacts = `${M2.modelSha256} 105,978 public images 54,778 non-AI 123,912 feature views ` +
+  "94.08% balanced accuracy on originals benchmark/evidence/m2/";
+const modelCardFacts = `${M2.modelSha256} 105,978 unique public images 2,378 StockImages-CC0 ` +
+  "123,912 feature views 24 of 25 candidate configurations npm run check:m2-training-evidence";
+const benchmarkFacts = `${M2.modelSha256} 105,978 123,912 24 of 25 candidates ` +
+  "94.08% balanced accuracy on originals benchmark/evidence/m2/";
+const historyFacts = "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c " +
+  "103,600 training images 114,400 feature views 25 candidate configurations were valid; " +
+  "v1 and replacement-v2 are consumed and acceptance-ineligible; acceptanceEligible: false";
+const publicDocumentation = {
+  readme: `# ProofLens\n\n${currentStart}\n## Current M2 model\n${readmeFacts}\n${currentEnd}`,
+  modelCard: `# Model\n\n${currentStart}\n## Current M2 head-training data\n${modelCardFacts}\n` +
+    `${currentEnd}\n\n${historyStart}\n## Historical M1 and evaluation evidence\n${historyFacts}\n${historyEnd}`,
+  benchmark: `# Benchmark\n\n${currentStart}\n## Current M2 model-selection boundary\n${benchmarkFacts}\n` +
+    `${currentEnd}\n\n${historyStart}\n## Historical M1 training and evaluation evidence\n` +
+    `${historyFacts}\n${historyEnd}`,
+};
+validateM2PublicDocumentation(publicDocumentation);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  modelCard: publicDocumentation.modelCard.replace(M2.modelSha256, "0".repeat(64)),
+}), /MODEL_CARD\.md current M2 section does not describe/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  readme: `# ProofLens\n\n${currentStart}\n## Current M2 model\nNo facts here.\n${currentEnd}` +
+    `\n\n ## Appendix\n${readmeFacts}`,
+}), /README\.md current M2 section does not describe/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  readme: publicDocumentation.readme.replace("benchmark/evidence/m2/", "benchmark/evidence/m2/\n" +
+    "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c"),
+}), /README\.md current M2 section retains a stale M1/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  modelCard: publicDocumentation.modelCard.replace("npm run check:m2-training-evidence",
+    "npm run check:m2-training-evidence All 25 candidate configurations were valid"),
+}), /MODEL_CARD\.md current M2 section retains a stale M1/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  modelCard: publicDocumentation.modelCard.replace("npm run check:m2-training-evidence",
+    "npm run check:m2-training-evidence " +
+    "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c"),
+}), /MODEL_CARD\.md current M2 section retains a stale M1/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  modelCard: publicDocumentation.modelCard.replace("103,600 training images", "103,601 training images"),
+}), /MODEL_CARD\.md historical M1 section changed/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  modelCard: `# Model\n\n${currentStart}\n## Current M2 head-training data\n${modelCardFacts}\n` +
+    `${currentEnd}\n\n${historyStart}\n## Historical M1 and evaluation evidence\nNo history.\n` +
+    `${historyEnd}\n\nHistorical appendix\n---\n${historyFacts}`,
+}), /MODEL_CARD\.md historical M1 section changed/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  benchmark: publicDocumentation.benchmark.replace("benchmark/evidence/m2/",
+    "benchmark/evidence/m2/ Fresh extraction covered all 103,600 images and 114,400 configured views"),
+}), /BENCHMARK\.md current M2 section retains a stale M1/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  benchmark: publicDocumentation.benchmark.replace("benchmark/evidence/m2/",
+    "benchmark/evidence/m2/ shipped artifact " +
+    "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c"),
+}), /BENCHMARK\.md current M2 section retains a stale M1/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  benchmark: publicDocumentation.benchmark.replace("v1 and replacement-v2 are consumed and acceptance-ineligible",
+    "v1 and replacement-v2 are pending"),
+}), /BENCHMARK\.md historical M1 section changed/u);
+assert.throws(() => validateM2PublicDocumentation({
+  ...publicDocumentation,
+  benchmark: `${publicDocumentation.benchmark}\n\n## Stale appendix\n` +
+    "The finalized ONNX SHA-256 is `941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c`.",
+}), /BENCHMARK\.md (historical M1 section changed|retains an unscoped stale M1)/u);
 const staleMetadata = clone(publication);
 staleMetadata.modelLock.trainingEvidence.selectionSummary = "benchmark/data/m2-head/selection-summary.json";
 assert.throws(() => validateM2PublicationMetadata(staleMetadata), /model lock changed/u);
@@ -334,4 +413,4 @@ assert.throws(() => validateM2OnnxEvidence({
   upstreamStructure, shippedStructure, comparison: wrongPythonShape,
 }), /comparison is malformed/u);
 
-console.log(JSON.stringify({ cases: 18, policy: "pass" }));
+console.log(JSON.stringify({ cases: 31, policy: "pass" }));

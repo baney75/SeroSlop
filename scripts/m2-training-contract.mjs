@@ -99,6 +99,7 @@ export const M2_EXPECTED_SHARDS = Object.freeze([
 ]);
 
 const HEX64 = /^[a-f0-9]{64}$/u;
+const HISTORICAL_M1_MODEL_SHA256 = "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c";
 
 export function digest(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -376,6 +377,123 @@ export function validateM2PublicationMetadata({
     receipt.publishedEvidenceSha256?.["model-comparison.json"] === M2.modelComparisonSha256 &&
     jsonEqual(receipt.publishedRepositorySha256, repositoryHashes),
   "M2 finalization receipt changed");
+}
+
+export function validateM2PublicDocumentation({ readme, modelCard, benchmark }) {
+  const boundedSection = (document, startMarker, endMarker, name) => {
+    requireCondition(typeof document === "string", `${name} is missing`);
+    const start = document.indexOf(startMarker);
+    const end = document.indexOf(endMarker);
+    requireCondition(start >= 0 && end > start && start === document.lastIndexOf(startMarker) &&
+      end === document.lastIndexOf(endMarker), `${name} must contain one ordered contracted section`);
+    return document.slice(start + startMarker.length, end);
+  };
+  const currentStart = "<!-- PROOFLENS_CURRENT_M2_START -->";
+  const currentEnd = "<!-- PROOFLENS_CURRENT_M2_END -->";
+  const historyStart = "<!-- PROOFLENS_HISTORICAL_M1_START -->";
+  const historyEnd = "<!-- PROOFLENS_HISTORICAL_M1_END -->";
+  const currentSections = new Map([
+    ["README.md", boundedSection(readme, currentStart, currentEnd, "README.md")],
+    ["MODEL_CARD.md", boundedSection(modelCard, currentStart, currentEnd, "MODEL_CARD.md")],
+    ["BENCHMARK.md", boundedSection(benchmark, currentStart, currentEnd, "BENCHMARK.md")],
+  ]);
+  const requiredCurrent = new Map([
+    ["README.md", [
+      "## Current M2 model",
+      M2.modelSha256,
+      "105,978 public images",
+      "54,778 non-AI",
+      "123,912 feature views",
+      "94.08% balanced accuracy on originals",
+      "benchmark/evidence/m2/",
+    ]],
+    ["MODEL_CARD.md", [
+      "## Current M2 head-training data",
+      M2.modelSha256,
+      "105,978 unique public images",
+      "2,378 StockImages-CC0",
+      "123,912 feature views",
+      "24 of 25 candidate configurations",
+      "npm run check:m2-training-evidence",
+    ]],
+    ["BENCHMARK.md", [
+      "## Current M2 model-selection boundary",
+      M2.modelSha256,
+      "105,978",
+      "123,912",
+      "24 of 25 candidates",
+      "94.08% balanced accuracy on originals",
+      "benchmark/evidence/m2/",
+    ]],
+  ]);
+  const forbiddenCurrent = new Map([
+    ["README.md", [
+      HISTORICAL_M1_MODEL_SHA256,
+      "103,600 public images",
+      "114,400 feature views",
+    ]],
+    ["MODEL_CARD.md", [
+      HISTORICAL_M1_MODEL_SHA256,
+      "The replacement head was trained on 103,600",
+      "all 103,600 images and all 114,400",
+      "All 25 candidate configurations were valid",
+    ]],
+    ["BENCHMARK.md", [
+      HISTORICAL_M1_MODEL_SHA256,
+      "ProofLens trained the replacement head on 103,600 unique public images",
+      "Fresh extraction covered all 103,600 images and 114,400 configured views",
+      "All 25 candidates passed the validation gates",
+      `The finalized ONNX SHA-256 is \`${HISTORICAL_M1_MODEL_SHA256}\``,
+    ]],
+  ]);
+  for (const [name, required] of requiredCurrent) {
+    const value = currentSections.get(name);
+    requireCondition(required.every((text) => value.includes(text)),
+      `${name} current M2 section does not describe the shipped model`);
+    requireCondition(forbiddenCurrent.get(name).every((text) => !value.includes(text)),
+      `${name} current M2 section retains a stale M1 claim`);
+  }
+  const requiredHistory = [
+    HISTORICAL_M1_MODEL_SHA256,
+    "103,600 training images",
+    "114,400 feature views",
+    "25 candidate configurations were valid",
+    "v1 and replacement-v2 are consumed and acceptance-ineligible",
+    "acceptanceEligible: false",
+  ];
+  const count = (document, value) => document.split(value).length - 1;
+  for (const [name, document, heading] of [
+    ["MODEL_CARD.md", modelCard, "Historical M1 and evaluation evidence"],
+    ["BENCHMARK.md", benchmark, "Historical M1 training and evaluation evidence"],
+  ]) {
+    const history = boundedSection(document, historyStart, historyEnd, name);
+    requireCondition(history.includes(`## ${heading}`) && requiredHistory.every((text) =>
+      history.includes(text) && count(document, text) === 1),
+      `${name} historical M1 section changed`);
+  }
+  requireCondition([
+    HISTORICAL_M1_MODEL_SHA256,
+    "103,600 public images",
+    "114,400 feature views",
+  ].every((text) => !readme.includes(text)), "README.md retains a stale M1 current-model claim");
+  const forbiddenGlobal = new Map([
+    ["MODEL_CARD.md", [
+      `The shipped artifact is 87,442,080 bytes with SHA-256 \`${HISTORICAL_M1_MODEL_SHA256}\``,
+      "The replacement head was trained on 103,600 unique public images and 114,400 feature views",
+      "Training freshly extracted and covered all 103,600 images and all 114,400 configured views",
+      "All 25 candidate configurations were valid",
+    ]],
+    ["BENCHMARK.md", [
+      "ProofLens trained the replacement head on 103,600 unique public images",
+      "Fresh extraction covered all 103,600 images and 114,400 configured views",
+      "All 25 candidates passed the validation gates",
+      `The finalized ONNX SHA-256 is \`${HISTORICAL_M1_MODEL_SHA256}\``,
+    ]],
+  ]);
+  for (const [name, document] of [["MODEL_CARD.md", modelCard], ["BENCHMARK.md", benchmark]]) {
+    requireCondition(forbiddenGlobal.get(name).every((text) => !document.includes(text)),
+      `${name} retains an unscoped stale M1 current-model claim`);
+  }
 }
 
 export function validateM2OnnxEvidence({ upstreamStructure, shippedStructure, comparison }) {
