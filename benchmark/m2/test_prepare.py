@@ -94,17 +94,24 @@ class M2PreparationContractTests(unittest.TestCase):
             "digest", "reject_symlink_components", "validate_data_root", "safe_output_path", "download"
         )
         download = functions["download"]
-        with tempfile.TemporaryDirectory(dir=ROOT / "benchmark/data") as temporary:
-            root = Path(temporary)
-            with self.assertRaisesRegex(ValueError, "unavailable in offline verification"):
-                download(
-                    "https://example.invalid/pinned.parquet",
-                    root / "pinned.parquet",
-                    1,
-                    "0" * 64,
-                    allow_download=False,
-                    allowed_root=root,
-                )
+        data_parent = ROOT / "benchmark/data"
+        parent_existed = data_parent.exists()
+        data_parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with tempfile.TemporaryDirectory(dir=data_parent) as temporary:
+                root = Path(temporary)
+                with self.assertRaisesRegex(ValueError, "unavailable in offline verification"):
+                    download(
+                        "https://example.invalid/pinned.parquet",
+                        root / "pinned.parquet",
+                        1,
+                        "0" * 64,
+                        allow_download=False,
+                        allowed_root=root,
+                    )
+        finally:
+            if not parent_existed:
+                data_parent.rmdir()
 
     def test_cli_routes_download_and_offline_modes_explicitly(self) -> None:
         module = ast.parse(PREPARE.read_text())
