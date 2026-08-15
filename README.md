@@ -4,11 +4,17 @@ ProofLens is a native Manifest V3 Chrome extension that shows a local AI-image m
 
 The fixed decision rule is inclusive: **AI score ≥ 65.0/100 is flagged**. Every completed analysis shows a numeric model score; failures say **unavailable** instead of inventing one. The score is not a calibrated probability, and a badge is not proof of origin or authenticity.
 
-## Release evidence
+<!-- PROOFLENS_CURRENT_M2_START -->
+## Current M2 model
 
-The shipped classifier keeps the Community Forensics ViT-S/16 backbone frozen and replaces only its 384-to-1 head. The upstream backbone was trained on 5.4 million real/synthetic examples spanning 4,803 generators. ProofLens trained the replacement head on **103,600 public images**: 51,200 synthetic and 52,400 non-AI. This produced 114,400 feature views, and fresh extraction covered every selected image and view. Independent ONNX comparison found exactly two changed initializers, `classifier.weight` and `classifier.bias`; the other 198 initializers and the graph contract are unchanged.
+The shipped classifier keeps the Community Forensics ViT-S/16 backbone frozen and replaces only its 384-to-1 head. The upstream backbone was trained on 5.4 million real/synthetic examples spanning 4,803 generators. ProofLens trained the M2 head on **105,978 public images**: 51,200 synthetic and 54,778 non-AI. The 2,378-image StockImages-CC0 addition targets the ordinary-photo false positives found by the consumed replacement-v2 evaluation. Fresh extraction covered all 123,912 feature views.
 
-Validation balanced accuracy was 95.00% on originals, 96.33% on screenshots, and 94.50% on both JPEG stress views. These are model-selection results, not an untouched generalization estimate.
+Independent ONNX comparison found exactly two changed initializers, `classifier.weight` and `classifier.bias`; the other 198 initializers and the graph contract are unchanged. The packaged model is 87,442,080 bytes with SHA-256 `a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47`.
+
+The 900-image development validation produced 94.08% balanced accuracy on originals, 95.83% on screenshots, 93.67% on JPEG-75, and 94.25% on heavy double-JPEG. StockImages non-AI recall was 96%, 100%, 94%, and 98% across those views. These are model-selection results, not an untouched generalization estimate or a bounty score. The pixel-free training receipt, 54 fresh-feature shard digests, candidate grid, calibration, and classifier-only comparison are under `benchmark/evidence/m2/`.
+<!-- PROOFLENS_CURRENT_M2_END -->
+
+## Historical evaluation evidence
 
 The original 600-image Kling v2.1/Library of Congress holdout was run once and is consumed. Its stored predictions failed the frozen numeric contract before bootstrap: 2,231 of 2,400 probabilities did not equal the verifier’s binary64 sigmoid of their recorded logits within `2e-12`. The failure packet is permanently marked `acceptanceEligible: false`; its point estimates are diagnostic only. The model, calibration, threshold, preprocessing, acceptance gates, and extension runtime did not change in response.
 
@@ -44,14 +50,13 @@ python3 -m venv .verify-venv
 source .verify-venv/bin/activate
 python -m pip install -r benchmark/verify-requirements.txt
 npm ci
-npm run verify:static      # stage-aware public source/freeze/final pixel-free checks
-npm run verify:release     # mandatory local pixel + shipped-ONNX byte-identical replay
+npm run verify:static      # current M2 model, evidence, package, and lineage checks
 npm run browser:install    # one-time project browser install
 npm run test:chrome        # fresh profile, restart, forced WASM, offline/no-localhost E2E
 npm run test:chrome:webgpu # same contract through WebGPU
 ```
 
-Keep `.verify-venv` active for both verification commands. Before replacement scoring, `verify:static` accepts only the exact clean A4 numeric-recovery source or its receipt-only V3 child and proves that replacement confirmatory, web-negative, replay, parity, and browser artifacts are absent. Neither earlier receipt nor the consumed v1 packet can authorize the replacement evaluator. On a descendant of V3, the same command requires the complete final packet. `verify:release` additionally needs the local replacement pixels and pinned benchmark environment at `benchmark/.venv`; it replays only replacement-v2 outputs and distinguishes stored predictions from observed inference. GitHub Actions runs the stage-aware pixel-free contract and portable forced-WASM path. WebGPU remains a separate fixed-head local gate because hosted-runner GPU availability is not stable; its source-, model-, and archive-bound receipt is checked by the final static stage.
+Keep `.verify-venv` active for `verify:static`. The command detects the repository stage and, on the M2 publication, requires the exact public lineage, training packet, model lock, classifier-only comparison, deterministic package, and current documentation. GitHub Actions runs that pixel-free contract and the portable forced-WASM browser path. WebGPU remains a separate fixed-head local gate because hosted-runner GPU availability is not stable. The older `verify:release` script replays the consumed replacement-v2/M1 packet from its historical checkout; it is not an M2 acceptance test.
 
 The browser test closes its fixture server and puts the browser offline before analysis. It verifies measurable setup progress, model persistence across a browser restart, zero post-cutoff network requests, confirmed control states (including injected failures), fresh re-scan work, dynamic and responsive images, one result for a rendered CSS composite, rejection of an in-flight stale CSS result, CSSOM-only background reconciliation, numeric labels, an explicit unavailable state, a closed/recoverable label boundary, bounded hostile-page work, cap-replacement recovery, and target-associated labels at a 480 px viewport with a 1.5× device scale. A chip that cannot be placed without covering another target is hidden instead of being detached from the image it describes; the popup still reports the result count. Release verification also rebuilds under New York and UTC time zones and requires byte-identical archives.
 
@@ -78,7 +83,7 @@ When canvas access permits, ProofLens reduces images above a 1,024-pixel long ed
 
 - Artifact: `weights/prooflens-cf384.onnx`
 - Bytes: `87,442,080`
-- SHA-256: `941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c`
+- SHA-256: `a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47`
 - Input/output: `pixel_values [N,3,384,384]` to `logits [N,1]`
 - Upstream corrected revision: `ac6ee457bea904a373065754107451793b56db00`
 - License: MIT

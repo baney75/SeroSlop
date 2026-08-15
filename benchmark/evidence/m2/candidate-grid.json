@@ -1,0 +1,1642 @@
+[
+  {
+    "parameters": {
+      "weightDecay": 0.1,
+      "upstreamBlendAlpha": 0.4
+    },
+    "status": "rejected",
+    "reason": "No threshold satisfies the frozen validation gates"
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.1,
+      "upstreamBlendAlpha": 0.55
+    },
+    "selectionKey": [
+      0.9241666666666667,
+      0.934375,
+      0.95,
+      0.9366666666666666,
+      0.76
+    ],
+    "thresholdLogit": -2.6986598968505855,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9341666666666667,
+        "realRecall": 0.9583333333333334,
+        "syntheticRecall": 0.91,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8266666666666667,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.98,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9525,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.91,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8266666666666667,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9266666666666666,
+        "realRecall": 0.95,
+        "syntheticRecall": 0.9033333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8133333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9633333333333334,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9241666666666667,
+        "realRecall": 0.9916666666666667,
+        "syntheticRecall": 0.8566666666666667,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.76,
+          "HunyuanImage-3.0": 0.9533333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 0.9933333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.1,
+      "upstreamBlendAlpha": 0.7
+    },
+    "selectionKey": [
+      0.9341666666666666,
+      0.9435416666666667,
+      0.945,
+      0.93,
+      0.7933333333333333
+    ],
+    "thresholdLogit": -2.016262531280517,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9408333333333334,
+        "realRecall": 0.9516666666666667,
+        "syntheticRecall": 0.93,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 1.0
+        },
+        "realRecallBySource": {
+          "open-images": 0.9666666666666667,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9583333333333334,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.92,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8466666666666667,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9408333333333333,
+        "realRecall": 0.945,
+        "syntheticRecall": 0.9366666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.88,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.96,
+          "stockimages-cc0": 0.93
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9341666666666666,
+        "realRecall": 0.985,
+        "syntheticRecall": 0.8833333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7933333333333333,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9866666666666667,
+          "stockimages-cc0": 0.9833333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.1,
+      "upstreamBlendAlpha": 0.85
+    },
+    "selectionKey": [
+      0.9366666666666668,
+      0.9445833333333333,
+      0.9433333333333334,
+      0.94,
+      0.84
+    ],
+    "thresholdLogit": -0.993612766265869,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9408333333333334,
+        "realRecall": 0.9583333333333334,
+        "syntheticRecall": 0.9233333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8533333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9566666666666667,
+          "stockimages-cc0": 0.96
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9583333333333334,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.92,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8466666666666667,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9366666666666668,
+        "realRecall": 0.9433333333333334,
+        "syntheticRecall": 0.93,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.88,
+          "HunyuanImage-3.0": 0.98
+        },
+        "realRecallBySource": {
+          "open-images": 0.9466666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9425,
+        "realRecall": 0.975,
+        "syntheticRecall": 0.91,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.98
+        },
+        "realRecallBySource": {
+          "open-images": 0.97,
+          "stockimages-cc0": 0.98
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.1,
+      "upstreamBlendAlpha": 1.0
+    },
+    "selectionKey": [
+      0.9283333333333333,
+      0.9347916666666667,
+      0.9533333333333334,
+      0.9533333333333334,
+      0.8
+    ],
+    "thresholdLogit": 0.5217988491058351,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9316666666666666,
+        "realRecall": 0.97,
+        "syntheticRecall": 0.8933333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9666666666666667,
+          "stockimages-cc0": 0.9733333333333334
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9483333333333334,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.9,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8133333333333334,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9283333333333333,
+        "realRecall": 0.9533333333333334,
+        "syntheticRecall": 0.9033333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.9666666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9533333333333334,
+          "stockimages-cc0": 0.9533333333333334
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9308333333333334,
+        "realRecall": 0.9716666666666667,
+        "syntheticRecall": 0.89,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.82,
+          "HunyuanImage-3.0": 0.96
+        },
+        "realRecallBySource": {
+          "open-images": 0.96,
+          "stockimages-cc0": 0.9833333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.03,
+      "upstreamBlendAlpha": 0.4
+    },
+    "selectionKey": [
+      0.8866666666666667,
+      0.9154166666666668,
+      0.955,
+      0.93,
+      0.6733333333333333
+    ],
+    "thresholdLogit": -3.4074449539184566,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9191666666666667,
+        "realRecall": 0.955,
+        "syntheticRecall": 0.8833333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7733333333333333,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.98,
+          "stockimages-cc0": 0.93
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9408333333333334,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.8866666666666667,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7866666666666666,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.915,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.8733333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7666666666666667,
+          "HunyuanImage-3.0": 0.98
+        },
+        "realRecallBySource": {
+          "open-images": 0.98,
+          "stockimages-cc0": 0.9333333333333333
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.8866666666666667,
+        "realRecall": 0.99,
+        "syntheticRecall": 0.7833333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.6733333333333333,
+          "HunyuanImage-3.0": 0.8933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 0.99
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.03,
+      "upstreamBlendAlpha": 0.55
+    },
+    "selectionKey": [
+      0.9258333333333333,
+      0.9360416666666667,
+      0.945,
+      0.93,
+      0.76
+    ],
+    "thresholdLogit": -2.891139984130859,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9383333333333334,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.92,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 1.0
+        },
+        "realRecallBySource": {
+          "open-images": 0.9766666666666667,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9541666666666666,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9258333333333333,
+        "realRecall": 0.945,
+        "syntheticRecall": 0.9066666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.82,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.96,
+          "stockimages-cc0": 0.93
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9258333333333333,
+        "realRecall": 0.9916666666666667,
+        "syntheticRecall": 0.86,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.76,
+          "HunyuanImage-3.0": 0.96
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 0.9933333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.03,
+      "upstreamBlendAlpha": 0.7
+    },
+    "selectionKey": [
+      0.935,
+      0.943125,
+      0.9416666666666667,
+      0.93,
+      0.8066666666666666
+    ],
+    "thresholdLogit": -2.1169147491455074,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9416666666666667,
+        "realRecall": 0.95,
+        "syntheticRecall": 0.9333333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8666666666666667,
+          "HunyuanImage-3.0": 1.0
+        },
+        "realRecallBySource": {
+          "open-images": 0.9633333333333334,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9583333333333334,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.92,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8466666666666667,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9375,
+        "realRecall": 0.9416666666666667,
+        "syntheticRecall": 0.9333333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8733333333333333,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9533333333333334,
+          "stockimages-cc0": 0.93
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.935,
+        "realRecall": 0.9833333333333333,
+        "syntheticRecall": 0.8866666666666667,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8066666666666666,
+          "HunyuanImage-3.0": 0.9666666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9833333333333333,
+          "stockimages-cc0": 0.9833333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.03,
+      "upstreamBlendAlpha": 0.85
+    },
+    "selectionKey": [
+      0.9341666666666667,
+      0.94375,
+      0.9383333333333334,
+      0.9333333333333333,
+      0.84
+    ],
+    "thresholdLogit": -1.2657814025878904,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9391666666666667,
+        "realRecall": 0.9483333333333334,
+        "syntheticRecall": 0.93,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8666666666666667,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9466666666666667,
+          "stockimages-cc0": 0.95
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.96,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.9233333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8533333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9341666666666667,
+        "realRecall": 0.9383333333333334,
+        "syntheticRecall": 0.93,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.88,
+          "HunyuanImage-3.0": 0.98
+        },
+        "realRecallBySource": {
+          "open-images": 0.9433333333333334,
+          "stockimages-cc0": 0.9333333333333333
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9416666666666667,
+        "realRecall": 0.9733333333333334,
+        "syntheticRecall": 0.91,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.98
+        },
+        "realRecallBySource": {
+          "open-images": 0.97,
+          "stockimages-cc0": 0.9766666666666667
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.03,
+      "upstreamBlendAlpha": 1.0
+    },
+    "selectionKey": [
+      0.9275,
+      0.93875,
+      0.9416666666666667,
+      0.9366666666666666,
+      0.8266666666666667
+    ],
+    "thresholdLogit": -0.0072014331817626944,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9366666666666666,
+        "realRecall": 0.96,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9566666666666667,
+          "stockimages-cc0": 0.9633333333333334
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9516666666666667,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.9066666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8266666666666667,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9275,
+        "realRecall": 0.9416666666666667,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8533333333333334,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9466666666666667,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9391666666666667,
+        "realRecall": 0.965,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8533333333333334,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9533333333333334,
+          "stockimages-cc0": 0.9766666666666667
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.01,
+      "upstreamBlendAlpha": 0.4
+    },
+    "selectionKey": [
+      0.8933333333333333,
+      0.9177083333333333,
+      0.9566666666666667,
+      0.9333333333333333,
+      0.68
+    ],
+    "thresholdLogit": -3.43464183807373,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9216666666666666,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.8866666666666667,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.78,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.98,
+          "stockimages-cc0": 0.9333333333333333
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9408333333333334,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.8866666666666667,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7866666666666666,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.915,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.8733333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7666666666666667,
+          "HunyuanImage-3.0": 0.98
+        },
+        "realRecallBySource": {
+          "open-images": 0.98,
+          "stockimages-cc0": 0.9333333333333333
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.8933333333333333,
+        "realRecall": 0.99,
+        "syntheticRecall": 0.7966666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.68,
+          "HunyuanImage-3.0": 0.9133333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 0.99
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.01,
+      "upstreamBlendAlpha": 0.55
+    },
+    "selectionKey": [
+      0.9258333333333333,
+      0.9366666666666666,
+      0.945,
+      0.93,
+      0.7666666666666667
+    ],
+    "thresholdLogit": -2.900737047195434,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9391666666666667,
+        "realRecall": 0.9583333333333334,
+        "syntheticRecall": 0.92,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 1.0
+        },
+        "realRecallBySource": {
+          "open-images": 0.9766666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9541666666666666,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9258333333333333,
+        "realRecall": 0.945,
+        "syntheticRecall": 0.9066666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.82,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.96,
+          "stockimages-cc0": 0.93
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9275,
+        "realRecall": 0.9916666666666667,
+        "syntheticRecall": 0.8633333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7666666666666667,
+          "HunyuanImage-3.0": 0.96
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 0.9933333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.01,
+      "upstreamBlendAlpha": 0.7
+    },
+    "selectionKey": [
+      0.9333333333333333,
+      0.9414583333333333,
+      0.9483333333333334,
+      0.94,
+      0.7933333333333333
+    ],
+    "thresholdLogit": -2.0238835811614986,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.94,
+        "realRecall": 0.9533333333333334,
+        "syntheticRecall": 0.9266666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9666666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9550000000000001,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9375,
+        "realRecall": 0.9483333333333334,
+        "syntheticRecall": 0.9266666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9566666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9333333333333333,
+        "realRecall": 0.9866666666666667,
+        "syntheticRecall": 0.88,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7933333333333333,
+          "HunyuanImage-3.0": 0.9666666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9866666666666667,
+          "stockimages-cc0": 0.9866666666666667
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.01,
+      "upstreamBlendAlpha": 0.85
+    },
+    "selectionKey": [
+      0.9333333333333333,
+      0.941875,
+      0.9433333333333334,
+      0.94,
+      0.8266666666666667
+    ],
+    "thresholdLogit": -1.04358172416687,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9416666666666667,
+        "realRecall": 0.96,
+        "syntheticRecall": 0.9233333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8533333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9666666666666667,
+          "stockimages-cc0": 0.9533333333333334
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9533333333333334,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.91,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9333333333333333,
+        "realRecall": 0.9433333333333334,
+        "syntheticRecall": 0.9233333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8733333333333333,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9466666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9391666666666667,
+        "realRecall": 0.9783333333333334,
+        "syntheticRecall": 0.9,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8266666666666667,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9733333333333334,
+          "stockimages-cc0": 0.9833333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.01,
+      "upstreamBlendAlpha": 1.0
+    },
+    "selectionKey": [
+      0.9283333333333332,
+      0.938125,
+      0.94,
+      0.9366666666666666,
+      0.84
+    ],
+    "thresholdLogit": -0.2090663909912109,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9341666666666666,
+        "realRecall": 0.955,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9533333333333334,
+          "stockimages-cc0": 0.9566666666666667
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9533333333333334,
+        "realRecall": 0.9933333333333333,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9866666666666667,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9283333333333332,
+        "realRecall": 0.94,
+        "syntheticRecall": 0.9166666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9433333333333334,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9366666666666666,
+        "realRecall": 0.96,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8533333333333334,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.95,
+          "stockimages-cc0": 0.97
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.003,
+      "upstreamBlendAlpha": 0.4
+    },
+    "selectionKey": [
+      0.895,
+      0.9181250000000001,
+      0.9566666666666667,
+      0.9333333333333333,
+      0.6866666666666666
+    ],
+    "thresholdLogit": -3.4201915264129634,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9216666666666666,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.8866666666666667,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.78,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.98,
+          "stockimages-cc0": 0.9333333333333333
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9408333333333334,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.8866666666666667,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7866666666666666,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.915,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.8733333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7666666666666667,
+          "HunyuanImage-3.0": 0.98
+        },
+        "realRecallBySource": {
+          "open-images": 0.9766666666666667,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.895,
+        "realRecall": 0.99,
+        "syntheticRecall": 0.8,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.6866666666666666,
+          "HunyuanImage-3.0": 0.9133333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 0.99
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.003,
+      "upstreamBlendAlpha": 0.55
+    },
+    "selectionKey": [
+      0.9258333333333333,
+      0.93625,
+      0.945,
+      0.93,
+      0.7666666666666667
+    ],
+    "thresholdLogit": -2.8955619335174556,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9375,
+        "realRecall": 0.9583333333333334,
+        "syntheticRecall": 0.9166666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9766666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9541666666666666,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9258333333333333,
+        "realRecall": 0.945,
+        "syntheticRecall": 0.9066666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.82,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.96,
+          "stockimages-cc0": 0.93
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9275,
+        "realRecall": 0.9916666666666667,
+        "syntheticRecall": 0.8633333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7666666666666667,
+          "HunyuanImage-3.0": 0.96
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 0.9933333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.003,
+      "upstreamBlendAlpha": 0.7
+    },
+    "selectionKey": [
+      0.9333333333333333,
+      0.9414583333333333,
+      0.9483333333333334,
+      0.94,
+      0.7933333333333333
+    ],
+    "thresholdLogit": -2.0284533500671382,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.94,
+        "realRecall": 0.9533333333333334,
+        "syntheticRecall": 0.9266666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9666666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9550000000000001,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9375,
+        "realRecall": 0.9483333333333334,
+        "syntheticRecall": 0.9266666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9566666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9333333333333333,
+        "realRecall": 0.9866666666666667,
+        "syntheticRecall": 0.88,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7933333333333333,
+          "HunyuanImage-3.0": 0.9666666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9866666666666667,
+          "stockimages-cc0": 0.9866666666666667
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.003,
+      "upstreamBlendAlpha": 0.85
+    },
+    "selectionKey": [
+      0.9325,
+      0.9427083333333334,
+      0.9383333333333334,
+      0.9333333333333333,
+      0.84
+    ],
+    "thresholdLogit": -1.2079858779907224,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9391666666666667,
+        "realRecall": 0.9516666666666667,
+        "syntheticRecall": 0.9266666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.95,
+          "stockimages-cc0": 0.9533333333333334
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9566666666666667,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.9166666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8466666666666667,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9325,
+        "realRecall": 0.9383333333333334,
+        "syntheticRecall": 0.9266666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.88,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9433333333333334,
+          "stockimages-cc0": 0.9333333333333333
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9425,
+        "realRecall": 0.975,
+        "syntheticRecall": 0.91,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.98
+        },
+        "realRecallBySource": {
+          "open-images": 0.97,
+          "stockimages-cc0": 0.98
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.003,
+      "upstreamBlendAlpha": 1.0
+    },
+    "selectionKey": [
+      0.9283333333333332,
+      0.9383333333333334,
+      0.94,
+      0.9366666666666666,
+      0.84
+    ],
+    "thresholdLogit": -0.2640905380249023,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.935,
+        "realRecall": 0.9533333333333334,
+        "syntheticRecall": 0.9166666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8466666666666667,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.95,
+          "stockimages-cc0": 0.9566666666666667
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9533333333333334,
+        "realRecall": 0.9933333333333333,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9866666666666667,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9283333333333332,
+        "realRecall": 0.94,
+        "syntheticRecall": 0.9166666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9433333333333334,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9366666666666666,
+        "realRecall": 0.96,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8533333333333334,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.95,
+          "stockimages-cc0": 0.97
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.001,
+      "upstreamBlendAlpha": 0.4
+    },
+    "selectionKey": [
+      0.895,
+      0.9181250000000001,
+      0.9566666666666667,
+      0.9333333333333333,
+      0.6866666666666666
+    ],
+    "thresholdLogit": -3.4176330566406246,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9216666666666666,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.8866666666666667,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.78,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.98,
+          "stockimages-cc0": 0.9333333333333333
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9408333333333334,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.8866666666666667,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7866666666666666,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.915,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.8733333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7666666666666667,
+          "HunyuanImage-3.0": 0.98
+        },
+        "realRecallBySource": {
+          "open-images": 0.9766666666666667,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.895,
+        "realRecall": 0.99,
+        "syntheticRecall": 0.8,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.6866666666666666,
+          "HunyuanImage-3.0": 0.9133333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 0.99
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.001,
+      "upstreamBlendAlpha": 0.55
+    },
+    "selectionKey": [
+      0.9258333333333333,
+      0.9358333333333333,
+      0.945,
+      0.93,
+      0.7666666666666667
+    ],
+    "thresholdLogit": -2.8848354816436763,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.9358333333333333,
+        "realRecall": 0.9583333333333334,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9766666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9541666666666666,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9258333333333333,
+        "realRecall": 0.945,
+        "syntheticRecall": 0.9066666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.82,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.96,
+          "stockimages-cc0": 0.93
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9275,
+        "realRecall": 0.9916666666666667,
+        "syntheticRecall": 0.8633333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7666666666666667,
+          "HunyuanImage-3.0": 0.96
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 0.9933333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.001,
+      "upstreamBlendAlpha": 0.7
+    },
+    "selectionKey": [
+      0.9333333333333333,
+      0.9414583333333333,
+      0.9483333333333334,
+      0.94,
+      0.7933333333333333
+    ],
+    "thresholdLogit": -2.029786109924316,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.94,
+        "realRecall": 0.9533333333333334,
+        "syntheticRecall": 0.9266666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9666666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9550000000000001,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9375,
+        "realRecall": 0.9483333333333334,
+        "syntheticRecall": 0.9266666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.9566666666666667,
+          "stockimages-cc0": 0.94
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9333333333333333,
+        "realRecall": 0.9866666666666667,
+        "syntheticRecall": 0.88,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.7933333333333333,
+          "HunyuanImage-3.0": 0.9666666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9866666666666667,
+          "stockimages-cc0": 0.9866666666666667
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.001,
+      "upstreamBlendAlpha": 0.85
+    },
+    "selectionKey": [
+      0.9333333333333333,
+      0.9414583333333333,
+      0.9433333333333334,
+      0.9433333333333334,
+      0.8266666666666667
+    ],
+    "thresholdLogit": -1.0719928741455076,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.94,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.9233333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8533333333333334,
+          "HunyuanImage-3.0": 0.9933333333333333
+        },
+        "realRecallBySource": {
+          "open-images": 0.96,
+          "stockimages-cc0": 0.9533333333333334
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9533333333333334,
+        "realRecall": 0.9966666666666667,
+        "syntheticRecall": 0.91,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8333333333333334,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9933333333333333,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9333333333333333,
+        "realRecall": 0.9433333333333334,
+        "syntheticRecall": 0.9233333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8733333333333333,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9433333333333334,
+          "stockimages-cc0": 0.9433333333333334
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9391666666666667,
+        "realRecall": 0.9783333333333334,
+        "syntheticRecall": 0.9,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8266666666666667,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9733333333333334,
+          "stockimages-cc0": 0.9833333333333333
+        }
+      }
+    }
+  },
+  {
+    "parameters": {
+      "weightDecay": 0.001,
+      "upstreamBlendAlpha": 1.0
+    },
+    "selectionKey": [
+      0.9283333333333332,
+      0.9385416666666666,
+      0.94,
+      0.9366666666666666,
+      0.84
+    ],
+    "thresholdLogit": -0.2353718280792236,
+    "variants": {
+      "original": {
+        "balancedAccuracy": 0.935,
+        "realRecall": 0.9566666666666667,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.9533333333333334,
+          "stockimages-cc0": 0.96
+        }
+      },
+      "screenshot": {
+        "balancedAccuracy": 0.9541666666666666,
+        "realRecall": 0.995,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.84,
+          "HunyuanImage-3.0": 0.9866666666666667
+        },
+        "realRecallBySource": {
+          "open-images": 0.99,
+          "stockimages-cc0": 1.0
+        }
+      },
+      "social-q75": {
+        "balancedAccuracy": 0.9283333333333332,
+        "realRecall": 0.94,
+        "syntheticRecall": 0.9166666666666666,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.86,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.9433333333333334,
+          "stockimages-cc0": 0.9366666666666666
+        }
+      },
+      "social-heavy": {
+        "balancedAccuracy": 0.9366666666666666,
+        "realRecall": 0.96,
+        "syntheticRecall": 0.9133333333333333,
+        "syntheticRecallBySource": {
+          "GLM-Image": 0.8533333333333334,
+          "HunyuanImage-3.0": 0.9733333333333334
+        },
+        "realRecallBySource": {
+          "open-images": 0.95,
+          "stockimages-cc0": 0.97
+        }
+      }
+    }
+  }
+]

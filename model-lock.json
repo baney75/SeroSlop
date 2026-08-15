@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "artifact": "weights/prooflens-cf384.onnx",
   "bytes": 87442080,
-  "sha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+  "sha256": "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
   "format": "ONNX FP32",
   "input": {
     "name": "pixel_values",
@@ -29,21 +29,21 @@
     "artifactSha256": "a42c7d740fbb345ba9a26d469b22f301d73089ce3c6da993877ed2b6965a8ba1",
     "license": "MIT"
   },
-  "trainingRecipe": "prooflens-cf384-large-head-v1:b7e6c20edbe7e1398b030fa3b5b349cdf9d0da54253b8ef2dea8f29b8d89d4ec:5f1276cd197947415b4e1bdbbbacd5a1a3f85e1570a4fdb8fe35999cf35e4897",
+  "trainingRecipe": "prooflens-cf384-m2-head-v1:6c215ffbce297b5405b516629fc3fb16e2d7d6711163767c2e3517fdedbf98ca:f619f334d3263c609262b90844d6dcefacbb4333a1b7c215b6d386d5f517bd0c",
   "trainingEvidence": {
-    "recipe": "benchmark/large/recipe.json",
-    "recipeSha256": "b7e6c20edbe7e1398b030fa3b5b349cdf9d0da54253b8ef2dea8f29b8d89d4ec",
-    "selectionSummary": "benchmark/evidence/large/selection-summary.json",
-    "selectionSummarySha256": "5f1276cd197947415b4e1bdbbbacd5a1a3f85e1570a4fdb8fe35999cf35e4897",
-    "trainManifestSha256": "8e221006888f4bcd1632338a7d38f13aa081c9ac5b80340de8239178218dc4e4",
-    "trainingSummarySha256": "bf3427893e44f2daaa703f74965e486c8726e2bc9843d0b1cea155a873e5c113",
-    "calibrationSha256": "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c",
-    "candidateGridSha256": "a00510b4db74f1fbd350aebdabdaee789730e2948a908deb4b26f977edce35d1"
+    "recipe": "benchmark/m2/recipe.json",
+    "recipeSha256": "6c215ffbce297b5405b516629fc3fb16e2d7d6711163767c2e3517fdedbf98ca",
+    "selectionSummary": "benchmark/evidence/m2/selection-summary.json",
+    "selectionSummarySha256": "f619f334d3263c609262b90844d6dcefacbb4333a1b7c215b6d386d5f517bd0c",
+    "trainManifestSha256": "0d180f36fa8e0c2f099743a325b5f25fb4ad7aa0565223abdc89ddf47190710a",
+    "trainingSummarySha256": "c3d49719e50b1fbf5fdc9ba5b8c1df57712910af0f0284a3c3acdf6bad931c04",
+    "calibrationSha256": "06d2452a8db9de26d42285cdc9dad0d233d397a6015583604c64480aec560e2c",
+    "candidateGridSha256": "7ac1028543607a94af88a95af585bdd973205849aa20bbf841f656598b4afe1c"
   },
   "calibration": {
     "slope": 1,
-    "intercept": 1.521955520623936,
+    "intercept": 1.6126519746720926,
     "displayThreshold": 0.65,
-    "validationThresholdLogit": -0.9029163122177123
+    "validationThresholdLogit": -0.993612766265869
   }
 }
