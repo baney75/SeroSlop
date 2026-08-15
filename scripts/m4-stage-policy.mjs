@@ -4,6 +4,8 @@ export const M4_FAILED_PROTOCOL_COMMIT = "82b06b49d44bedd54aba22a09d6a96b44e89d3
 export const M4_FAILED_PROTOCOL_TREE = "9e1de15031f83145ba40c8b1a2470b0833854fd8";
 export const M4_PROTOCOL_RECOVERY_COMMIT = "6fed0d0ad0e9b9bdf50e17cc0463d8c845abc64b";
 export const M4_PROTOCOL_RECOVERY_TREE = "96f8ccd610cb9362fff88bbaacb5a050937c259d";
+export const M4_DATE_RECOVERY_COMMIT = "dedae90f2aeeb87640f5bba73fb4c362c0389770";
+export const M4_DATE_RECOVERY_TREE = "8f5162ac2a8ffcf5b9654efce0570a6c7fa38f2a";
 export const M4_PUBLICATION_LOCK_PATH = "benchmark/evidence/m4/publication-lock.json";
 export const M4_FAILURE_PATH = "benchmark/evidence/m4/failed-training-attempt-1.json";
 
@@ -80,6 +82,21 @@ export const M4_DATE_RECOVERY_EXPECTED = new Map([
   ["scripts/test-m4-stage-policy.mjs", "M"],
 ]);
 
+// P4: append-only CI recovery after public run 31904425227 proved the new
+// producer regression imported uninstalled PyArrow before reaching the public
+// verifier. The test now supplies a dependency-free fake Parquet reader while
+// preserving the same producer/verifier behavior and source contract.
+export const M4_DATE_CI_RECOVERY_EXPECTED = new Map([
+  ["benchmark/m4/test_prepare.py", "M"],
+  ["scripts/check-m4-failure-stage.mjs", "M"],
+  ["scripts/check-m4-protocol-stage.mjs", "M"],
+  ["scripts/check-m4-publication-lock.mjs", "M"],
+  ["scripts/check-m4-source-stage.mjs", "M"],
+  ["scripts/check-m4-training-evidence.mjs", "M"],
+  ["scripts/m4-stage-policy.mjs", "M"],
+  ["scripts/test-m4-stage-policy.mjs", "M"],
+]);
+
 // S: pixel-free, score-free source evidence. Source pixels remain ignored.
 export const M4_SOURCE_EXPECTED = new Map([
   ["benchmark/evidence/m4/attribution.json", "A"],
@@ -149,6 +166,9 @@ export function matchesExpectedRows(rows, expected) {
 export function matchesM4ProtocolRecoveryLineage({
   protocolParents,
   protocolRows,
+  dateRecoveryParents,
+  dateRecoveryRows,
+  dateRecoveryTree,
   recoveryProtocolParents,
   recoveryProtocolRows,
   recoveryProtocolTree,
@@ -157,8 +177,11 @@ export function matchesM4ProtocolRecoveryLineage({
   failedProtocolTree,
   baseTree,
 }) {
-  return protocolParents.length === 1 && protocolParents[0] === M4_PROTOCOL_RECOVERY_COMMIT &&
-    matchesExpectedRows(protocolRows, M4_DATE_RECOVERY_EXPECTED) &&
+  return protocolParents.length === 1 && protocolParents[0] === M4_DATE_RECOVERY_COMMIT &&
+    matchesExpectedRows(protocolRows, M4_DATE_CI_RECOVERY_EXPECTED) &&
+    dateRecoveryParents.length === 1 && dateRecoveryParents[0] === M4_PROTOCOL_RECOVERY_COMMIT &&
+    dateRecoveryTree === M4_DATE_RECOVERY_TREE &&
+    matchesExpectedRows(dateRecoveryRows, M4_DATE_RECOVERY_EXPECTED) &&
     recoveryProtocolParents.length === 1 && recoveryProtocolParents[0] === M4_FAILED_PROTOCOL_COMMIT &&
     recoveryProtocolTree === M4_PROTOCOL_RECOVERY_TREE &&
     matchesExpectedRows(recoveryProtocolRows, M4_PROTOCOL_RECOVERY_EXPECTED) &&

@@ -6,7 +6,9 @@ from io import BytesIO
 from pathlib import Path
 import sys
 import tempfile
+from types import ModuleType
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -70,8 +72,6 @@ class M4PreparationTests(unittest.TestCase):
         self.assertNotEqual(prepare.canonical_inventory(rows), prepare.canonical_inventory(changed))
 
     def test_british_scan_accounts_for_every_raw_row_before_pixel_decode(self) -> None:
-        import pyarrow as pa
-        import pyarrow.parquet as parquet
         from PIL import Image
 
         encoded = BytesIO()
@@ -82,9 +82,26 @@ class M4PreparationTests(unittest.TestCase):
             {"image": {"bytes": b"not-an-image", "path": None}, "date": "1777", "fname": "100002_bad.png", "image_type": "plates"},
             {"image": {"bytes": encoded.getvalue(), "path": None}, "date": "1887", "fname": "100003_good.png", "image_type": "plates"},
         ]
+
+        class FakeBatch:
+            def to_pylist(self) -> list[dict[str, object]]:
+                return rows
+
+        class FakeParquetFile:
+            def __init__(self, _path: Path) -> None:
+                pass
+
+            def iter_batches(self, *, batch_size: int, columns: list[str]) -> list[FakeBatch]:
+                self.assertions = (batch_size, columns)
+                return [FakeBatch()]
+
+        fake_pyarrow = ModuleType("pyarrow")
+        fake_parquet = ModuleType("pyarrow.parquet")
+        fake_parquet.ParquetFile = FakeParquetFile  # type: ignore[attr-defined]
+        fake_pyarrow.parquet = fake_parquet  # type: ignore[attr-defined]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "part-00001.parquet"
-            parquet.write_table(pa.Table.from_pylist(rows), path)
+            path.touch()
             source_counts = {"plates/part-00001.parquet": 4}
             recipe = {
                 "britishLibrary": {
@@ -107,7 +124,8 @@ class M4PreparationTests(unittest.TestCase):
                     "files": [{"path": "plates/part-00001.parquet", "sha256": "2" * 64}],
                 },
             }
-            candidates, eligibility = prepare.scan_british([path], locks, recipe)
+            with patch.dict(sys.modules, {"pyarrow": fake_pyarrow, "pyarrow.parquet": fake_parquet}):
+                candidates, eligibility = prepare.scan_british([path], locks, recipe)
         self.assertEqual([row["sourceRow"] for row in candidates], [3])
         self.assertEqual(eligibility["sourceRows"], 4)
         self.assertEqual(eligibility["eligibleCandidateRows"], 1)

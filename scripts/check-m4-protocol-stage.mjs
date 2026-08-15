@@ -5,6 +5,9 @@ import {
   M4_BASE_COMMIT,
   M4_FAILED_PROTOCOL_COMMIT,
   M4_FAILED_PROTOCOL_TREE,
+  M4_DATE_RECOVERY_COMMIT,
+  M4_DATE_RECOVERY_TREE,
+  M4_DATE_CI_RECOVERY_EXPECTED,
   M4_PROTOCOL_RECOVERY_COMMIT,
   M4_PROTOCOL_RECOVERY_TREE,
   M4_DATE_RECOVERY_EXPECTED,
@@ -61,9 +64,14 @@ const failedProtocolParents = git(["show", "-s", "--format=%P", M4_FAILED_PROTOC
   .split(" ").filter(Boolean);
 const recoveryProtocolParents = git(["show", "-s", "--format=%P", M4_PROTOCOL_RECOVERY_COMMIT])
   .split(" ").filter(Boolean);
+const dateRecoveryParents = git(["show", "-s", "--format=%P", M4_DATE_RECOVERY_COMMIT])
+  .split(" ").filter(Boolean);
 requireCondition(matchesM4ProtocolRecoveryLineage({
   protocolParents: parents,
   protocolRows: commitRows(head),
+  dateRecoveryParents,
+  dateRecoveryRows: commitRows(M4_DATE_RECOVERY_COMMIT),
+  dateRecoveryTree: git(["rev-parse", `${M4_DATE_RECOVERY_COMMIT}^{tree}`]),
   recoveryProtocolParents,
   recoveryProtocolRows: commitRows(M4_PROTOCOL_RECOVERY_COMMIT),
   recoveryProtocolTree: git(["rev-parse", `${M4_PROTOCOL_RECOVERY_COMMIT}^{tree}`]),
@@ -88,11 +96,14 @@ requireCondition(git(["ls-files", "benchmark/data/m4-head", "benchmark/data/m4-s
 console.log(JSON.stringify({
   stage: "m4-protocol",
   head,
-  parent: M4_PROTOCOL_RECOVERY_COMMIT,
+  parent: M4_DATE_RECOVERY_COMMIT,
   failedProtocolTree: M4_FAILED_PROTOCOL_TREE,
   originalProtocolPaths: M4_PROTOCOL_EXPECTED.size,
   recoveryPaths: M4_PROTOCOL_RECOVERY_EXPECTED.size,
   dateEligibilityRecoveryPaths: M4_DATE_RECOVERY_EXPECTED.size,
+  ciRecoveryPaths: M4_DATE_CI_RECOVERY_EXPECTED.size,
+  dateRecoveryCommit: M4_DATE_RECOVERY_COMMIT,
+  dateRecoveryTree: M4_DATE_RECOVERY_TREE,
   recoveryCommit: M4_PROTOCOL_RECOVERY_COMMIT,
   recoveryTree: M4_PROTOCOL_RECOVERY_TREE,
   modelSha256: MODEL_SHA256,

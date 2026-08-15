@@ -7,6 +7,7 @@ import { validateM4FailurePacket } from "./m4-failure-contract.mjs";
 import { digest, jsonEqual, parseManifestMetadata, requireCondition } from "./m4-training-contract.mjs";
 import {
   M4_BASE_COMMIT,
+  M4_DATE_RECOVERY_COMMIT,
   M4_FAILED_PROTOCOL_COMMIT,
   M4_PROTOCOL_RECOVERY_COMMIT,
   M4_FAILURE_EXPECTED,
@@ -80,6 +81,9 @@ const protocolParents = parents(protocol);
 requireCondition(matchesM4ProtocolRecoveryLineage({
   protocolParents,
   protocolRows: commitRows(protocol),
+  dateRecoveryParents: parents(M4_DATE_RECOVERY_COMMIT),
+  dateRecoveryRows: commitRows(M4_DATE_RECOVERY_COMMIT),
+  dateRecoveryTree: git(["rev-parse", `${M4_DATE_RECOVERY_COMMIT}^{tree}`]),
   recoveryProtocolParents: parents(M4_PROTOCOL_RECOVERY_COMMIT),
   recoveryProtocolRows: commitRows(M4_PROTOCOL_RECOVERY_COMMIT),
   recoveryProtocolTree: git(["rev-parse", `${M4_PROTOCOL_RECOVERY_COMMIT}^{tree}`]),
