@@ -133,6 +133,13 @@ class M4FrozenContractTests(unittest.TestCase):
         self.assertFalse({row["bookId"] for row in selector} & {row["bookId"] for row in training})
         self.assertEqual(selector_books, {selector[0]["bookId"]})
 
+    def test_british_date_classification_is_explicit_and_score_blind(self) -> None:
+        self.assertEqual(contracts.classify_british_date("1887"), ("1880", "1887"))
+        self.assertEqual(contracts.classify_british_date("Unknown"), (None, "Unknown"))
+        self.assertEqual(contracts.classify_british_date("1754"), (None, "1754"))
+        self.assertEqual(contracts.classify_british_date(None), (None, "null"))
+        self.assertEqual(contracts.classify_british_date(True), (None, "True"))
+
     def test_british_ties_and_capacity_fail_closed(self) -> None:
         rows = [
             {

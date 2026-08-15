@@ -135,7 +135,11 @@
   "britishLibrary": {
     "trainingTarget": 2400,
     "selectorTarget": 300,
-    "expectedCandidateRows": 19060,
+    "expectedSourceRows": 19060,
+    "expectedCandidateRows": 18451,
+    "expectedRejectedSourceRows": 609,
+    "expectedRejectedDates": {"1754": 1, "1777": 13, "Unknown": 595},
+    "sourceRowCountsCanonicalSha256": "726c7a22f13c2949e8f37a1ed5275c70a8334a6bc68eb9beed429e1d8fd8a2f3",
     "expectedDistinctBooks": 3890,
     "allowedDecades": ["1800", "1820", "1830", "1840", "1860", "1870", "1880", "1890"],
     "source": "biglam/british-library-book-images",

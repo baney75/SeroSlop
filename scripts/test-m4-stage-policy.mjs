@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   M4_FAILURE_EXPECTED,
   M4_LOCK_EXPECTED,
+  M4_DATE_RECOVERY_EXPECTED,
   M4_PROTOCOL_EXPECTED,
   M4_PROTOCOL_RECOVERY_EXPECTED,
   M4_PUBLICATION_EXPECTED,
@@ -35,7 +36,8 @@ assert.throws(() => classifyM4Stage(state({ selectionExists: true, failureExists
 assert.throws(() => classifyM4Stage(state({ selectionExists: true, failureExists: true, trainingExists: true })), /cannot coexist/u);
 assert.throws(() => classifyM4Stage(state({ selectionExists: true, trainingExists: true })), /before its output lock/u);
 
-for (const expected of [M4_PROTOCOL_EXPECTED, M4_PROTOCOL_RECOVERY_EXPECTED, M4_SOURCE_EXPECTED, M4_LOCK_EXPECTED,
+for (const expected of [M4_PROTOCOL_EXPECTED, M4_PROTOCOL_RECOVERY_EXPECTED, M4_DATE_RECOVERY_EXPECTED,
+  M4_SOURCE_EXPECTED, M4_LOCK_EXPECTED,
   M4_FAILURE_EXPECTED, M4_PUBLICATION_EXPECTED]) {
   const rows = [...expected];
   assert.equal(matchesExpectedRows(rows, expected), true);
@@ -45,15 +47,19 @@ for (const expected of [M4_PROTOCOL_EXPECTED, M4_PROTOCOL_RECOVERY_EXPECTED, M4_
 }
 
 const lineage = {
-  protocolParents: ["82b06b49d44bedd54aba22a09d6a96b44e89d303"],
-  protocolRows: [...M4_PROTOCOL_RECOVERY_EXPECTED],
+  protocolParents: ["6fed0d0ad0e9b9bdf50e17cc0463d8c845abc64b"],
+  protocolRows: [...M4_DATE_RECOVERY_EXPECTED],
+  recoveryProtocolParents: ["82b06b49d44bedd54aba22a09d6a96b44e89d303"],
+  recoveryProtocolRows: [...M4_PROTOCOL_RECOVERY_EXPECTED],
+  recoveryProtocolTree: "96f8ccd610cb9362fff88bbaacb5a050937c259d",
   failedProtocolParents: ["439b2481dc88a887f8317be669096495760fbeb1"],
   failedProtocolRows: [...M4_PROTOCOL_EXPECTED],
   failedProtocolTree: "9e1de15031f83145ba40c8b1a2470b0833854fd8",
   baseTree: "440931a595c87ca3d293f5a6f980c75169ddb899",
 };
 assert.equal(matchesM4ProtocolRecoveryLineage(lineage), true);
-for (const field of ["protocolParents", "protocolRows", "failedProtocolParents", "failedProtocolRows",
+for (const field of ["protocolParents", "protocolRows", "recoveryProtocolParents", "recoveryProtocolRows",
+  "recoveryProtocolTree", "failedProtocolParents", "failedProtocolRows",
   "failedProtocolTree", "baseTree"]) {
   const current = lineage[field];
   const changed = { ...lineage, [field]: Array.isArray(current) ? current.slice(1) : "0".repeat(40) };
@@ -74,4 +80,4 @@ assert.ok(router.indexOf("classifyM4Stage") < router.indexOf("classifyM3Stage"))
 assert.match(router, /\["m4-final", "verify:m4-final"\]/u);
 assert.match(router, /\["m4-failed", "verify:m4-failed"\]/u);
 
-console.log(JSON.stringify({ cases: 43, policy: "pass" }));
+console.log(JSON.stringify({ cases: 47, policy: "pass" }));

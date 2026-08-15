@@ -5,6 +5,9 @@ import {
   M4_BASE_COMMIT,
   M4_FAILED_PROTOCOL_COMMIT,
   M4_FAILED_PROTOCOL_TREE,
+  M4_PROTOCOL_RECOVERY_COMMIT,
+  M4_PROTOCOL_RECOVERY_TREE,
+  M4_DATE_RECOVERY_EXPECTED,
   M4_PROTOCOL_EXPECTED,
   M4_PROTOCOL_RECOVERY_EXPECTED,
   matchesM4ProtocolRecoveryLineage,
@@ -56,9 +59,14 @@ const head = git(["rev-parse", "HEAD"]);
 const parents = git(["show", "-s", "--format=%P", head]).split(" ").filter(Boolean);
 const failedProtocolParents = git(["show", "-s", "--format=%P", M4_FAILED_PROTOCOL_COMMIT])
   .split(" ").filter(Boolean);
+const recoveryProtocolParents = git(["show", "-s", "--format=%P", M4_PROTOCOL_RECOVERY_COMMIT])
+  .split(" ").filter(Boolean);
 requireCondition(matchesM4ProtocolRecoveryLineage({
   protocolParents: parents,
   protocolRows: commitRows(head),
+  recoveryProtocolParents,
+  recoveryProtocolRows: commitRows(M4_PROTOCOL_RECOVERY_COMMIT),
+  recoveryProtocolTree: git(["rev-parse", `${M4_PROTOCOL_RECOVERY_COMMIT}^{tree}`]),
   failedProtocolParents,
   failedProtocolRows: commitRows(M4_FAILED_PROTOCOL_COMMIT),
   failedProtocolTree: git(["rev-parse", `${M4_FAILED_PROTOCOL_COMMIT}^{tree}`]),
@@ -67,8 +75,7 @@ requireCondition(matchesM4ProtocolRecoveryLineage({
 for (const pathname of FORBIDDEN_OUTPUTS) {
   requireCondition(!existsSync(pathname), `M4 protocol freeze must precede materialization/training: ${pathname}`);
 }
-for (const pathname of ["benchmark/data/m4-head", "benchmark/data/m4-source",
-  "benchmark/candidates/prooflens-cf384-m4"]) {
+for (const pathname of ["benchmark/data/m4-head", "benchmark/candidates/prooflens-cf384-m4"]) {
   requireCondition(!existsSync(pathname), `M4 protocol freeze must precede ignored materialization: ${pathname}`);
 }
 requireCondition(digest(readFileSync("weights/prooflens-cf384.onnx")) === MODEL_SHA256,
@@ -81,12 +88,17 @@ requireCondition(git(["ls-files", "benchmark/data/m4-head", "benchmark/data/m4-s
 console.log(JSON.stringify({
   stage: "m4-protocol",
   head,
-  parent: M4_FAILED_PROTOCOL_COMMIT,
+  parent: M4_PROTOCOL_RECOVERY_COMMIT,
   failedProtocolTree: M4_FAILED_PROTOCOL_TREE,
   originalProtocolPaths: M4_PROTOCOL_EXPECTED.size,
   recoveryPaths: M4_PROTOCOL_RECOVERY_EXPECTED.size,
+  dateEligibilityRecoveryPaths: M4_DATE_RECOVERY_EXPECTED.size,
+  recoveryCommit: M4_PROTOCOL_RECOVERY_COMMIT,
+  recoveryTree: M4_PROTOCOL_RECOVERY_TREE,
   modelSha256: MODEL_SHA256,
   materializationOutputsPresent: false,
+  sourceArchiveMayExist: true,
+  recoveryReason: "british-date-eligibility-before-selection",
   h3AcceptedAsInput: false,
   policy: "pass",
 }));

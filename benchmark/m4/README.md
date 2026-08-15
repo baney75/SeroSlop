@@ -14,7 +14,7 @@ M4 is a bounded development experiment after M3 failed its frozen selector. It d
 
 ## Score-blind partitions
 
-M4 adds 2,400 British Library plate images from distinct books and 1,920 Rapidata images from 120 distinct prompt groups to the unchanged 108,378-image M3 training manifest. The fresh selector contains 300 other British Library books plus 300 images from 75 other Rapidata prompt groups: 75 each labeled by the publisher as DALL-E 3, Flux, MidJourney, and Stable Diffusion. All images from a selector prompt group are excluded from training even though only one image per family is selected. The 43 remaining complete prompt groups are a fail-closed capacity reserve for source or overlap rejection; they are not a second search budget.
+M4 adds 2,400 British Library plate images from distinct books and 1,920 Rapidata images from 120 distinct prompt groups to the unchanged 108,378-image M3 training manifest. The fresh selector contains 300 other British Library books plus 300 images from 75 other Rapidata prompt groups: 75 each labeled by the publisher as DALL-E 3, Flux, MidJourney, and Stable Diffusion. All images from a selector prompt group are excluded from training even though only one image per family is selected. The 43 remaining complete prompt groups are a fail-closed capacity reserve for source or overlap rejection; they are not a second search budget. The 32 locked British Library shards contain 19,060 raw rows: 18,451 rows fall in the frozen 1800–1890 date strata and 609 are excluded before pixel decoding (`Unknown`: 595, `1754`: 1, `1777`: 13). The public source index exhaustively accounts for every raw shard row and retains the rejected row positions without publishing pixels.
 
 The British Library mirror is pinned to revision `c288990ce59b055e7bf9411f663d0f672ae16102`, config `plates`. Its card says `plates` is an algorithmic page-layout category, not a curated art taxonomy. The machine-readable card reports CC0-1.0, while the prose describes the underlying British Library Flickr Commons release as Public Domain Mark / no known copyright restrictions. ProofLens records that distinction and does not independently clear every depicted or third-party right.
 
@@ -40,7 +40,7 @@ The candidate and threshold are selected solely on the fresh M4 selector. The fi
 
 ## Intended sequence
 
-1. Commit and publicly verify this protocol freeze with no selected source pixels, manifests, features, candidates, or scores.
+1. Commit and publicly verify this protocol freeze with no selected source pixels, manifests, features, candidates, or scores. The append-only date-eligibility recovery was made after the immutable source archives were downloaded but before any source selection, materialized output, feature extraction, candidate fitting, or score existed.
 2. Materialize the pinned source files locally, publish only pixel-free source evidence, and publicly verify that exact source packet.
 3. Run one fresh CPU feature-extraction/training attempt from the documented command emitted by the source packet.
 4. Freeze the selector winner before evaluating M3, then M2, as terminal regressions. A failure records one append-only failure packet; it cannot trigger another candidate or threshold.

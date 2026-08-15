@@ -82,7 +82,7 @@ function buildPacket(status) {
     sourceCommit: SOURCE_COMMIT,
     sourceTree: SOURCE_TREE,
     baseCommit: fixture.recipe.baseCommit,
-    recipeSha256: fixture.hashes.recipe ?? "975c1588b1be33b126b63c49a8ab7623eedb7db07ef8e9d788c6cc64e7a9473d",
+    recipeSha256: fixture.hashes.recipe ?? "344ced4ee8e68325bd0217391e4e5745d554b8140586b51d7aa98ef6bb441b34",
     sourceLocksSha256: fixture.hashes.sourceLocks ?? "bf44ceba6f32d322de04f9fae994c0fed7fdcd00e2bcfff9de39c6d852a01394",
     trainerSha256: fixture.hashes.trainer,
     upstreamModelSha256: fixture.summary.upstreamModelSha256,

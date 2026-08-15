@@ -8,7 +8,7 @@ export const M4 = Object.freeze({
   baseTree: "440931a595c87ca3d293f5a6f980c75169ddb899",
   upstreamSha256: "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
   upstreamBytes: 87_442_080,
-  recipeSha256: "975c1588b1be33b126b63c49a8ab7623eedb7db07ef8e9d788c6cc64e7a9473d",
+  recipeSha256: "344ced4ee8e68325bd0217391e4e5745d554b8140586b51d7aa98ef6bb441b34",
   sourceLocksSha256: "bf44ceba6f32d322de04f9fae994c0fed7fdcd00e2bcfff9de39c6d852a01394",
   seed: 20260815,
   pipelineVersion: 1,

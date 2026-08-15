@@ -47,8 +47,8 @@ from benchmark.m4.contracts import (  # noqa: E402
     ALLOWED_BRITISH_DECADES,
     MODELS,
     british_book_id,
-    british_decade,
     canonical_json,
+    classify_british_date,
     collect_rapidata_groups,
     digest_bytes,
     load_frozen_protocol,
@@ -463,11 +463,15 @@ def embedded_bytes(value: object, *, label: str) -> bytes:
     return result
 
 
-def scan_british(files: list[Path], locks: dict[str, Any], recipe: dict[str, Any]) -> list[dict[str, Any]]:
+def scan_british(
+    files: list[Path], locks: dict[str, Any], recipe: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     import pyarrow.parquet as parquet
 
     by_path = {str(row["path"]): row for row in locks["britishLibrary"]["files"]}
     candidates: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
+    source_row_counts: dict[str, int] = {}
     for path in files:
         source_path = f"plates/{path.name}"
         lock = by_path[source_path]
@@ -475,11 +479,22 @@ def scan_british(files: list[Path], locks: dict[str, Any], recipe: dict[str, Any
         file = parquet.ParquetFile(path)
         for batch in file.iter_batches(batch_size=16, columns=["image", "date", "fname", "image_type"]):
             for row in batch.to_pylist():
-                value = embedded_bytes(row.get("image"), label=f"British Library {source_path}:{source_row}")
+                row_index = source_row
+                source_row += 1
+                decade, raw_date = classify_british_date(row.get("date"))
+                if decade is None:
+                    rejected.append({
+                        "sourceShard": source_path,
+                        "sourceShardSha256": lock["sha256"],
+                        "sourceRow": row_index,
+                        "rawDate": raw_date,
+                        "reason": "date-not-in-frozen-strata",
+                    })
+                    continue
+                value = embedded_bytes(row.get("image"), label=f"British Library {source_path}:{row_index}")
                 width, height, dhash, extension = image_facts(value)
                 book = british_book_id(row.get("fname"))
-                decade = british_decade(row.get("date"))
-                identifier = f"british-library:{locks['britishLibrary']['revision']}:{source_path}:{source_row}"
+                identifier = f"british-library:{locks['britishLibrary']['revision']}:{source_path}:{row_index}"
                 group = f"british-library:{locks['britishLibrary']['revision']}:book:{book}"
                 candidates.append({
                     "id": identifier,
@@ -488,7 +503,7 @@ def scan_british(files: list[Path], locks: dict[str, Any], recipe: dict[str, Any
                     "sourceSplit": "plates/train",
                     "sourceShard": source_path,
                     "sourceShardSha256": lock["sha256"],
-                    "sourceRow": source_row,
+                    "sourceRow": row_index,
                     "bookId": book,
                     "decade": decade,
                     "fnameSha256": digest_bytes(str(row["fname"]).encode("utf-8")),
@@ -502,7 +517,7 @@ def scan_british(files: list[Path], locks: dict[str, Any], recipe: dict[str, Any
                     "height": height,
                     "extension": extension,
                 })
-                source_row += 1
+        source_row_counts[source_path] = source_row
     counts = Counter(str(row["decade"]) for row in candidates)
     distinct = Counter()
     for decade in ALLOWED_BRITISH_DECADES:
@@ -515,7 +530,27 @@ def scan_british(files: list[Path], locks: dict[str, Any], recipe: dict[str, Any
         raise ValueError("British Library global distinct-book count changed")
     if sum(counts.values()) != len(candidates):
         raise AssertionError("British Library decade accounting changed")
-    return candidates
+    rejected_counts = dict(sorted(Counter(str(row["rawDate"]) for row in rejected).items()))
+    eligibility = {
+        "sourceRows": sum(source_row_counts.values()),
+        "eligibleCandidateRows": len(candidates),
+        "rejectedSourceRows": len(rejected),
+        "rejectedDateCounts": rejected_counts,
+        "sourceRowCounts": dict(sorted(source_row_counts.items())),
+        "rejectedItems": sorted(
+            rejected, key=lambda row: (str(row["sourceShard"]), int(row["sourceRow"])),
+        ),
+    }
+    if (
+        eligibility["sourceRows"] != recipe["britishLibrary"]["expectedSourceRows"]
+        or eligibility["eligibleCandidateRows"] != recipe["britishLibrary"]["expectedCandidateRows"]
+        or eligibility["rejectedSourceRows"] != recipe["britishLibrary"]["expectedRejectedSourceRows"]
+        or eligibility["rejectedDateCounts"] != recipe["britishLibrary"]["expectedRejectedDates"]
+        or digest_bytes(canonical_json(eligibility["sourceRowCounts"]))
+        != recipe["britishLibrary"]["sourceRowCountsCanonicalSha256"]
+    ):
+        raise ValueError("British Library pinned-shard source eligibility changed")
+    return candidates, eligibility
 
 
 def scan_rapidata(files: list[Path], locks: dict[str, Any], recipe: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
@@ -860,7 +895,7 @@ def derive_packet(
     files = ensure_sources(locks, source_root, allow_download=allow_download)
     base_rows, base_expanded = load_base_training(recipe)
     state, exclusion_counts = seed_exclusions(recipe, base_rows)
-    british_candidates = scan_british(files["britishLibrary"], locks, recipe)
+    british_candidates, british_eligibility = scan_british(files["britishLibrary"], locks, recipe)
     rapidata_images, rapidata_groups = scan_rapidata(files["rapidata"], locks, recipe)
     rejects: list[dict[str, Any]] = []
 
@@ -979,6 +1014,7 @@ def derive_packet(
             "dataset": locks["britishLibrary"]["dataset"],
             "revision": locks["britishLibrary"]["revision"],
             "sourceLocksSha256": recipe["sourceLocksSha256"],
+            "sourceEligibility": british_eligibility,
             "items": [source_index_candidate(row) for row in sorted(british_candidates, key=lambda row: row["id"])],
         }),
         "rapidata-source-index.json": canonical_json({
@@ -1009,6 +1045,7 @@ def derive_packet(
         "h3PixelsRead": False,
         "h3ManifestSha256": recipe["h3Exclusion"]["sha256"],
         "selectionOrder": ["british-selector", "rapidata-selector", "british-training", "rapidata-training"],
+        "sourceEligibility": {"britishLibrary": british_eligibility},
         "training": {
             "items": len(training_rows),
             "featureViews": recipe["expectedTraining"]["featureViews"],

@@ -8,6 +8,7 @@ import { digest, jsonEqual, parseManifestMetadata, requireCondition } from "./m4
 import {
   M4_BASE_COMMIT,
   M4_FAILED_PROTOCOL_COMMIT,
+  M4_PROTOCOL_RECOVERY_COMMIT,
   M4_FAILURE_EXPECTED,
   M4_FAILURE_PATH,
   M4_PUBLICATION_LOCK_PATH,
@@ -79,6 +80,9 @@ const protocolParents = parents(protocol);
 requireCondition(matchesM4ProtocolRecoveryLineage({
   protocolParents,
   protocolRows: commitRows(protocol),
+  recoveryProtocolParents: parents(M4_PROTOCOL_RECOVERY_COMMIT),
+  recoveryProtocolRows: commitRows(M4_PROTOCOL_RECOVERY_COMMIT),
+  recoveryProtocolTree: git(["rev-parse", `${M4_PROTOCOL_RECOVERY_COMMIT}^{tree}`]),
   failedProtocolParents: parents(M4_FAILED_PROTOCOL_COMMIT),
   failedProtocolRows: commitRows(M4_FAILED_PROTOCOL_COMMIT),
   failedProtocolTree: git(["rev-parse", `${M4_FAILED_PROTOCOL_COMMIT}^{tree}`]),

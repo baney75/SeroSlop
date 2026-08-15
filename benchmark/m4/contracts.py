@@ -19,8 +19,8 @@ ADAPTER_ANCHOR_COEFFICIENTS = (0.01, 0.03, 0.1, 0.3)
 ALLOWED_BRITISH_DECADES = ("1800", "1820", "1830", "1840", "1860", "1870", "1880", "1890")
 SOURCE_LOCKS_RAW_SHA256 = "bf44ceba6f32d322de04f9fae994c0fed7fdcd00e2bcfff9de39c6d852a01394"
 SOURCE_LOCKS_CANONICAL_SHA256 = "095e06677cc77e82e5ed3777f80e9a21585efe401f6f5c7f658372c1987da622"
-RECIPE_RAW_SHA256 = "975c1588b1be33b126b63c49a8ab7623eedb7db07ef8e9d788c6cc64e7a9473d"
-RECIPE_CANONICAL_SHA256 = "1da3082819a8f46f089cf5dad0635ef113642aa4613e4c7770afc547bf61a5e4"
+RECIPE_RAW_SHA256 = "344ced4ee8e68325bd0217391e4e5745d554b8140586b51d7aa98ef6bb441b34"
+RECIPE_CANONICAL_SHA256 = "c567578f254bc8c4793eac9f413354caaac5153a6d1897e8ad2f096ced7d9668"
 
 
 def canonical_json(value: object, *, pretty: bool = False) -> bytes:
@@ -96,6 +96,19 @@ def british_decade(value: str) -> str:
     if decade not in ALLOWED_BRITISH_DECADES:
         raise ValueError(f"British Library date is outside the frozen decade strata: {year}")
     return decade
+
+
+def classify_british_date(value: object) -> tuple[str | None, str]:
+    """Return the frozen decade or an auditable raw-value rejection key."""
+    raw = "null" if value is None else str(value)
+    if isinstance(value, bool):
+        return None, raw
+    try:
+        year = int(value)
+    except (TypeError, ValueError):
+        return None, raw
+    decade = str((year // 10) * 10)
+    return (decade, raw) if decade in ALLOWED_BRITISH_DECADES else (None, raw)
 
 
 def prompt_group_id(prompt: str) -> str:
@@ -215,6 +228,16 @@ def validate_recipe(recipe: dict[str, Any], locks: dict[str, Any]) -> None:
         raise ValueError("M4 regression order changed")
     if tuple(recipe["britishLibrary"]["allowedDecades"]) != ALLOWED_BRITISH_DECADES:
         raise ValueError("British Library decade strata changed")
+    if (
+        recipe["britishLibrary"].get("expectedSourceRows") != 19_060
+        or recipe["britishLibrary"].get("expectedCandidateRows") != 18_451
+        or recipe["britishLibrary"].get("expectedRejectedSourceRows") != 609
+        or recipe["britishLibrary"].get("expectedRejectedDates")
+        != {"1754": 1, "1777": 13, "Unknown": 595}
+        or recipe["britishLibrary"].get("sourceRowCountsCanonicalSha256")
+        != "726c7a22f13c2949e8f37a1ed5275c70a8334a6bc68eb9beed429e1d8fd8a2f3"
+    ):
+        raise ValueError("British Library source eligibility boundary changed")
     if sum(recipe["britishLibrary"]["selectorDecadeQuotas"].values()) != 300:
         raise ValueError("British Library selector quotas changed")
     if sum(recipe["britishLibrary"]["trainingDecadeQuotas"].values()) != 2400:

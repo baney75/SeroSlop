@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import copy
 import os
+from io import BytesIO
 from pathlib import Path
 import sys
 import tempfile
@@ -11,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from benchmark.m4 import prepare  # noqa: E402
+from benchmark.m4 import prepare, verify  # noqa: E402
 from benchmark.m4.contracts import ALLOWED_BRITISH_DECADES, MODELS, prompt_group_id  # noqa: E402
 
 
@@ -66,6 +68,124 @@ class M4PreparationTests(unittest.TestCase):
         changed = [dict(row) for row in rows]
         changed[0]["bytes"] = 3
         self.assertNotEqual(prepare.canonical_inventory(rows), prepare.canonical_inventory(changed))
+
+    def test_british_scan_accounts_for_every_raw_row_before_pixel_decode(self) -> None:
+        import pyarrow as pa
+        import pyarrow.parquet as parquet
+        from PIL import Image
+
+        encoded = BytesIO()
+        Image.new("RGB", (16, 16), (127, 64, 32)).save(encoded, format="PNG")
+        rows = [
+            {"image": {"bytes": b"not-an-image", "path": None}, "date": "Unknown", "fname": "100000_bad.png", "image_type": "plates"},
+            {"image": {"bytes": b"not-an-image", "path": None}, "date": "1754", "fname": "100001_bad.png", "image_type": "plates"},
+            {"image": {"bytes": b"not-an-image", "path": None}, "date": "1777", "fname": "100002_bad.png", "image_type": "plates"},
+            {"image": {"bytes": encoded.getvalue(), "path": None}, "date": "1887", "fname": "100003_good.png", "image_type": "plates"},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "part-00001.parquet"
+            parquet.write_table(pa.Table.from_pylist(rows), path)
+            source_counts = {"plates/part-00001.parquet": 4}
+            recipe = {
+                "britishLibrary": {
+                    "expectedSourceRows": 4,
+                    "expectedCandidateRows": 1,
+                    "expectedRejectedSourceRows": 3,
+                    "expectedRejectedDates": {"1754": 1, "1777": 1, "Unknown": 1},
+                    "sourceRowCountsCanonicalSha256": prepare.digest_bytes(prepare.canonical_json(source_counts)),
+                    "expectedDistinctBooksByDecade": {
+                        decade: int(decade == "1880") for decade in ALLOWED_BRITISH_DECADES
+                    },
+                    "expectedDistinctBooks": 1,
+                    "sourceReportedLicense": "fixture",
+                },
+            }
+            locks = {
+                "britishLibrary": {
+                    "dataset": "fixture/british",
+                    "revision": "1" * 40,
+                    "files": [{"path": "plates/part-00001.parquet", "sha256": "2" * 64}],
+                },
+            }
+            candidates, eligibility = prepare.scan_british([path], locks, recipe)
+        self.assertEqual([row["sourceRow"] for row in candidates], [3])
+        self.assertEqual(eligibility["sourceRows"], 4)
+        self.assertEqual(eligibility["eligibleCandidateRows"], 1)
+        self.assertEqual(eligibility["rejectedDateCounts"], {"1754": 1, "1777": 1, "Unknown": 1})
+        self.assertEqual([row["sourceRow"] for row in eligibility["rejectedItems"]], [0, 1, 2])
+
+    def test_public_british_eligibility_verifier_rejects_incomplete_or_ambiguous_rows(self) -> None:
+        shard = "plates/part-00001.parquet"
+        shard_sha = "2" * 64
+        row_counts = {shard: 4}
+        recipe = {
+            "britishLibrary": {
+                "expectedSourceRows": 4,
+                "expectedRejectedSourceRows": 3,
+                "expectedRejectedDates": {"1754": 1, "1777": 1, "Unknown": 1},
+                "sourceRowCountsCanonicalSha256": prepare.digest_bytes(prepare.canonical_json(row_counts)),
+            },
+        }
+        eligible = [{"sourceShard": shard, "sourceRow": 3}]
+        rejected = [
+            {
+                "sourceShard": shard,
+                "sourceShardSha256": shard_sha,
+                "sourceRow": index,
+                "rawDate": raw_date,
+                "reason": "date-not-in-frozen-strata",
+            }
+            for index, raw_date in enumerate(("Unknown", "1754", "1777"))
+        ]
+        eligibility = {
+            "sourceRows": 4,
+            "eligibleCandidateRows": 1,
+            "rejectedSourceRows": 3,
+            "rejectedDateCounts": {"1754": 1, "1777": 1, "Unknown": 1},
+            "sourceRowCounts": row_counts,
+            "rejectedItems": rejected,
+        }
+        locks = {shard: {"sha256": shard_sha}}
+        verify._validate_british_source_eligibility(eligible, eligibility, recipe, locks)
+
+        cases: dict[str, tuple[dict[str, object], dict[str, object]]] = {}
+
+        missing = copy.deepcopy(eligibility)
+        missing["sourceRows"] = 5
+        missing["sourceRowCounts"][shard] = 5
+        missing_recipe = copy.deepcopy(recipe)
+        missing_recipe["britishLibrary"]["expectedSourceRows"] = 5
+        missing_recipe["britishLibrary"]["sourceRowCountsCanonicalSha256"] = prepare.digest_bytes(
+            prepare.canonical_json(missing["sourceRowCounts"]),
+        )
+        cases["missing position"] = (missing, missing_recipe)
+
+        overlap = copy.deepcopy(eligibility)
+        overlap["rejectedItems"][0]["sourceRow"] = 3
+        cases["eligible/rejected overlap"] = (overlap, copy.deepcopy(recipe))
+
+        duplicate = copy.deepcopy(eligibility)
+        duplicate["rejectedItems"][2]["sourceRow"] = 0
+        cases["duplicate rejected position"] = (duplicate, copy.deepcopy(recipe))
+
+        out_of_range = copy.deepcopy(eligibility)
+        out_of_range["rejectedItems"][2]["sourceRow"] = 4
+        cases["out-of-range position"] = (out_of_range, copy.deepcopy(recipe))
+
+        wrong_dates = copy.deepcopy(eligibility)
+        wrong_dates["rejectedItems"][1]["rawDate"] = "Unknown"
+        cases["rejected date counts"] = (wrong_dates, copy.deepcopy(recipe))
+
+        wrong_row_hash = copy.deepcopy(eligibility)
+        wrong_row_hash["sourceRowCounts"][shard] = 5
+        cases["source row-count hash"] = (wrong_row_hash, copy.deepcopy(recipe))
+
+        for label, (changed_eligibility, changed_recipe) in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(ValueError):
+                    verify._validate_british_source_eligibility(
+                        eligible, changed_eligibility, changed_recipe, locks,
+                    )
 
     def test_overlap_state_is_group_atomic_and_rejects_cross_pool_near_matches(self) -> None:
         state = prepare.OverlapState(8)

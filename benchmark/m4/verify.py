@@ -112,10 +112,80 @@ def _require_candidate_common(row: dict[str, Any], *, label: int, source: str) -
         raise ValueError(f"Malformed M4 public source candidate: {row.get('id')}")
 
 
+def _validate_british_source_eligibility(
+    british: list[dict[str, Any]], eligibility: object, recipe: dict[str, Any],
+    lock_by_path: dict[str, dict[str, Any]],
+) -> None:
+    if not isinstance(eligibility, dict) or set(eligibility) != {
+        "sourceRows", "eligibleCandidateRows", "rejectedSourceRows", "rejectedDateCounts",
+        "sourceRowCounts", "rejectedItems",
+    }:
+        raise ValueError("M4 British source eligibility schema changed")
+    expected_rejected = recipe["britishLibrary"]["expectedRejectedDates"]
+    row_counts = eligibility["sourceRowCounts"]
+    rejected_items = eligibility["rejectedItems"]
+    if (
+        eligibility["sourceRows"] != recipe["britishLibrary"]["expectedSourceRows"]
+        or eligibility["eligibleCandidateRows"] != len(british)
+        or eligibility["rejectedSourceRows"] != recipe["britishLibrary"]["expectedRejectedSourceRows"]
+        or eligibility["rejectedDateCounts"] != expected_rejected
+        or not isinstance(row_counts, dict)
+        or set(row_counts) != set(lock_by_path)
+        or digest_bytes(canonical_json(row_counts))
+        != recipe["britishLibrary"]["sourceRowCountsCanonicalSha256"]
+        or not isinstance(rejected_items, list)
+        or len(rejected_items) != eligibility["rejectedSourceRows"]
+    ):
+        raise ValueError("M4 British source eligibility boundary changed")
+    eligible_positions = {(str(row["sourceShard"]), int(row["sourceRow"])) for row in british}
+    if len(eligible_positions) != len(british):
+        raise ValueError("M4 British eligible-source positions are duplicated")
+    rejected_positions: set[tuple[str, int]] = set()
+    rejected_counts: Counter[str] = Counter()
+    for row in rejected_items:
+        if not isinstance(row, dict) or set(row) != {
+            "sourceShard", "sourceShardSha256", "sourceRow", "rawDate", "reason",
+        }:
+            raise ValueError("M4 British rejected-source schema changed")
+        shard = str(row["sourceShard"])
+        source_row = row["sourceRow"]
+        raw_date = str(row["rawDate"])
+        lock = lock_by_path.get(shard)
+        position = (shard, source_row) if isinstance(source_row, int) and not isinstance(source_row, bool) else None
+        if (
+            lock is None
+            or position is None
+            or source_row < 0
+            or source_row >= row_counts[shard]
+            or row["sourceShardSha256"] != lock["sha256"]
+            or row["reason"] != "date-not-in-frozen-strata"
+            or raw_date not in expected_rejected
+            or position in rejected_positions
+            or position in eligible_positions
+        ):
+            raise ValueError("M4 British rejected-source provenance changed")
+        rejected_positions.add(position)
+        rejected_counts[raw_date] += 1
+    expected_positions = {
+        (shard, source_row)
+        for shard, count in row_counts.items()
+        if isinstance(count, int) and not isinstance(count, bool) and count > 0
+        for source_row in range(count)
+    }
+    if (
+        dict(sorted(rejected_counts.items())) != expected_rejected
+        or len(expected_positions) != eligibility["sourceRows"]
+        or eligible_positions | rejected_positions != expected_positions
+    ):
+        raise ValueError("M4 British source rows are not exhaustively accounted")
+
+
 def _validate_public_indexes(
     british_packet: dict[str, Any], rapidata_packet: dict[str, Any], recipe: dict[str, Any], locks: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, Any]]]:
-    if set(british_packet) != {"schemaVersion", "dataset", "revision", "sourceLocksSha256", "items"}:
+    if set(british_packet) != {
+        "schemaVersion", "dataset", "revision", "sourceLocksSha256", "sourceEligibility", "items",
+    }:
         raise ValueError("M4 British source-index schema changed")
     if set(rapidata_packet) != {"schemaVersion", "dataset", "revision", "sourceLocksSha256", "items"}:
         raise ValueError("M4 Rapidata source-index schema changed")
@@ -174,6 +244,9 @@ def _validate_public_indexes(
         raise ValueError("M4 British source-index book capacity changed")
     if len({str(row["bookId"]) for row in british}) != recipe["britishLibrary"]["expectedDistinctBooks"]:
         raise ValueError("M4 British source-index global book capacity changed")
+    _validate_british_source_eligibility(
+        british, british_packet["sourceEligibility"], recipe, lock_by_path,
+    )
 
     rapidata_keys = {
         "id", "dataset", "datasetRevision", "sourceSplit", "firstSourceShard",
@@ -322,6 +395,7 @@ def verify_public_only(recipe: dict[str, Any], locks: dict[str, Any], evidence_r
         "h3PixelsRead": False,
         "h3ManifestSha256": recipe["h3Exclusion"]["sha256"],
         "selectionOrder": ["british-selector", "rapidata-selector", "british-training", "rapidata-training"],
+        "sourceEligibility": {"britishLibrary": british_packet["sourceEligibility"]},
         "training": {
             "items": len(expected_train), "featureViews": recipe["expectedTraining"]["featureViews"],
             "classCounts": class_counts, "sourceCounts": dict(sorted(source_counts.items())),
