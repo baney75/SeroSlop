@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 3,
+  "name": "prooflens-confirmatory-v2",
+  "protocol": "confirmatory-v2",
+  "commitMarkerPublication": true,
+  "allVariantsRequired": true,
+  "model": {
+    "path": "/Users/baney/Documents/Codex/2026-08-13/on-my-personal-github-on-a/weights/prooflens-cf384.onnx",
+    "sha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+    "bytes": 87442080
+  },
+  "dataset": {
+    "manifest": "/Users/baney/Documents/Codex/2026-08-13/on-my-personal-github-on-a/benchmark/manifests/test-v2.jsonl",
+    "sha256": "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8",
+    "items": 600
+  },
+  "runtime": {
+    "executionProvider": "cpu",
+    "providers": [
+      "CPUExecutionProvider"
+    ],
+    "batchSize": 16,
+    "numpy": "2.2.6",
+    "onnxRuntime": "1.22.0",
+    "pillow": "11.3.0",
+    "probabilityArithmetic": "binary64 sigmoid from the recorded ONNX logit"
+  },
+  "threshold": {
+    "display": 0.65,
+    "raw": 0.2884515632035137,
+    "calibrationSha256": "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c",
+    "calibration": {
+      "schemaVersion": 1,
+      "method": "Validation-selected logit alignment to fixed 65/100 display threshold; not probability calibration",
+      "slope": 1,
+      "intercept": 1.521955520623936,
+      "validationThresholdLogit": -0.9029163122177123,
+      "rawProbabilityThreshold": 0.2884515632035137,
+      "displayThreshold": 0.65,
+      "modelSha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+      "trainManifestSha256": "8e221006888f4bcd1632338a7d38f13aa081c9ac5b80340de8239178218dc4e4",
+      "validationManifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+      "selectionSummarySha256": "5f1276cd197947415b4e1bdbbbacd5a1a3f85e1570a4fdb8fe35999cf35e4897"
+    }
+  },
+  "variants": {
+    "original": {
+      "balancedAccuracy": 0.9283333333333333,
+      "realRecall": 0.8666666666666667,
+      "syntheticRecall": 0.99,
+      "syntheticRecallBySource": {
+        "coxy7-infinity": 0.99
+      },
+      "count": 600
+    },
+    "screenshot": {
+      "balancedAccuracy": 0.9766666666666666,
+      "realRecall": 0.9833333333333333,
+      "syntheticRecall": 0.97,
+      "syntheticRecallBySource": {
+        "coxy7-infinity": 0.97
+      },
+      "count": 600
+    },
+    "social-q75": {
+      "balancedAccuracy": 0.9016666666666666,
+      "realRecall": 0.8533333333333334,
+      "syntheticRecall": 0.95,
+      "syntheticRecallBySource": {
+        "coxy7-infinity": 0.95
+      },
+      "count": 600
+    },
+    "social-heavy": {
+      "balancedAccuracy": 0.8966666666666667,
+      "realRecall": 0.93,
+      "syntheticRecall": 0.8633333333333333,
+      "syntheticRecallBySource": {
+        "coxy7-infinity": 0.8633333333333333
+      },
+      "count": 600
+    }
+  }
+}

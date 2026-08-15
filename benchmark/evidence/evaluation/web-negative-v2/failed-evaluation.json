@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "status": "failed-frozen-web-negative-gate",
+  "acceptanceEligible": false,
+  "holdoutConsumed": true,
+  "sourceCommit": "4fdf6b7dcc53371f00aff5f6b449f4299c2988cb",
+  "sourceTree": "bebcd3e602d4a06f4ec6d30c35ae1c408af1971f",
+  "sourcePublicActionsRunId": 31855954386,
+  "modelSha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+  "calibrationSha256": "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c",
+  "confirmatoryManifestSha256": "773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8",
+  "webNegativeManifestSha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9",
+  "probabilityArithmetic": "binary64 sigmoid from the recorded ONNX logit",
+  "accuracyGate": {
+    "status": "pass",
+    "minimumBalancedAccuracyLower95": 0.75,
+    "minimumRealRecallLower95": 0.75,
+    "minimumSyntheticRecallLower95": 0.75,
+    "minimumSyntheticRecallPerFamily": 0.6,
+    "minimumObservedBalancedAccuracyLower95": 0.8716666666666667,
+    "minimumObservedClassRecallLower95": 0.8133333333333334,
+    "minimumObservedInfinityRecall": 0.8633333333333333
+  },
+  "webNegativeGate": {
+    "status": "fail",
+    "maximumOverallFalsePositiveRateUpper95": 0.1,
+    "maximumPerSourceFalsePositiveRateUpper95": 0.2,
+    "failedVariants": {
+      "original": {
+        "falsePositiveRate": 0.0877742946708464,
+        "upper95": 0.12393319221279411
+      },
+      "social-q75": {
+        "falsePositiveRate": 0.13793103448275862,
+        "upper95": 0.1800996903224568
+      }
+    }
+  },
+  "filesSha256": {
+    "benchmark/evidence/evaluation/confirmatory-v2/bootstrap.json": "5d7ee7ed8161f327bcaf3e939aa269363ab15abd46401b1fd246fa45ccb9fada",
+    "benchmark/evidence/evaluation/confirmatory-v2/prooflens-confirmatory-v2-complete.json": "e2db75e6b3f96fbd0a3be0536432022e227fb6998554b65f2ccf89de87311044",
+    "benchmark/evidence/evaluation/confirmatory-v2/prooflens-confirmatory-v2-original-predictions.jsonl": "05547daa43c1d4be69ed3cced9407c0a96ce52ee25f037a9056abab8d1de212e",
+    "benchmark/evidence/evaluation/confirmatory-v2/prooflens-confirmatory-v2-screenshot-predictions.jsonl": "7a3eebdba9e4a1a9052c2ee8d1d1b2168809d7f0121b83ef47a6ff5f84c928ab",
+    "benchmark/evidence/evaluation/confirmatory-v2/prooflens-confirmatory-v2-social-heavy-predictions.jsonl": "4de3909458b5c53c57d4e9e3b478b588889ad9902cd326287a5ec00c954ae5a0",
+    "benchmark/evidence/evaluation/confirmatory-v2/prooflens-confirmatory-v2-social-q75-predictions.jsonl": "a3315d19c4756f4e3f21b313a85c363c2d1e3c0d1a32478d45aaedd939b5b56d",
+    "benchmark/evidence/evaluation/confirmatory-v2/prooflens-confirmatory-v2-summary.json": "c6fa548ddb7851b2150862484d0665ddd515d6777d66ce81c7465888348df78a",
+    "benchmark/evidence/evaluation/web-negative-v2/prooflens-web-negative-v2-complete.json": "6b13efc0755f405dd191b57a683aefe8785d367acb131af2812da6d510db5d58",
+    "benchmark/evidence/evaluation/web-negative-v2/prooflens-web-negative-v2-original-predictions.jsonl": "e3439e10e5bdc149d95efd69bec09a154223c8fa2e858943fc5ee1d79f36ec3b",
+    "benchmark/evidence/evaluation/web-negative-v2/prooflens-web-negative-v2-screenshot-predictions.jsonl": "2afe468d0ffeec48dc2923d3b76054691e53390ed3f8ba5cb0041d00eede1e3d",
+    "benchmark/evidence/evaluation/web-negative-v2/prooflens-web-negative-v2-social-heavy-predictions.jsonl": "3303fdf2969c405fc52d03b7a745d830c81cab27ced28b4c258c9bf86a4abf64",
+    "benchmark/evidence/evaluation/web-negative-v2/prooflens-web-negative-v2-social-q75-predictions.jsonl": "e1cc4d77f027827ae3a7e5e276d591e0a7bf215a45bf9cc69979ce9da0da0cf0",
+    "benchmark/evidence/evaluation/web-negative-v2/prooflens-web-negative-v2-summary.json": "54e4e30e49df95c656ed1ae0ea9e1090e0b96abb546f4ed5ce04974adafbabf8",
+    "benchmark/evidence/evaluation/web-negative-v2/wilson.json": "4598a03bf1d15de177c1e627fd2067d2f17575e4506e3c4abe9e0647112be418"
+  },
+  "nextModelPolicy": "This complete packet is immutable development evidence only. Its rows and results cannot support a later acceptance claim. A new model requires a new public training record, a score-blind untouched holdout, and a new receipt-only public freeze before inference."
+}

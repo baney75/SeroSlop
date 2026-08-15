@@ -4,7 +4,7 @@
 
 The original Kling v2.1/Library of Congress holdout was scored once and is consumed. Its predictions failed the frozen numeric contract before bootstrap: the evaluator applied `np.exp` to float32 logits, while the independent contract recomputed binary64 sigmoid. The immutable failure record reports 2,231 violations across 2,400 rows and marks the packet `acceptanceEligible: false`. No v1 bootstrap was published and v1 web-negative inference never started. Those point estimates are diagnostic only and may not guide the model, threshold, preprocessing, gates, or replacement selection.
 
-The score-blind replacement packet under `benchmark/recovery_v3/` has not been scored. It uses 300 Coxy7 Infinity images and 300 KoalaAI StockImages-CC0 photographs for confirmation, plus 319 different StockImages rows for false-positive testing. The false-positive slice is row-, byte-, and dHash-disjoint from the confirmation slice but shares its real-image source corpus, so it is not an independent source-population estimate.
+The score-blind replacement packet under `benchmark/recovery_v3/` was scored once from the public V3 freeze and is consumed. It uses 300 Coxy7 Infinity images and 300 KoalaAI StockImages-CC0 photographs for confirmation, plus 319 different StockImages rows for false-positive testing. Confirmation passed every frozen accuracy gate. The StockImages slice failed the 10% overall Wilson upper-bound limit on original images (`12.39%`) and JPEG-75 images (`18.01%`). Its complete packet is preserved with `acceptanceEligible: false` and may inform development only.
 
 The A4 repair converts logits to binary64 before sigmoid, gives the replacement protocols new canonical names and output paths, and strengthens the publication contract. It does not change model bytes, calibration, threshold, preprocessing, statistical gates, training data, or extension runtime. Replacement inference remains unauthorized until A4 and its receipt-only V3 child are both public and green.
 
@@ -35,8 +35,8 @@ The pixel-free training packet under `benchmark/evidence/large/` pins source loc
 | Validation | 150 GLM-Image + 150 HunyuanImage-3.0 | 300 Open Images | candidate and threshold selection only | `41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b` |
 | Historical consumed v1 confirmation | 300 Kling v2.1 | 300 Library of Congress FSA/OWI photographs | failed numeric-contract diagnostic; never acceptance evidence | `28e9d70698c1ec2f7692241fc29f961f32d01551c4a18ffa56f22c2188bfa5ae` |
 | Historical unrun v1 web-negative | none | 300 Library of Congress + 19 Chartography | frozen but never inferred | `ad8b3f30a37feb3b6b046683db2d4071e236e6878612c7d8733869699d7f7824` |
-| Replacement-v2 confirmation | 300 Coxy7 Infinity | 300 KoalaAI StockImages-CC0 | unscored release confirmation | `773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8` |
-| Replacement-v2 web-negative | none | 319 different StockImages-CC0 rows | unscored false-positive sample; same real source corpus | `6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9` |
+| Replacement-v2 confirmation | 300 Coxy7 Infinity | 300 KoalaAI StockImages-CC0 | consumed; accuracy gates passed, paired release packet failed | `773128e53fc3d82ca802cc1571809975e96d4583e1ed66d9a98767f8d1a43da8` |
+| Replacement-v2 web-negative | none | 319 different StockImages-CC0 rows | consumed; overall false-positive gate failed | `6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9` |
 
 The replacement selection excludes all 106,019 historical training/evaluation IDs, bytes, source groups, and dHashes. It also rejects cross-protocol overlaps. The tracked packet contains 248 deterministic rejects and no retained dHash match at Hamming distance 8 or lower. Fixed dataset cards report CC BY 4.0 for Coxy7 and CC0-1.0 for StockImages; these are source-reported license statements, not independent rights clearance. Pixels remain outside Git.
 
@@ -66,8 +66,10 @@ Replacement web-negative passes only if every view has a Wilson 95% upper false-
 | B2 | `2757a4ff267d580a7dd8ad4918885441fa887f1b` | [passed](https://github.com/baney75/prooflens/actions/runs/31847694896) | V2 receipt-only public boundary |
 | F1 | `45400803a19b967c8cae0bbf4817fe984aea349a` | [failed](https://github.com/baney75/prooflens/actions/runs/31848762781) | consumed v1 packet disclosed as numeric-contract failure |
 | P3 | `baaf3eb0b7a22f635d2ec6a3cb2496b9e76313b8` | [failed](https://github.com/baney75/prooflens/actions/runs/31853385690) | score-blind replacement packet; old stage policy correctly rejected its new paths |
+| A4 | `1323c10a151bdd0b96640962b447607371607b90` | [passed](https://github.com/baney75/prooflens/actions/runs/31855698629) | binary64 evaluator and replacement-v2 protocol freeze |
+| B3 | `4fdf6b7dcc53371f00aff5f6b449f4299c2988cb` | [passed](https://github.com/baney75/prooflens/actions/runs/31855954386) | receipt-only public replacement-v2 pre-score boundary |
 
-A4 must be P3’s direct child and change exactly the 23 numeric/protocol/test/documentation paths declared in `benchmark/evaluation_contract.py`. Its public `quality` push run must complete successfully. Only then may `benchmark/write_pre_score_freeze.py` add `pre-score-freeze-v3.json` in a receipt-only direct child. The evaluator independently queries the credential-free GitHub Actions API and requires that exact V3 head’s `quality` push run to be `completed/success` before importing ONNX Runtime or Pillow or reading model/pixel inputs.
+A4 is P3’s direct child and changes exactly the 23 numeric/protocol/test/documentation paths declared in `benchmark/evaluation_contract.py`. B3 is A4’s receipt-only direct child. The evaluator independently verified both exact public `quality` runs before importing ONNX Runtime or Pillow or reading model/pixel inputs.
 
 Git history and public CI establish the recorded boundary. They cannot prove that nobody viewed or processed pixels outside this repository workflow.
 
@@ -98,7 +100,7 @@ Then run `benchmark/bootstrap_ci.py` with all four canonical prediction files. R
 
 Head training, finalization, and validation are complete. Validation balanced accuracy is 95.00% on originals, 96.33% on screenshots, and 94.50% on both JPEG stress views. The weakest class recall is 91.67%; the weakest named synthetic-family recall is 84.00%. These are selection results.
 
-There is no current acceptance result. V1 is consumed and acceptance-ineligible; replacement-v2 remains unscored. Public repository evidence does not establish the bounty maintainer’s private score, acceptance decision, or payment.
+There is no current acceptance result. V1 is consumed and acceptance-ineligible. Replacement-v2 passed its accuracy gates but failed the paired false-positive gate, so it is also consumed and acceptance-ineligible. Public repository evidence does not establish the bounty maintainer’s private score, acceptance decision, or payment.
 
 ## Browser evidence
 

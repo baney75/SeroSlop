@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "protocol": "web-negative-v2",
+  "modelSha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+  "manifestSha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9",
+  "calibrationSha256": "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c",
+  "files": {
+    "prooflens-web-negative-v2-original-predictions.jsonl": "e3439e10e5bdc149d95efd69bec09a154223c8fa2e858943fc5ee1d79f36ec3b",
+    "prooflens-web-negative-v2-screenshot-predictions.jsonl": "2afe468d0ffeec48dc2923d3b76054691e53390ed3f8ba5cb0041d00eede1e3d",
+    "prooflens-web-negative-v2-social-q75-predictions.jsonl": "e1cc4d77f027827ae3a7e5e276d591e0a7bf215a45bf9cc69979ce9da0da0cf0",
+    "prooflens-web-negative-v2-social-heavy-predictions.jsonl": "3303fdf2969c405fc52d03b7a745d830c81cab27ced28b4c258c9bf86a4abf64",
+    "prooflens-web-negative-v2-summary.json": "54e4e30e49df95c656ed1ae0ea9e1090e0b96abb546f4ed5ce04974adafbabf8"
+  }
+}

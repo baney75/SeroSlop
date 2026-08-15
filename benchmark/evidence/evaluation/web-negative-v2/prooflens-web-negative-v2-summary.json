@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 3,
+  "name": "prooflens-web-negative-v2",
+  "protocol": "web-negative-v2",
+  "commitMarkerPublication": true,
+  "allVariantsRequired": true,
+  "model": {
+    "path": "/Users/baney/Documents/Codex/2026-08-13/on-my-personal-github-on-a/weights/prooflens-cf384.onnx",
+    "sha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+    "bytes": 87442080
+  },
+  "dataset": {
+    "manifest": "/Users/baney/Documents/Codex/2026-08-13/on-my-personal-github-on-a/benchmark/manifests/web-negative-v2.jsonl",
+    "sha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9",
+    "items": 319
+  },
+  "runtime": {
+    "executionProvider": "cpu",
+    "providers": [
+      "CPUExecutionProvider"
+    ],
+    "batchSize": 16,
+    "numpy": "2.2.6",
+    "onnxRuntime": "1.22.0",
+    "pillow": "11.3.0",
+    "probabilityArithmetic": "binary64 sigmoid from the recorded ONNX logit"
+  },
+  "threshold": {
+    "display": 0.65,
+    "raw": 0.2884515632035137,
+    "calibrationSha256": "607ec2d8a4428f97cd51ae020f3168bf451201a19b117372033d7becd5a5559c",
+    "calibration": {
+      "schemaVersion": 1,
+      "method": "Validation-selected logit alignment to fixed 65/100 display threshold; not probability calibration",
+      "slope": 1,
+      "intercept": 1.521955520623936,
+      "validationThresholdLogit": -0.9029163122177123,
+      "rawProbabilityThreshold": 0.2884515632035137,
+      "displayThreshold": 0.65,
+      "modelSha256": "941e3914c075a735db5795e897b71c1d8b2f6b7c2cf2cb7777d0a6999aa02e6c",
+      "trainManifestSha256": "8e221006888f4bcd1632338a7d38f13aa081c9ac5b80340de8239178218dc4e4",
+      "validationManifestSha256": "41be10ef876ecef0635744ed29677a1888a7759cc8060dc7a392f76f83ab263b",
+      "selectionSummarySha256": "5f1276cd197947415b4e1bdbbbacd5a1a3f85e1570a4fdb8fe35999cf35e4897"
+    }
+  },
+  "variants": {
+    "original": {
+      "count": 319,
+      "realRecall": 0.9122257053291536,
+      "falsePositiveRate": 0.0877742946708464,
+      "bySource": {
+        "stockimages-cc0": {
+          "count": 319,
+          "falsePositiveRate": 0.0877742946708464
+        }
+      }
+    },
+    "screenshot": {
+      "count": 319,
+      "realRecall": 0.9968652037617555,
+      "falsePositiveRate": 0.003134796238244514,
+      "bySource": {
+        "stockimages-cc0": {
+          "count": 319,
+          "falsePositiveRate": 0.003134796238244514
+        }
+      }
+    },
+    "social-q75": {
+      "count": 319,
+      "realRecall": 0.8620689655172413,
+      "falsePositiveRate": 0.13793103448275862,
+      "bySource": {
+        "stockimages-cc0": {
+          "count": 319,
+          "falsePositiveRate": 0.13793103448275862
+        }
+      }
+    },
+    "social-heavy": {
+      "count": 319,
+      "realRecall": 0.9592476489028213,
+      "falsePositiveRate": 0.04075235109717868,
+      "bySource": {
+        "stockimages-cc0": {
+          "count": 319,
+          "falsePositiveRate": 0.04075235109717868
+        }
+      }
+    }
+  }
+}

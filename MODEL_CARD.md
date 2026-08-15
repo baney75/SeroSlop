@@ -47,7 +47,7 @@ These figures come from the canonical validation evaluator and are selection res
 
 The original Kling v2.1/Library of Congress confirmatory set was scored once and is consumed. Its stored predictions failed the binary64 numeric contract before bootstrap and are permanently marked `acceptanceEligible: false`; they are not release evidence.
 
-The unscored score-blind replacement contains 300 Coxy7 Infinity images and 300 KoalaAI StockImages-CC0 photographs. Its 319-row false-positive slice is row-, byte-, and dHash-disjoint from the real confirmation slice but shares the StockImages source corpus, so it is not an independent source-population estimate. Dataset cards at the pinned revisions report CC BY 4.0 and CC0-1.0. Those are source-reported license statements, not independent rights clearance; `benchmark/manifests/replacement-v2-attribution.json` preserves authors, links, and the rights caveat.
+The score-blind replacement contains 300 Coxy7 Infinity images and 300 KoalaAI StockImages-CC0 photographs. Its confirmation passed every accuracy gate, but its disjoint 319-row StockImages slice failed the frozen overall false-positive gate on original and JPEG-75 views. The packet is consumed and permanently ineligible for acceptance. Dataset cards at the pinned revisions report CC BY 4.0 and CC0-1.0. Those are source-reported license statements, not independent rights clearance; `benchmark/manifests/replacement-v2-attribution.json` preserves authors, links, and the rights caveat.
 
 No current acceptance result exists. See `BENCHMARK.md` for the immutable v1 failure, replacement hashes, and public authorization boundary.
 

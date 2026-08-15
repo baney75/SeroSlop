@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 2,
+  "method": "Wilson score interval for false-positive proportions",
+  "confidenceLevel": 0.95,
+  "manifestSha256": "6a1287bae6826811c81cbebab79a1bc6abb475fde70c9aa1529c390ed97014c9",
+  "rawProbabilityThreshold": 0.2884515632035137,
+  "variants": {
+    "original": {
+      "count": 319,
+      "falsePositiveRate": 0.0877742946708464,
+      "lower95": 0.0614254635165186,
+      "upper95": 0.12393319221279411,
+      "bySource": {
+        "stockimages-cc0": {
+          "count": 319,
+          "falsePositiveRate": 0.0877742946708464,
+          "lower95": 0.0614254635165186,
+          "upper95": 0.12393319221279411
+        }
+      },
+      "predictionsSha256": "e3439e10e5bdc149d95efd69bec09a154223c8fa2e858943fc5ee1d79f36ec3b"
+    },
+    "screenshot": {
+      "count": 319,
+      "falsePositiveRate": 0.003134796238244514,
+      "lower95": 0.0005535830074481721,
+      "upper95": 0.017540310019898316,
+      "bySource": {
+        "stockimages-cc0": {
+          "count": 319,
+          "falsePositiveRate": 0.003134796238244514,
+          "lower95": 0.0005535830074481721,
+          "upper95": 0.017540310019898316
+        }
+      },
+      "predictionsSha256": "2afe468d0ffeec48dc2923d3b76054691e53390ed3f8ba5cb0041d00eede1e3d"
+    },
+    "social-q75": {
+      "count": 319,
+      "falsePositiveRate": 0.13793103448275862,
+      "lower95": 0.10437882478579888,
+      "upper95": 0.1800996903224568,
+      "bySource": {
+        "stockimages-cc0": {
+          "count": 319,
+          "falsePositiveRate": 0.13793103448275862,
+          "lower95": 0.10437882478579888,
+          "upper95": 0.1800996903224568
+        }
+      },
+      "predictionsSha256": "e1cc4d77f027827ae3a7e5e276d591e0a7bf215a45bf9cc69979ce9da0da0cf0"
+    },
+    "social-heavy": {
+      "count": 319,
+      "falsePositiveRate": 0.04075235109717868,
+      "lower95": 0.023968111768946754,
+      "upper95": 0.06846567579260694,
+      "bySource": {
+        "stockimages-cc0": {
+          "count": 319,
+          "falsePositiveRate": 0.04075235109717868,
+          "lower95": 0.023968111768946754,
+          "upper95": 0.06846567579260694
+        }
+      },
+      "predictionsSha256": "3303fdf2969c405fc52d03b7a745d830c81cab27ced28b4c258c9bf86a4abf64"
+    }
+  }
+}
