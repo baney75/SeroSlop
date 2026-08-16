@@ -40,6 +40,7 @@ from benchmark.m5.contracts import (
     validate_regression_state,
     validate_failure_receipt,
     validate_manifest_rows,
+    validate_numeric_audit_authorization,
     validate_recipe,
     validate_selection_lock,
     canonical_json,
@@ -61,11 +62,16 @@ from benchmark.m5.train_gpu import (
     M5_RUNTIME_AUTHORIZATION_TREE,
     M5_RUNTIME_RECOVERY_COMMIT,
     M5_RUNTIME_RECOVERY_TREE,
+    M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
+    M5_RUNPOD_ENV_AUTHORIZATION_TREE,
+    M5_RUNPOD_ENV_RECOVERY_COMMIT,
+    M5_RUNPOD_ENV_RECOVERY_TREE,
     M5_PROTOCOL_RECOVERY_PATHS,
     M5_SOURCE_CI_RECOVERY_ROWS,
     M5_SOURCE_RECOVERY_ROWS,
     M5_RUNTIME_RECOVERY_ROWS,
     M5_RUNPOD_ENV_RECOVERY_ROWS,
+    M5_NUMERIC_AUDIT_RECOVERY_ROWS,
     PaidTimeBudget,
     accumulation_window_samples,
     atomic_torch_save,
@@ -277,6 +283,42 @@ class M5ContractsTest(unittest.TestCase):
             broken[key] = "e" * (64 if key.endswith("Sha256") else 40)
             with self.assertRaises(ValueError):
                 validate_runpod_environment_authorization(broken, **arguments)
+
+    def test_numeric_audit_authorization_binds_prior_runpod_environment_authorization(self) -> None:
+        paths = [{"path": "benchmark/m5/train_gpu.py", "sha256": "a" * 64}]
+        receipt = {
+            "schemaVersion": 4, "status": "m5-numeric-audit-recovery-authorized",
+            "protocolCommit": M5_P2_COMMIT, "protocolTree": M5_P2_TREE,
+            "priorAuthorizationCommit": M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
+            "priorAuthorizationTree": M5_RUNPOD_ENV_AUTHORIZATION_TREE,
+            "priorAuthorizationPath": "benchmark/evidence/m5/runpod-environment-authorization.json",
+            "priorAuthorizationSha256": "031f8b85dca9362d7afe06bcd30dc400f9f76a82a314012259b4300b237a8662",
+            "sourceCommit": "c" * 40, "sourceTree": "d" * 40, "sourcePathMap": paths,
+            "sourcePublicCi": {
+                "conclusion": "success", "event": "push", "headSha": "c" * 40,
+                "runId": 987, "status": "completed",
+                "url": "https://github.com/baney75/prooflens/actions/runs/987",
+                "workflowPath": ".github/workflows/quality.yml",
+            },
+            "numericBoundary": "source-balanced-weights-unchanged-math-fsum-audit-only",
+            "authorizationPath": "benchmark/evidence/m5/numeric-audit-authorization.json",
+            "scoreBlind": True, "h3PixelsRead": False,
+        }
+        arguments = {
+            "protocol_commit": M5_P2_COMMIT, "protocol_tree": M5_P2_TREE,
+            "prior_authorization_commit": M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
+            "prior_authorization_tree": M5_RUNPOD_ENV_AUTHORIZATION_TREE,
+            "prior_authorization_sha256": receipt["priorAuthorizationSha256"],
+            "source_commit": receipt["sourceCommit"], "source_tree": receipt["sourceTree"],
+            "source_path_map": paths,
+        }
+        validate_numeric_audit_authorization(receipt, **arguments)
+        for key in ("priorAuthorizationCommit", "priorAuthorizationSha256", "sourceCommit", "authorizationPath", "numericBoundary"):
+            broken = copy.deepcopy(receipt)
+            broken[key] = "e" * (64 if key.endswith("Sha256") else 40)
+            with self.assertRaises(ValueError):
+                validate_numeric_audit_authorization(broken, **arguments)
+
     def setUp(self) -> None:
         self.recipe = load_recipe(ROOT / "benchmark/m5/recipe.json")
 
@@ -395,6 +437,26 @@ class M5ContractsTest(unittest.TestCase):
         weights = source_balanced_weights(rows)
         self.assertEqual(weights, [0.75, 0.75, 1.5, 1.5, 0.75, 0.75])
         self.assertAlmostEqual(sum(weights), len(rows))
+
+    def test_source_balanced_audit_uses_stable_sum_without_changing_weights(self) -> None:
+        rows = read_jsonl(ROOT / "benchmark/evidence/m4/train-manifest.jsonl.gz")
+        with mock.patch("benchmark.m5.contracts.math.fsum", wraps=math.fsum) as stable_sum:
+            weights = source_balanced_weights(rows)
+        self.assertGreaterEqual(stable_sum.call_count, 4)
+        indexes = [
+            index for index, row in enumerate(rows)
+            if row["label"] == 0 and row["source"] == "open-images-train"
+        ]
+        self.assertEqual(len(rows), 112_562)
+        self.assertEqual(len(indexes), 50_000)
+        expected_weight = 112_562 / (2.0 * 6 * 50_000)
+        self.assertTrue(all(weights[index] == expected_weight for index in indexes))
+        expected_mass = 112_562 / (2.0 * 6)
+        sequential = 0.0
+        for index in indexes:
+            sequential += weights[index]
+        self.assertGreater(abs(sequential - expected_mass), 1e-8)
+        self.assertLessEqual(abs(math.fsum(weights[index] for index in indexes) - expected_mass), 1e-8)
 
     def test_thresholds_cover_float_boundaries(self) -> None:
         values = [1.0, math.nextafter(1.0, math.inf), -float.fromhex("0x1.fffffffffffffp+1023")]
@@ -799,8 +861,22 @@ class M5ContractsTest(unittest.TestCase):
         def fake_run(command: list[str], *, cwd: Path = ROOT) -> str:
             del cwd
             if command == ["git", "rev-list", "--parents", "-n", "1", source]:
-                return f"{source} {M5_RUNTIME_AUTHORIZATION_COMMIT}"
+                return f"{source} {M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}"
             if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", source]:
+                return rows(M5_NUMERIC_AUDIT_RECOVERY_ROWS)
+            if command == ["git", "rev-parse", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}^{{tree}}"]:
+                return M5_RUNPOD_ENV_AUTHORIZATION_TREE
+            if command == ["git", "rev-list", "--parents", "-n", "1", M5_RUNPOD_ENV_AUTHORIZATION_COMMIT]:
+                return f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT} {M5_RUNPOD_ENV_RECOVERY_COMMIT}"
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_RUNPOD_ENV_AUTHORIZATION_COMMIT]:
+                return "A\tbenchmark/evidence/m5/runpod-environment-authorization.json"
+            if command == ["git", "show", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}:benchmark/evidence/m5/runpod-environment-authorization.json"]:
+                raise AssertionError("git bytes are mocked separately")
+            if command == ["git", "rev-parse", f"{M5_RUNPOD_ENV_RECOVERY_COMMIT}^{{tree}}"]:
+                return M5_RUNPOD_ENV_RECOVERY_TREE
+            if command == ["git", "rev-list", "--parents", "-n", "1", M5_RUNPOD_ENV_RECOVERY_COMMIT]:
+                return f"{M5_RUNPOD_ENV_RECOVERY_COMMIT} {M5_RUNTIME_AUTHORIZATION_COMMIT}"
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_RUNPOD_ENV_RECOVERY_COMMIT]:
                 return rows(M5_RUNPOD_ENV_RECOVERY_ROWS)
             if command == ["git", "rev-parse", f"{M5_RUNTIME_AUTHORIZATION_COMMIT}^{{tree}}"]:
                 return M5_RUNTIME_AUTHORIZATION_TREE

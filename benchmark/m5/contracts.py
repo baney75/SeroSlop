@@ -367,11 +367,11 @@ def source_balanced_weights(rows: Sequence[dict[str, Any]]) -> list[float]:
         source = str(row["source"])
         result.append(total / (2.0 * len(sources_by_class[label]) * pair_counts[(label, source)]))
     for label in (0, 1):
-        mass = sum(weight for row, weight in zip(rows, result, strict=True) if int(row["label"]) == label)
+        mass = math.fsum(weight for row, weight in zip(rows, result, strict=True) if int(row["label"]) == label)
         if not math.isclose(mass, total / 2.0, rel_tol=0.0, abs_tol=1e-8):
             raise ValueError("M5 source-balanced class mass is wrong")
         for source in sources_by_class[label]:
-            source_mass = sum(
+            source_mass = math.fsum(
                 weight for row, weight in zip(rows, result, strict=True)
                 if int(row["label"]) == label and str(row["source"]) == source
             )
@@ -754,6 +754,71 @@ def validate_runpod_environment_authorization(
         or source_ci["workflowPath"] != ".github/workflows/quality.yml"
     ):
         raise ValueError("M5 RunPod environment public CI binding changed")
+
+
+def validate_numeric_audit_authorization(
+    receipt: Mapping[str, Any],
+    *,
+    protocol_commit: str,
+    protocol_tree: str,
+    prior_authorization_commit: str,
+    prior_authorization_tree: str,
+    prior_authorization_sha256: str,
+    source_commit: str,
+    source_tree: str,
+    source_path_map: Sequence[Mapping[str, Any]],
+) -> None:
+    """Validate the receipt authorizing the audit-only stable-sum recovery."""
+    _require_keys(receipt, {
+        "schemaVersion", "status", "protocolCommit", "protocolTree",
+        "priorAuthorizationCommit", "priorAuthorizationTree", "priorAuthorizationPath",
+        "priorAuthorizationSha256", "sourceCommit", "sourceTree", "sourcePathMap", "numericBoundary",
+        "sourcePublicCi", "authorizationPath", "scoreBlind", "h3PixelsRead",
+    }, "M5 numeric audit authorization")
+    if (
+        receipt["schemaVersion"] != 4
+        or receipt["status"] != "m5-numeric-audit-recovery-authorized"
+        or receipt["protocolCommit"] != protocol_commit
+        or receipt["protocolTree"] != protocol_tree
+        or receipt["priorAuthorizationCommit"] != prior_authorization_commit
+        or receipt["priorAuthorizationTree"] != prior_authorization_tree
+        or receipt["priorAuthorizationPath"] != "benchmark/evidence/m5/runpod-environment-authorization.json"
+        or receipt["priorAuthorizationSha256"] != prior_authorization_sha256
+        or receipt["sourceCommit"] != source_commit
+        or receipt["sourceTree"] != source_tree
+        or receipt["authorizationPath"] != "benchmark/evidence/m5/numeric-audit-authorization.json"
+        or receipt["numericBoundary"] != "source-balanced-weights-unchanged-math-fsum-audit-only"
+        or receipt["scoreBlind"] is not True
+        or receipt["h3PixelsRead"] is not False
+        or list(receipt["sourcePathMap"]) != list(source_path_map)
+    ):
+        raise ValueError("M5 numeric audit authorization binding changed")
+    for value in (
+        protocol_commit, protocol_tree, prior_authorization_commit,
+        prior_authorization_tree, source_commit, source_tree,
+    ):
+        if not HEX40.fullmatch(str(value)):
+            raise ValueError("M5 numeric audit authorization Git identity is invalid")
+    if not HEX64.fullmatch(str(prior_authorization_sha256)):
+        raise ValueError("M5 prior RunPod environment authorization digest is invalid")
+    for row in receipt["sourcePathMap"]:
+        _require_keys(row, {"path", "sha256"}, "M5 numeric audit source path")
+        if not isinstance(row["path"], str) or not HEX64.fullmatch(str(row["sha256"])):
+            raise ValueError("M5 numeric audit source path digest is invalid")
+    source_ci = receipt["sourcePublicCi"]
+    _require_keys(source_ci, {"conclusion", "event", "headSha", "runId", "status", "url", "workflowPath"}, "M5 numeric audit public CI")
+    if (
+        source_ci["conclusion"] != "success"
+        or source_ci["event"] != "push"
+        or source_ci["headSha"] != source_commit
+        or isinstance(source_ci["runId"], bool)
+        or not isinstance(source_ci["runId"], int)
+        or source_ci["runId"] <= 0
+        or source_ci["status"] != "completed"
+        or source_ci["url"] != f"https://github.com/baney75/prooflens/actions/runs/{source_ci['runId']}"
+        or source_ci["workflowPath"] != ".github/workflows/quality.yml"
+    ):
+        raise ValueError("M5 numeric audit public CI binding changed")
 
 
 def validate_provisioning_receipt(receipt: Mapping[str, Any], recipe: Mapping[str, Any]) -> None:

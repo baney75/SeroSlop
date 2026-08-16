@@ -28,6 +28,35 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r benchmark/verify-requirements.txt
       - run: npm ci
       - run: npm run verify:static
+      - uses: actions/setup-python@v5
+        id: python311
+        with:
+          python-version: "3.11"
+      - name: Verify M5 numeric audit on the paid-runtime Python
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          "${{ steps.python311.outputs.python-path }}" - <<'PY'
+          import gzip
+          import json
+          import math
+          from benchmark.m5.contracts import source_balanced_weights
+
+          with gzip.open("benchmark/evidence/m4/train-manifest.jsonl.gz", "rt", encoding="utf-8") as handle:
+              rows = [json.loads(line) for line in handle]
+          weights = source_balanced_weights(rows)
+          assert len(rows) == len(weights) == 112_562
+          indexes = [index for index, row in enumerate(rows) if row["label"] == 0 and row["source"] == "open-images-train"]
+          assert len(indexes) == 50_000
+          expected_weight = 112_562 / (2.0 * 6 * 50_000)
+          assert all(weights[index] == expected_weight for index in indexes)
+          expected_mass = 112_562 / (2.0 * 6)
+          sequential = 0.0
+          for index in indexes:
+              sequential += weights[index]
+          assert abs(sequential - expected_mass) > 1e-8
+          assert abs(math.fsum(weights[index] for index in indexes) - expected_mass) <= 1e-8
+          PY
       - run: ./node_modules/.bin/playwright-core install --with-deps chromium
       - run: xvfb-run --auto-servernum npm run test:chrome
       - uses: actions/upload-artifact@v4

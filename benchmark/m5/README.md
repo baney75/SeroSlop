@@ -26,8 +26,16 @@ the sole exact 12-path RunPod-environment recovery child of that authorization
 and wait for exact-head green CI. The same canonical writer then creates only
 `benchmark/evidence/m5/runpod-environment-authorization.json`; it binds the
 prior authorization commit, tree, path, and digest plus the recovered 26-path
-effective source map and the new public-green source run. From that clean,
-public, green RunPod-environment recovery commit run:
+effective source map and the new public-green source run. That authorization is
+preserved as public-green history. Its first live RunPod preflight passed the
+public-source, Pod-ID, CUDA, L40S, and runtime gates, then stopped before model
+loading or CUDA work because Python 3.11's ordinary left-to-right summation
+exceeded an audit-only `1e-8` mass tolerance by `1.252268450334668e-9`.
+The emitted source-balanced weights and their closed-form formula were correct.
+Publish the exact numeric-audit recovery child, which changes only the two
+verification accumulators to `math.fsum`, adds the matching Python 3.11 public
+CI proof, and extends the append-only checkers. Wait for exact-head green CI.
+From that clean, public, green numeric-audit recovery commit run:
 
 ```bash
 /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/python3 -I -c '
@@ -37,8 +45,8 @@ if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec
 sys.argv = [str(p), *sys.argv[3:]]
 exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
 ' scripts/m5-preexec-bootstrap.py 54d94c8e696b9accb7bae4de6427922c1c72975b105b0a35ce0f74e741dead6d authorize
-git add benchmark/evidence/m5/runpod-environment-authorization.json
-git commit -m "Evidence: authorize exact M5 RunPod environment recovery"
+git add benchmark/evidence/m5/numeric-audit-authorization.json
+git commit -m "Evidence: authorize exact M5 numeric audit recovery"
 ```
 
 The inline system-Python loader verifies the stdlib-only pre-exec bootstrap before
@@ -47,12 +55,17 @@ then pins the operator Mac's absolute Node executable, version, and SHA-256 and
 starts it with a minimal environment. Do not use `npm`, an inherited `PATH`, or a
 different Node binary for this one-file writer.
 
-The new authorization commit must add only that receipt. Push it and wait for
+The schema-4 authorization binds the prior RunPod-environment authorization
+commit, tree, path, and digest; the numeric recovery commit, tree, 26-path
+effective source map, and public CI; the exact boundary
+`source-balanced-weights-unchanged-math-fsum-audit-only`; score blindness; and
+no H3 pixel read. The new authorization commit must add only that receipt. Push it and wait for
 its own exact-head green CI before retrying paid preflight. RunPod preflight and
 training run only from that clean authorization head; later selection, failure,
 100K, and final stages must retain the complete
 P2 → failed P3 → CI recovery → P4 → runtime recovery → authorization →
-RunPod-environment recovery → authorization chain.
+RunPod-environment recovery → authorization → numeric-audit recovery →
+authorization chain.
 
 ## Accepted brief
 
@@ -103,7 +116,7 @@ Use one RunPod Secure Cloud L40S 48 GB Pod. The recommended image is:
 pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385
 ```
 
-The repository must be cloned at the exact public M5 RunPod-environment authorization commit. The launcher derives and verifies the full append-only lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. The pre-exec bootstrap reads the bounded PID-1 environment only in `runpod` mode, validates exactly one `RUNPOD_POD_ID`, and forwards only that provider variable into the otherwise fixed child environment. It never forwards `RUNPOD_API_KEY` or any neighboring environment record. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
+The repository must be cloned at the exact public M5 numeric-audit authorization commit. The launcher derives and verifies the full append-only lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. The pre-exec bootstrap reads the bounded PID-1 environment only in `runpod` mode, validates exactly one `RUNPOD_POD_ID`, and forwards only that provider variable into the otherwise fixed child environment. It never forwards `RUNPOD_API_KEY` or any neighboring environment record. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
 
 The pre-exec gate detects source drift present when a command starts. It is not
 a sandbox against a hostile same-user process changing files after verification;

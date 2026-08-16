@@ -13,8 +13,15 @@ import {
   M5_P4_COMMIT,
   M5_P4_TREE,
   M5_RUN_AUTHORIZATION_PATH,
+  M5_NUMERIC_AUDIT_AUTHORIZATION_PATH,
+  M5_NUMERIC_AUDIT_RECOVERY_EXPECTED,
+  M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
   M5_RUNPOD_ENV_AUTHORIZATION_PATH,
+  M5_RUNPOD_ENV_AUTHORIZATION_SHA256,
+  M5_RUNPOD_ENV_AUTHORIZATION_TREE,
+  M5_RUNPOD_ENV_RECOVERY_COMMIT,
   M5_RUNPOD_ENV_RECOVERY_EXPECTED,
+  M5_RUNPOD_ENV_RECOVERY_TREE,
   M5_RUNTIME_AUTHORIZATION_COMMIT,
   M5_RUNTIME_AUTHORIZATION_PATH,
   M5_RUNTIME_AUTHORIZATION_SHA256,
@@ -51,11 +58,11 @@ export function parseCanonicalM5Authorization(raw) {
 
 export function requireM5AuthorizationSchema(receipt) {
   if (!exactKeys(receipt, [
-    "authorizationPath", "environmentBoundary", "h3PixelsRead", "protocolCommit", "protocolTree", "schemaVersion", "scoreBlind",
+    "authorizationPath", "numericBoundary", "h3PixelsRead", "protocolCommit", "protocolTree", "schemaVersion", "scoreBlind",
     "priorAuthorizationCommit", "priorAuthorizationPath", "priorAuthorizationSha256", "priorAuthorizationTree",
     "sourceCommit", "sourcePathMap", "sourcePublicCi", "sourceTree", "status",
   ]) || !exactKeys(receipt.sourcePublicCi, ["conclusion", "event", "headSha", "runId", "status", "url", "workflowPath"])) {
-    throw new Error("M5 RunPod environment authorization schema changed");
+    throw new Error("M5 numeric audit authorization schema changed");
   }
 }
 
@@ -78,19 +85,32 @@ export function validateM5AuthorizedChain() {
     throw new Error("M5 prior runtime authorization history changed");
   }
 
-  const additions = git(["log", "--first-parent", "--no-renames", "--diff-filter=A", "--format=%H", "--", M5_RUNPOD_ENV_AUTHORIZATION_PATH])
+  const environmentAdditions = git(["log", "--first-parent", "--no-renames", "--diff-filter=A", "--format=%H", "--", M5_RUNPOD_ENV_AUTHORIZATION_PATH])
     .split("\n").filter(Boolean);
-  if (additions.length !== 1) throw new Error("M5 RunPod environment authorization must have exactly one committed addition");
+  if (environmentAdditions.length !== 1 || environmentAdditions[0] !== M5_RUNPOD_ENV_AUTHORIZATION_COMMIT ||
+      !matchesExpectedRows(rows(M5_RUNPOD_ENV_AUTHORIZATION_COMMIT), new Map([[M5_RUNPOD_ENV_AUTHORIZATION_PATH, "A"]])) ||
+      git(["rev-parse", `${M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}^{tree}`]) !== M5_RUNPOD_ENV_AUTHORIZATION_TREE ||
+      digest(m5GitBytes(["show", `${M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}:${M5_RUNPOD_ENV_AUTHORIZATION_PATH}`])) !== M5_RUNPOD_ENV_AUTHORIZATION_SHA256) {
+    throw new Error("M5 prior RunPod environment authorization history changed");
+  }
+
+  const additions = git(["log", "--first-parent", "--no-renames", "--diff-filter=A", "--format=%H", "--", M5_NUMERIC_AUDIT_AUTHORIZATION_PATH])
+    .split("\n").filter(Boolean);
+  if (additions.length !== 1) throw new Error("M5 numeric audit authorization must have exactly one committed addition");
   const authorization = additions[0];
-  if (!matchesExpectedRows(rows(authorization), new Map([[M5_RUNPOD_ENV_AUTHORIZATION_PATH, "A"]]))) {
-    throw new Error("M5 RunPod environment authorization changed outside its one-file surface");
+  if (!matchesExpectedRows(rows(authorization), new Map([[M5_NUMERIC_AUDIT_AUTHORIZATION_PATH, "A"]]))) {
+    throw new Error("M5 numeric audit authorization changed outside its one-file surface");
   }
   const authorizationParents = parents(authorization);
-  if (authorizationParents.length !== 1) throw new Error("M5 RunPod environment authorization must have one parent");
+  if (authorizationParents.length !== 1) throw new Error("M5 numeric audit authorization must have one parent");
   const source = authorizationParents[0];
 
-  if (parents(source).length !== 1 || parents(source)[0] !== M5_RUNTIME_AUTHORIZATION_COMMIT ||
-      !matchesExpectedRows(rows(source), M5_RUNPOD_ENV_RECOVERY_EXPECTED) ||
+  if (parents(source).length !== 1 || parents(source)[0] !== M5_RUNPOD_ENV_AUTHORIZATION_COMMIT ||
+      !matchesExpectedRows(rows(source), M5_NUMERIC_AUDIT_RECOVERY_EXPECTED) ||
+      parents(M5_RUNPOD_ENV_AUTHORIZATION_COMMIT).length !== 1 || parents(M5_RUNPOD_ENV_AUTHORIZATION_COMMIT)[0] !== M5_RUNPOD_ENV_RECOVERY_COMMIT ||
+      git(["rev-parse", `${M5_RUNPOD_ENV_RECOVERY_COMMIT}^{tree}`]) !== M5_RUNPOD_ENV_RECOVERY_TREE ||
+      !matchesExpectedRows(rows(M5_RUNPOD_ENV_RECOVERY_COMMIT), M5_RUNPOD_ENV_RECOVERY_EXPECTED) ||
+      parents(M5_RUNPOD_ENV_RECOVERY_COMMIT).length !== 1 || parents(M5_RUNPOD_ENV_RECOVERY_COMMIT)[0] !== M5_RUNTIME_AUTHORIZATION_COMMIT ||
       parents(M5_RUNTIME_AUTHORIZATION_COMMIT).length !== 1 || parents(M5_RUNTIME_AUTHORIZATION_COMMIT)[0] !== M5_RUNTIME_RECOVERY_COMMIT ||
       git(["rev-parse", `${M5_RUNTIME_RECOVERY_COMMIT}^{tree}`]) !== M5_RUNTIME_RECOVERY_TREE ||
       !matchesExpectedRows(rows(M5_RUNTIME_RECOVERY_COMMIT), M5_RUNTIME_RECOVERY_EXPECTED) ||
@@ -106,9 +126,9 @@ export function validateM5AuthorizedChain() {
     throw new Error("M5 full append-only authorization chain is invalid");
   }
 
-  const raw = readFileSync(M5_RUNPOD_ENV_AUTHORIZATION_PATH);
-  if (!raw.equals(m5GitBytes(["show", `${authorization}:${M5_RUNPOD_ENV_AUTHORIZATION_PATH}`]))) {
-    throw new Error("M5 inherited RunPod environment authorization bytes changed");
+  const raw = readFileSync(M5_NUMERIC_AUDIT_AUTHORIZATION_PATH);
+  if (!raw.equals(m5GitBytes(["show", `${authorization}:${M5_NUMERIC_AUDIT_AUTHORIZATION_PATH}`]))) {
+    throw new Error("M5 inherited numeric audit authorization bytes changed");
   }
   const receipt = parseCanonicalM5Authorization(raw);
   requireM5AuthorizationSchema(receipt);
@@ -118,23 +138,23 @@ export function validateM5AuthorizedChain() {
     sha256: digest(m5GitBytes(["show", `${source}:${path}`])),
   }));
   const ci = receipt.sourcePublicCi;
-  if (receipt.schemaVersion !== 3 || receipt.status !== "m5-runpod-environment-recovery-authorized" ||
+  if (receipt.schemaVersion !== 4 || receipt.status !== "m5-numeric-audit-recovery-authorized" ||
       receipt.protocolCommit !== M5_P2_COMMIT || receipt.protocolTree !== M5_P2_TREE ||
-      receipt.priorAuthorizationCommit !== M5_RUNTIME_AUTHORIZATION_COMMIT || receipt.priorAuthorizationTree !== M5_RUNTIME_AUTHORIZATION_TREE ||
-      receipt.priorAuthorizationPath !== M5_RUNTIME_AUTHORIZATION_PATH || receipt.priorAuthorizationSha256 !== M5_RUNTIME_AUTHORIZATION_SHA256 ||
+      receipt.priorAuthorizationCommit !== M5_RUNPOD_ENV_AUTHORIZATION_COMMIT || receipt.priorAuthorizationTree !== M5_RUNPOD_ENV_AUTHORIZATION_TREE ||
+      receipt.priorAuthorizationPath !== M5_RUNPOD_ENV_AUTHORIZATION_PATH || receipt.priorAuthorizationSha256 !== M5_RUNPOD_ENV_AUTHORIZATION_SHA256 ||
       receipt.sourceCommit !== source || receipt.sourceTree !== sourceTree ||
       JSON.stringify(receipt.sourcePathMap) !== JSON.stringify(expectedMap) ||
-      receipt.environmentBoundary !== "validated-single-runpod-pod-id-from-pid1-environ-no-other-record-forwarded" ||
-      receipt.authorizationPath !== M5_RUNPOD_ENV_AUTHORIZATION_PATH || receipt.scoreBlind !== true || receipt.h3PixelsRead !== false ||
+      receipt.numericBoundary !== "source-balanced-weights-unchanged-math-fsum-audit-only" ||
+      receipt.authorizationPath !== M5_NUMERIC_AUDIT_AUTHORIZATION_PATH || receipt.scoreBlind !== true || receipt.h3PixelsRead !== false ||
       ci.conclusion !== "success" || ci.event !== "push" || ci.headSha !== source ||
       !Number.isInteger(ci.runId) || ci.runId <= 0 || ci.status !== "completed" ||
       ci.url !== `https://github.com/baney75/prooflens/actions/runs/${ci.runId}` || ci.workflowPath !== ".github/workflows/quality.yml") {
-    throw new Error("M5 RunPod environment authorization binding changed");
+    throw new Error("M5 numeric audit authorization binding changed");
   }
   return {
     authorization,
     authorizationReceiptSha256: digest(raw),
-    priorAuthorization: M5_RUNTIME_AUTHORIZATION_COMMIT,
+    priorAuthorization: M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
     receipt,
     source,
     sourceTree,

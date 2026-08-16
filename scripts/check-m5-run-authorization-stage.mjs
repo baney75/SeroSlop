@@ -23,14 +23,16 @@ const getJson = (url) => new Promise((resolve, reject) => {
 });
 const head = git(["rev-parse", "HEAD"]);
 const result = validateM5AuthorizedChain();
-if (head !== result.authorization) throw new Error("M5 authorized stage must be the exact RunPod environment receipt commit");
+if (head !== result.authorization || result.receipt.numericBoundary !== "source-balanced-weights-unchanged-math-fsum-audit-only") {
+  throw new Error("M5 authorized stage must be the exact numeric audit receipt commit");
+}
 assertM5WorktreeExact();
 for (const forbidden of [M5_SELECTION_LOCK_PATH, M5_FAILURE_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_FINAL_RECEIPT_PATH, "docs/COMPETITOR_AUDIT.md"]) {
-  if (existsSync(forbidden)) throw new Error(`M5 RunPod environment authorization contains forbidden later evidence: ${forbidden}`);
+  if (existsSync(forbidden)) throw new Error(`M5 numeric audit authorization contains forbidden later evidence: ${forbidden}`);
 }
 const publicReference = await getJson("https://api.github.com/repos/baney75/prooflens/git/ref/heads/main");
 const publicHead = publicReference.object?.sha;
-if (publicHead !== head) throw new Error("M5 RunPod environment authorization must be the anonymous public main head");
+if (publicHead !== head) throw new Error("M5 numeric audit authorization must be the anonymous public main head");
 const sourceRun = await getJson(`https://api.github.com/repos/baney75/prooflens/actions/runs/${result.receipt.sourcePublicCi.runId}`);
 if (sourceRun.head_sha !== result.source || sourceRun.event !== "push" || sourceRun.status !== "completed" ||
     sourceRun.conclusion !== "success" || sourceRun.path !== ".github/workflows/quality.yml" ||

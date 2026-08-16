@@ -16,9 +16,15 @@ export const M5_RUNTIME_RECOVERY_TREE = "2983b3ab90d0a1097b457bb2d217a810f1067fd
 export const M5_RUNTIME_AUTHORIZATION_COMMIT = "e75b16f94718c24ac98311bd6859f10f27b5f2bd";
 export const M5_RUNTIME_AUTHORIZATION_TREE = "143e5e6c0ad694406d7d39da22cc3d4d56e743bd";
 export const M5_RUNTIME_AUTHORIZATION_SHA256 = "eeee532d699705faef1e35d49748c8264387880e0e573d2b8c61e412944c9ce9";
+export const M5_RUNPOD_ENV_RECOVERY_COMMIT = "49355e62437a8c4af9b5da6b4707577e4b0dad6f";
+export const M5_RUNPOD_ENV_RECOVERY_TREE = "5e61796753780033dc1645fd850ce7539bfc9ec3";
+export const M5_RUNPOD_ENV_AUTHORIZATION_COMMIT = "b8cfc6ba9634a2af12c4fec5f49f32b6024c4903";
+export const M5_RUNPOD_ENV_AUTHORIZATION_TREE = "8431b086cb99c0f1281e748a169cdb25c561366b";
+export const M5_RUNPOD_ENV_AUTHORIZATION_SHA256 = "031f8b85dca9362d7afe06bcd30dc400f9f76a82a314012259b4300b237a8662";
 export const M5_RUN_AUTHORIZATION_PATH = "benchmark/evidence/m5/run-authorization.json";
 export const M5_RUNTIME_AUTHORIZATION_PATH = "benchmark/evidence/m5/runtime-recovery-authorization.json";
 export const M5_RUNPOD_ENV_AUTHORIZATION_PATH = "benchmark/evidence/m5/runpod-environment-authorization.json";
+export const M5_NUMERIC_AUDIT_AUTHORIZATION_PATH = "benchmark/evidence/m5/numeric-audit-authorization.json";
 export const M5_SELECTION_LOCK_PATH = "benchmark/evidence/m5/selection-lock.json";
 export const M5_FAILURE_PATH = "benchmark/evidence/m5/failed-training-attempt-1.json";
 export const M5_FINAL_RECEIPT_PATH = "benchmark/evidence/m5/finalization-receipt.json";
@@ -173,6 +179,24 @@ export const M5_RUNPOD_ENV_RECOVERY_EXPECTED = new Map([
   ["scripts/test-m5-stage-policy.mjs", "M"],
 ]);
 
+// The RunPod identity recovery was correctly authorized, but Python 3.11's
+// ordinary summation crossed an audit-only absolute tolerance by 1.25e-9.
+// This exact child changes only stable audit accumulation and its proof chain.
+export const M5_NUMERIC_AUDIT_RECOVERY_EXPECTED = new Map([
+  [".github/workflows/quality.yml", "M"],
+  ["benchmark/m5/README.md", "M"],
+  ["benchmark/m5/contracts.py", "M"],
+  ["benchmark/m5/test_contracts.py", "M"],
+  ["benchmark/m5/train_gpu.py", "M"],
+  ["scripts/check-m5-authorized-chain.mjs", "M"],
+  ["scripts/check-m5-run-authorization-stage.mjs", "M"],
+  ["scripts/check-m5-source-recovery-stage.mjs", "M"],
+  ["scripts/m5-run-authorization.mjs", "M"],
+  ["scripts/m5-stage-policy.mjs", "M"],
+  ["scripts/run-static-verification.mjs", "M"],
+  ["scripts/test-m5-stage-policy.mjs", "M"],
+]);
+
 export const M5_LOCK_EXPECTED = new Map([[M5_SELECTION_LOCK_PATH, "A"]]);
 export const M5_FAILURE_EXPECTED = new Map([[M5_FAILURE_PATH, "A"]]);
 export const M5_LARGE_SOURCE_EXPECTED = new Map([
@@ -244,9 +268,21 @@ export function matchesM5RuntimeRecoveryCommit({ runtimeParents, runtimeRows, p4
     matchesM5SourceRecoveryCommit({ sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows });
 }
 
-export function matchesM5AuthorizedChain({ authorizationCommit, authorizationParents, authorizationRows, environmentCommit, environmentParents, environmentRows, runtimeAuthorizationTree, runtimeAuthorizationParents, runtimeAuthorizationRows, runtimeCommit, runtimeParents, runtimeRows, p4Tree, p4Parents, p4Rows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) {
+export function matchesM5RunpodEnvironmentAuthorizedChain({ authorizationCommit, authorizationParents, authorizationRows, environmentCommit, environmentParents, environmentRows, runtimeAuthorizationTree, runtimeAuthorizationParents, runtimeAuthorizationRows, runtimeCommit, runtimeParents, runtimeRows, p4Tree, p4Parents, p4Rows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) {
   return authorizationCommit && authorizationParents.length === 1 && authorizationParents[0] === environmentCommit &&
     matchesExpectedRows(authorizationRows, new Map([[M5_RUNPOD_ENV_AUTHORIZATION_PATH, "A"]])) &&
+    matchesM5RunpodEnvironmentRecoveryCommit({ environmentParents, environmentRows, runtimeAuthorizationTree, runtimeAuthorizationParents, runtimeAuthorizationRows, runtimeCommit, runtimeParents, runtimeRows, p4Tree, p4Parents, p4Rows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows });
+}
+
+export function matchesM5AuthorizedChain({ authorizationCommit, authorizationParents, authorizationRows, numericCommit, numericParents, numericRows, environmentAuthorizationTree, environmentAuthorizationParents, environmentAuthorizationRows, environmentCommit, environmentParents, environmentRows, runtimeAuthorizationTree, runtimeAuthorizationParents, runtimeAuthorizationRows, runtimeCommit, runtimeParents, runtimeRows, p4Tree, p4Parents, p4Rows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) {
+  return authorizationCommit && authorizationParents.length === 1 && authorizationParents[0] === numericCommit &&
+    matchesExpectedRows(authorizationRows, new Map([[M5_NUMERIC_AUDIT_AUTHORIZATION_PATH, "A"]])) &&
+    numericParents.length === 1 && numericParents[0] === M5_RUNPOD_ENV_AUTHORIZATION_COMMIT &&
+    matchesExpectedRows(numericRows, M5_NUMERIC_AUDIT_RECOVERY_EXPECTED) &&
+    environmentAuthorizationTree === M5_RUNPOD_ENV_AUTHORIZATION_TREE &&
+    environmentAuthorizationParents.length === 1 && environmentAuthorizationParents[0] === environmentCommit &&
+    matchesExpectedRows(environmentAuthorizationRows, new Map([[M5_RUNPOD_ENV_AUTHORIZATION_PATH, "A"]])) &&
+    environmentCommit === M5_RUNPOD_ENV_RECOVERY_COMMIT &&
     matchesM5RunpodEnvironmentRecoveryCommit({ environmentParents, environmentRows, runtimeAuthorizationTree, runtimeAuthorizationParents, runtimeAuthorizationRows, runtimeCommit, runtimeParents, runtimeRows, p4Tree, p4Parents, p4Rows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows });
 }
 

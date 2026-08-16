@@ -79,8 +79,8 @@ from benchmark.m5.contracts import (
     source_balanced_weights,
     validate_environment_receipt,
     validate_manifest_rows,
+    validate_numeric_audit_authorization,
     validate_provisioning_receipt,
-    validate_runpod_environment_authorization,
 )
 
 
@@ -138,9 +138,15 @@ M5_RUNTIME_RECOVERY_TREE = "2983b3ab90d0a1097b457bb2d217a810f1067fd6"
 M5_RUNTIME_AUTHORIZATION_COMMIT = "e75b16f94718c24ac98311bd6859f10f27b5f2bd"
 M5_RUNTIME_AUTHORIZATION_TREE = "143e5e6c0ad694406d7d39da22cc3d4d56e743bd"
 M5_RUNTIME_AUTHORIZATION_SHA256 = "eeee532d699705faef1e35d49748c8264387880e0e573d2b8c61e412944c9ce9"
+M5_RUNPOD_ENV_RECOVERY_COMMIT = "49355e62437a8c4af9b5da6b4707577e4b0dad6f"
+M5_RUNPOD_ENV_RECOVERY_TREE = "5e61796753780033dc1645fd850ce7539bfc9ec3"
+M5_RUNPOD_ENV_AUTHORIZATION_COMMIT = "b8cfc6ba9634a2af12c4fec5f49f32b6024c4903"
+M5_RUNPOD_ENV_AUTHORIZATION_TREE = "8431b086cb99c0f1281e748a169cdb25c561366b"
+M5_RUNPOD_ENV_AUTHORIZATION_SHA256 = "031f8b85dca9362d7afe06bcd30dc400f9f76a82a314012259b4300b237a8662"
 M5_RUN_AUTHORIZATION_PATH = "benchmark/evidence/m5/run-authorization.json"
 M5_RUNTIME_AUTHORIZATION_PATH = "benchmark/evidence/m5/runtime-recovery-authorization.json"
 M5_RUNPOD_ENV_AUTHORIZATION_PATH = "benchmark/evidence/m5/runpod-environment-authorization.json"
+M5_NUMERIC_AUDIT_AUTHORIZATION_PATH = "benchmark/evidence/m5/numeric-audit-authorization.json"
 M5_SOURCE_RECOVERY_ROWS = {
     "benchmark/m5/README.md": "M",
     "benchmark/m5/contracts.py": "M",
@@ -203,6 +209,20 @@ M5_RUNPOD_ENV_RECOVERY_ROWS = {
     "scripts/check-m5-run-authorization-stage.mjs": "M",
     "scripts/check-m5-source-recovery-stage.mjs": "M",
     "scripts/m5-preexec-bootstrap.py": "M",
+    "scripts/m5-run-authorization.mjs": "M",
+    "scripts/m5-stage-policy.mjs": "M",
+    "scripts/run-static-verification.mjs": "M",
+    "scripts/test-m5-stage-policy.mjs": "M",
+}
+M5_NUMERIC_AUDIT_RECOVERY_ROWS = {
+    ".github/workflows/quality.yml": "M",
+    "benchmark/m5/README.md": "M",
+    "benchmark/m5/contracts.py": "M",
+    "benchmark/m5/test_contracts.py": "M",
+    "benchmark/m5/train_gpu.py": "M",
+    "scripts/check-m5-authorized-chain.mjs": "M",
+    "scripts/check-m5-run-authorization-stage.mjs": "M",
+    "scripts/check-m5-source-recovery-stage.mjs": "M",
     "scripts/m5-run-authorization.mjs": "M",
     "scripts/m5-stage-policy.mjs": "M",
     "scripts/run-static-verification.mjs": "M",
@@ -383,11 +403,11 @@ def require_public_authorization_commit(authorization_commit: str) -> dict[str, 
 
 
 def resolve_authorized_run() -> tuple[str, str, str, dict[str, Any]]:
-    """Require clean public P4 and return source plus authorization proof."""
+    """Require the clean public numeric authorization and return its proof."""
     head = run(["git", "rev-parse", "HEAD"])
     parents = run(["git", "rev-list", "--parents", "-n", "1", head]).split()[1:]
     if len(parents) != 1:
-        raise ValueError("M5 runtime requires the receipt-only P4 child")
+        raise ValueError("M5 runtime requires the receipt-only numeric authorization child")
     source = parents[0]
     validated_source, source_tree, _receipt_sha256 = validate_authorization_commit(head)
     if validated_source != source:
@@ -408,13 +428,22 @@ def commit_rows(commit: str) -> dict[str, str]:
 
 def validate_source_recovery_history(source: str) -> None:
     source_parents = run(["git", "rev-list", "--parents", "-n", "1", source]).split()[1:]
+    runpod_environment_authorization_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_RUNPOD_ENV_AUTHORIZATION_COMMIT]).split()[1:]
+    runpod_environment_recovery_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_RUNPOD_ENV_RECOVERY_COMMIT]).split()[1:]
     runtime_authorization_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_RUNTIME_AUTHORIZATION_COMMIT]).split()[1:]
     runtime_recovery_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_RUNTIME_RECOVERY_COMMIT]).split()[1:]
     p4_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_P4_COMMIT]).split()[1:]
     ci_recovery_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_CI_RECOVERY_COMMIT]).split()[1:]
     failed_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_FAILED_SOURCE_COMMIT]).split()[1:]
-    if (source_parents != [M5_RUNTIME_AUTHORIZATION_COMMIT]
-            or commit_rows(source) != M5_RUNPOD_ENV_RECOVERY_ROWS
+    if (source_parents != [M5_RUNPOD_ENV_AUTHORIZATION_COMMIT]
+            or commit_rows(source) != M5_NUMERIC_AUDIT_RECOVERY_ROWS
+            or run(["git", "rev-parse", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}^{{tree}}"] ) != M5_RUNPOD_ENV_AUTHORIZATION_TREE
+            or runpod_environment_authorization_parents != [M5_RUNPOD_ENV_RECOVERY_COMMIT]
+            or commit_rows(M5_RUNPOD_ENV_AUTHORIZATION_COMMIT) != {M5_RUNPOD_ENV_AUTHORIZATION_PATH: "A"}
+            or sha256(git_bytes(["show", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}:{M5_RUNPOD_ENV_AUTHORIZATION_PATH}"])).hexdigest() != M5_RUNPOD_ENV_AUTHORIZATION_SHA256
+            or run(["git", "rev-parse", f"{M5_RUNPOD_ENV_RECOVERY_COMMIT}^{{tree}}"] ) != M5_RUNPOD_ENV_RECOVERY_TREE
+            or runpod_environment_recovery_parents != [M5_RUNTIME_AUTHORIZATION_COMMIT]
+            or commit_rows(M5_RUNPOD_ENV_RECOVERY_COMMIT) != M5_RUNPOD_ENV_RECOVERY_ROWS
             or run(["git", "rev-parse", f"{M5_RUNTIME_AUTHORIZATION_COMMIT}^{{tree}}"] ) != M5_RUNTIME_AUTHORIZATION_TREE
             or runtime_authorization_parents != [M5_RUNTIME_RECOVERY_COMMIT]
             or commit_rows(M5_RUNTIME_AUTHORIZATION_COMMIT) != {M5_RUNTIME_AUTHORIZATION_PATH: "A"}
@@ -432,11 +461,11 @@ def validate_source_recovery_history(source: str) -> None:
             or failed_parents != [M5_P2_COMMIT]
             or commit_rows(M5_FAILED_SOURCE_COMMIT) != M5_SOURCE_RECOVERY_ROWS
             or run(["git", "rev-parse", f"{M5_P2_COMMIT}^{{tree}}"] ) != M5_P2_TREE):
-        raise ValueError("M5 runtime requires the exact P2 -> failed P3 -> CI recovery -> P4 -> runtime recovery -> RunPod environment recovery history")
+        raise ValueError("M5 runtime requires the exact P2 -> failed P3 -> CI recovery -> P4 -> runtime recovery -> RunPod environment recovery -> numeric audit recovery history")
 
 
 def validate_authorization_commit(authorization_commit: str) -> tuple[str, str, str]:
-    """Validate an inherited P4 receipt and return (recovered source, tree, receipt SHA-256)."""
+    """Validate numeric authorization and return (recovered source, tree, receipt SHA-256)."""
     authorization_parents = run(["git", "rev-list", "--parents", "-n", "1", authorization_commit]).split()[1:]
     if len(authorization_parents) != 1:
         raise ValueError("M5 authorization must have one source parent")
@@ -447,18 +476,18 @@ def validate_authorization_commit(authorization_commit: str) -> tuple[str, str, 
         if pathname in authorization_rows:
             raise ValueError("M5 P4 authorization contains a duplicate path")
         authorization_rows[pathname] = status
-    if authorization_rows != {M5_RUNPOD_ENV_AUTHORIZATION_PATH: "A"}:
-        raise ValueError("M5 RunPod environment authorization must be an exact receipt-only commit")
+    if authorization_rows != {M5_NUMERIC_AUDIT_AUTHORIZATION_PATH: "A"}:
+        raise ValueError("M5 numeric audit authorization must be an exact receipt-only commit")
     validate_source_recovery_history(source)
-    prior_raw = git_bytes(["show", f"{M5_RUNTIME_AUTHORIZATION_COMMIT}:{M5_RUNTIME_AUTHORIZATION_PATH}"])
-    if sha256(prior_raw).hexdigest() != M5_RUNTIME_AUTHORIZATION_SHA256:
-        raise ValueError("M5 prior runtime authorization bytes changed")
-    auth_path = ROOT / M5_RUNPOD_ENV_AUTHORIZATION_PATH
+    prior_raw = git_bytes(["show", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}:{M5_RUNPOD_ENV_AUTHORIZATION_PATH}"])
+    if sha256(prior_raw).hexdigest() != M5_RUNPOD_ENV_AUTHORIZATION_SHA256:
+        raise ValueError("M5 prior RunPod environment authorization bytes changed")
+    auth_path = ROOT / M5_NUMERIC_AUDIT_AUTHORIZATION_PATH
     raw = auth_path.read_bytes() if auth_path.is_file() and not auth_path.is_symlink() else b""
-    if not raw or raw != canonical_json(parse_json_bytes(raw, label="M5 runtime recovery authorization")):
-        raise ValueError("M5 runtime requires canonical RunPod environment authorization")
-    receipt = parse_json_bytes(raw, label="M5 RunPod environment authorization")
-    committed_raw = git_bytes(["show", f"{authorization_commit}:{M5_RUNPOD_ENV_AUTHORIZATION_PATH}"])
+    if not raw or raw != canonical_json(parse_json_bytes(raw, label="M5 numeric audit authorization")):
+        raise ValueError("M5 runtime requires canonical numeric audit authorization")
+    receipt = parse_json_bytes(raw, label="M5 numeric audit authorization")
+    committed_raw = git_bytes(["show", f"{authorization_commit}:{M5_NUMERIC_AUDIT_AUTHORIZATION_PATH}"])
     if committed_raw != raw:
         raise ValueError("M5 inherited runtime authorization bytes changed")
     source_tree = run(["git", "rev-parse", f"{source}^{{tree}}"])
@@ -466,13 +495,13 @@ def validate_authorization_commit(authorization_commit: str) -> tuple[str, str, 
         {"path": path, "sha256": sha256(git_bytes(["show", f"{source}:{path}"])).hexdigest()}
         for path in sorted(M5_SOURCE_RECOVERY_PATHS)
     ]
-    validate_runpod_environment_authorization(
+    validate_numeric_audit_authorization(
         receipt,
         protocol_commit=M5_P2_COMMIT,
         protocol_tree=M5_P2_TREE,
-        prior_authorization_commit=M5_RUNTIME_AUTHORIZATION_COMMIT,
-        prior_authorization_tree=M5_RUNTIME_AUTHORIZATION_TREE,
-        prior_authorization_sha256=M5_RUNTIME_AUTHORIZATION_SHA256,
+        prior_authorization_commit=M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
+        prior_authorization_tree=M5_RUNPOD_ENV_AUTHORIZATION_TREE,
+        prior_authorization_sha256=M5_RUNPOD_ENV_AUTHORIZATION_SHA256,
         source_commit=source,
         source_tree=source_tree,
         source_path_map=expected_map,
@@ -1520,7 +1549,7 @@ def execute(args: argparse.Namespace) -> int:
     environment["sourceCommit"] = protocol_commit
     environment["sourceTree"] = source_tree
     environment["authorizationCommit"] = authorization_commit
-    environment["authorizationReceiptSha256"] = digest_file(ROOT / M5_RUNPOD_ENV_AUTHORIZATION_PATH)
+    environment["authorizationReceiptSha256"] = digest_file(ROOT / M5_NUMERIC_AUDIT_AUTHORIZATION_PATH)
     environment["authorizationPublicCi"] = authorization_public_ci
     validate_environment_receipt(environment, recipe)
     validate_environment_matches_provisioning(environment, provisioning)

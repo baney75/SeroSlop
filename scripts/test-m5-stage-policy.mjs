@@ -21,7 +21,12 @@ import {
   M5_P4_COMMIT,
   M5_P4_TREE,
   M5_P2_COMMIT,
+  M5_NUMERIC_AUDIT_AUTHORIZATION_PATH,
+  M5_NUMERIC_AUDIT_RECOVERY_EXPECTED,
+  M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
   M5_RUNPOD_ENV_AUTHORIZATION_PATH,
+  M5_RUNPOD_ENV_AUTHORIZATION_TREE,
+  M5_RUNPOD_ENV_RECOVERY_COMMIT,
   M5_RUNPOD_ENV_RECOVERY_EXPECTED,
   M5_RUNTIME_AUTHORIZATION_COMMIT,
   M5_RUNTIME_AUTHORIZATION_PATH,
@@ -57,7 +62,9 @@ const sourceRows = [...M5_SOURCE_RECOVERY_EXPECTED.entries()];
 const ciRecoveryRows = [...M5_SOURCE_CI_RECOVERY_EXPECTED.entries()];
 const runtimeRows = [...M5_RUNTIME_RECOVERY_EXPECTED.entries()];
 const environmentRows = [...M5_RUNPOD_ENV_RECOVERY_EXPECTED.entries()];
+const numericRows = [...M5_NUMERIC_AUDIT_RECOVERY_EXPECTED.entries()];
 assert.equal(environmentRows.length, 12);
+assert.equal(numericRows.length, 12);
 for (const [pathname] of environmentRows) assert.equal(M5_SOURCE_RECOVERY_EXPECTED.has(pathname), true);
 const runtimeCommit = M5_RUNTIME_RECOVERY_COMMIT;
 const runtimeFixture = {
@@ -70,7 +77,7 @@ assert.equal(matchesM5RuntimeRecoveryCommit(runtimeFixture), true);
 assert.equal(matchesM5RuntimeRecoveryCommit({ ...runtimeFixture, runtimeRows: [...runtimeRows, ["torch.py", "A"]] }), false);
 assert.equal(matchesM5RuntimeRecoveryCommit({ ...runtimeFixture, runtimeParents: [M5_CI_RECOVERY_COMMIT] }), false);
 assert.equal(matchesM5RuntimeRecoveryCommit({ ...runtimeFixture, p4Tree: "0".repeat(40) }), false);
-const environmentCommit = "e".repeat(40);
+const environmentCommit = M5_RUNPOD_ENV_RECOVERY_COMMIT;
 const environmentFixture = {
   environmentParents: [M5_RUNTIME_AUTHORIZATION_COMMIT], environmentRows,
   runtimeAuthorizationTree: M5_RUNTIME_AUTHORIZATION_TREE,
@@ -80,13 +87,24 @@ const environmentFixture = {
 assert.equal(matchesM5RunpodEnvironmentRecoveryCommit(environmentFixture), true);
 assert.equal(matchesM5RunpodEnvironmentRecoveryCommit({ ...environmentFixture, environmentRows: [...environmentRows, ["extra", "M"]] }), false);
 assert.equal(matchesM5RunpodEnvironmentRecoveryCommit({ ...environmentFixture, runtimeAuthorizationTree: "0".repeat(40) }), false);
+const numericCommit = "c".repeat(40);
 assert.equal(matchesM5AuthorizedChain({
-  authorizationCommit: "d".repeat(40), authorizationParents: [environmentCommit],
-  authorizationRows: [[M5_RUNPOD_ENV_AUTHORIZATION_PATH, "A"]], environmentCommit, ...environmentFixture,
+  authorizationCommit: "d".repeat(40), authorizationParents: [numericCommit],
+  authorizationRows: [[M5_NUMERIC_AUDIT_AUTHORIZATION_PATH, "A"]], numericCommit,
+  numericParents: [M5_RUNPOD_ENV_AUTHORIZATION_COMMIT], numericRows,
+  environmentAuthorizationTree: M5_RUNPOD_ENV_AUTHORIZATION_TREE,
+  environmentAuthorizationParents: [environmentCommit],
+  environmentAuthorizationRows: [[M5_RUNPOD_ENV_AUTHORIZATION_PATH, "A"]],
+  environmentCommit, ...environmentFixture,
 }), true);
 assert.equal(matchesM5AuthorizedChain({
-  authorizationCommit: "d".repeat(40), authorizationParents: [environmentCommit],
-  authorizationRows: [[M5_RUNPOD_ENV_AUTHORIZATION_PATH, "A"], ["extra", "A"]], environmentCommit, ...environmentFixture,
+  authorizationCommit: "d".repeat(40), authorizationParents: [numericCommit],
+  authorizationRows: [[M5_NUMERIC_AUDIT_AUTHORIZATION_PATH, "A"], ["extra", "A"]], numericCommit,
+  numericParents: [M5_RUNPOD_ENV_AUTHORIZATION_COMMIT], numericRows,
+  environmentAuthorizationTree: M5_RUNPOD_ENV_AUTHORIZATION_TREE,
+  environmentAuthorizationParents: [environmentCommit],
+  environmentAuthorizationRows: [[M5_RUNPOD_ENV_AUTHORIZATION_PATH, "A"]],
+  environmentCommit, ...environmentFixture,
 }), false);
 assert.deepEqual(parseCanonicalM5Authorization(Buffer.from('{"a":1}\n')), { a: 1 });
 assert.throws(() => parseCanonicalM5Authorization(Buffer.from('{"a":1,"a":2}\n')));
@@ -123,9 +141,9 @@ assert.throws(() => classifyM5Stage({ protocolExists: true, lockExists: true, fa
 assert.throws(() => classifyM5Stage({ protocolExists: true, lockExists: false, failureExists: false, largeSourceLockExists: true, finalExists: false }));
 assert.throws(() => classifyM5Stage({ protocolExists: true, lockExists: true, failureExists: false, largeSourceLockExists: false, finalExists: true }));
 const dispatcher = readFileSync("scripts/run-static-verification.mjs", "utf8");
-assert.ok(dispatcher.includes("M5_RUNPOD_ENV_AUTHORIZATION_PATH"));
-assert.ok(dispatcher.includes("M5_RUNPOD_ENV_RECOVERY_EXPECTED"));
-assert.ok(dispatcher.includes("M5_RUNTIME_AUTHORIZATION_COMMIT"));
+assert.ok(dispatcher.includes("M5_NUMERIC_AUDIT_AUTHORIZATION_PATH"));
+assert.ok(dispatcher.includes("M5_NUMERIC_AUDIT_RECOVERY_EXPECTED"));
+assert.ok(dispatcher.includes("M5_RUNPOD_ENV_AUTHORIZATION_COMMIT"));
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 assert.equal(packageJson.scripts["check:m5-pipeline"], "node scripts/run-benchmark-python.mjs -m unittest benchmark.m5.test_contracts");
 for (const [stage, script] of [
