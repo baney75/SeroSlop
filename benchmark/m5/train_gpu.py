@@ -80,6 +80,7 @@ from benchmark.m5.contracts import (
     validate_environment_receipt,
     validate_manifest_rows,
     validate_parity_recovery_authorization,
+    validate_cublas_recovery_authorization,
     validate_provisioning_receipt,
     ort_cuda_providers,
 )
@@ -153,6 +154,21 @@ M5_A4_TREE = "d93819ff013943ac48c6dafc659effc9cfbf3e95"
 M5_A4_AUTHORIZATION_SHA256 = "8286dc24babe83a16fdf898fa5e70b6202a1da8c46ae2aeda8cf557134db0f03"
 M5_A5_AUTHORIZATION_PATH = "benchmark/evidence/m5/parity-recovery-authorization.json"
 M5_A5_STATUS = "m5-parity-recovery-authorized"
+M5_A5_COMMIT = "adc2b06aef8b427c9efba918bb53eaba25c46b77"
+M5_A5_TREE = "951fd5145156ab3fe5df3f4e4db0f09a3b06888d"
+M5_A5_AUTHORIZATION_SHA256 = "6aa5e08d4b44b01e232c39084a8286704dc3c7d9491f9b02ca8b7b3f63dcaa4d"
+M5_A6_AUTHORIZATION_PATH = "benchmark/evidence/m5/cublas-recovery-authorization.json"
+M5_A6_STATUS = "m5-cublas-recovery-authorized"
+M5_R6_ROWS = {
+    "benchmark/m5/README.md": "M", "benchmark/m5/contracts.py": "M", "benchmark/m5/recipe.json": "M",
+    "benchmark/m5/test_contracts.py": "M", "benchmark/m5/train_gpu.py": "M",
+    "scripts/check-m5-cublas-authorized-chain.mjs": "A", "scripts/check-m5-authorized-chain.mjs": "M",
+    "scripts/check-m5-run-authorization-stage.mjs": "M", "scripts/check-m5-source-recovery-stage.mjs": "M",
+    "scripts/m5-preexec-bootstrap.py": "M", "scripts/m5-run-authorization.mjs": "M",
+    "scripts/m5-runpod-launch.sh": "M", "scripts/m5-stage-policy.mjs": "M",
+    "scripts/m5-training-contract.mjs": "M", "scripts/run-static-verification.mjs": "M",
+    "scripts/test-m5-stage-policy.mjs": "M", "scripts/test-m5-training-contract.mjs": "M",
+}
 M5_R5_ROWS = {
     "benchmark/m5/README.md":"M", "benchmark/m5/contracts.py":"M", "benchmark/m5/evaluate_large_synthetic.py":"M", "benchmark/m5/evaluate_locked.py":"M", "benchmark/m5/recipe.json":"M", "benchmark/m5/test_contracts.py":"M", "benchmark/m5/train_gpu.py":"M", "benchmark/evidence/m5/initial-parity-diagnostic.json":"A", "scripts/check-m5-authorized-chain.mjs":"M", "scripts/check-m5-run-authorization-stage.mjs":"M", "scripts/check-m5-source-recovery-stage.mjs":"M", "scripts/m5-run-authorization.mjs":"M", "scripts/m5-stage-policy.mjs":"M", "scripts/m5-training-contract.mjs":"M", "scripts/run-static-verification.mjs":"M", "scripts/test-m5-stage-policy.mjs":"M", "scripts/test-m5-training-contract.mjs":"M",
 }
@@ -375,7 +391,7 @@ def resolve_authorized_protocol_commit() -> str:
 
 
 def require_public_authorization_commit(authorization_commit: str) -> dict[str, Any]:
-    """Require anonymous public main and exact-head green quality for A5."""
+    """Require anonymous public main and exact-head green quality for A6."""
     opener = build_opener(ProxyHandler({}))
     reference_request = Request(
         "https://api.github.com/repos/baney75/prooflens/git/ref/heads/main",
@@ -384,7 +400,7 @@ def require_public_authorization_commit(authorization_commit: str) -> dict[str, 
     with opener.open(reference_request, timeout=30) as response:
         reference = json.loads(response.read().decode("utf-8", errors="strict"))
     if reference.get("object", {}).get("sha") != authorization_commit:
-        raise ValueError("M5 runtime requires the exact public A5 main head")
+        raise ValueError("M5 runtime requires the exact public A6 main head")
     request = Request(
         f"https://api.github.com/repos/baney75/prooflens/actions/runs?event=push&head_sha={authorization_commit}&per_page=100",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "seroslop-m5-runtime"},
@@ -399,7 +415,7 @@ def require_public_authorization_commit(authorization_commit: str) -> dict[str, 
         and row.get("path") == ".github/workflows/quality.yml"
     )), None)
     if run_row is None:
-        raise ValueError("M5 runtime requires exact-head successful public A5 quality CI")
+        raise ValueError("M5 runtime requires exact-head successful public A6 quality CI")
     return {
         "conclusion": "success",
         "event": "push",
@@ -411,18 +427,54 @@ def require_public_authorization_commit(authorization_commit: str) -> dict[str, 
     }
 
 
-def resolve_authorized_run() -> tuple[str, str, str, dict[str, Any]]:
-    """Require the clean public A5 parity authorization and return its proof."""
+def validate_cublas_authorization_commit(authorization: str) -> tuple[str, str, str]:
+    if commit_rows(authorization) != {M5_A6_AUTHORIZATION_PATH: "A"}:
+        raise ValueError("M5 A6 authorization must be receipt-only")
+    authorization_parents = run(["git", "rev-list", "--parents", "-n", "1", authorization]).split()[1:]
+    if len(authorization_parents) != 1:
+        raise ValueError("M5 A6 authorization must have one R6 parent")
+    source = authorization_parents[0]
+    if run(["git", "rev-list", "--parents", "-n", "1", source]).split()[1:] != [M5_A5_COMMIT] or commit_rows(source) != M5_R6_ROWS:
+        raise ValueError("M5 R6 recovery lineage or surface changed")
+    if (
+        run(["git", "rev-parse", f"{M5_A5_COMMIT}^{{tree}}"] ) != M5_A5_TREE
+        or commit_rows(M5_A5_COMMIT) != {M5_A5_AUTHORIZATION_PATH: "A"}
+        or sha256(git_bytes(["show", f"{M5_A5_COMMIT}:{M5_A5_AUTHORIZATION_PATH}"])).hexdigest() != M5_A5_AUTHORIZATION_SHA256
+    ):
+        raise ValueError("M5 immutable A5 authorization binding changed")
+    raw = git_bytes(["show", f"{authorization}:{M5_A6_AUTHORIZATION_PATH}"])
+    if (ROOT / M5_A6_AUTHORIZATION_PATH).read_bytes() != raw:
+        raise ValueError("M5 A6 authorization bytes differ from the committed receipt")
+    receipt = parse_json_bytes(raw, label="M5 A6 cuBLAS authorization")
+    if raw != canonical_json(receipt):
+        raise ValueError("M5 A6 authorization is not canonical JSON")
+    source_tree = run(["git", "rev-parse", f"{source}^{{tree}}"])
+    expected_map = [
+        {"path": path, "sha256": sha256(git_bytes(["show", f"{source}:{path}"])).hexdigest()}
+        for path in sorted(M5_R6_ROWS)
+    ]
+    validate_cublas_recovery_authorization(
+        receipt,
+        protocol_commit=M5_P2_COMMIT,
+        protocol_tree=M5_P2_TREE,
+        prior_authorization_commit=M5_A5_COMMIT,
+        prior_authorization_tree=M5_A5_TREE,
+        prior_authorization_sha256=M5_A5_AUTHORIZATION_SHA256,
+        source_commit=source,
+        source_tree=source_tree,
+        source_path_map=expected_map,
+    )
+    return source, source_tree, sha256(raw).hexdigest()
+
+
+def resolve_authorized_run() -> tuple[str, str, str, str, dict[str, Any]]:
+    """Require the clean public A6 deterministic-CUDA authorization."""
     head = run(["git", "rev-parse", "HEAD"])
-    parents = run(["git", "rev-list", "--parents", "-n", "1", head]).split()[1:]
-    if len(parents) != 1:
-        raise ValueError("M5 runtime requires the receipt-only A5 authorization child")
-    source = parents[0]
-    validated_source, source_tree, _receipt_sha256 = validate_authorization_commit(head)
-    if validated_source != source:
-        raise ValueError("M5 runtime authorization source changed")
+    if not (ROOT / M5_A6_AUTHORIZATION_PATH).is_file():
+        raise ValueError("M5 runtime requires the exact A6 authorization receipt")
+    source, source_tree, receipt_sha256 = validate_cublas_authorization_commit(head)
     assert_worktree_exact()
-    return source, source_tree, head, require_public_authorization_commit(head)
+    return source, source_tree, head, receipt_sha256, require_public_authorization_commit(head)
 
 
 def commit_rows(commit: str) -> dict[str, str]:
@@ -719,6 +771,7 @@ def environment_receipt(
         "providerIdentityEvidence": recipe["training"]["providerIdentityEvidence"],
         "providerSignedAttestation": False,
         "runtimeConsistencyEvidence": recipe["training"]["runtimeConsistencyEvidence"],
+        "cublasWorkspaceConfig": os.environ.get("CUBLAS_WORKSPACE_CONFIG", ""),
     }
 
 
@@ -1526,9 +1579,16 @@ def run_preflight(
     return 0
 
 
+def require_cuda_determinism_environment(recipe: Mapping[str, Any]) -> None:
+    expected = recipe["training"]["deterministicCudaRuntime"]["cublasWorkspaceConfig"]
+    if expected != ":4096:8" or os.environ.get("CUBLAS_WORKSPACE_CONFIG") != expected:
+        raise ValueError("M5 requires the frozen deterministic cuBLAS workspace before Torch import")
+
+
 def execute(args: argparse.Namespace) -> int:
     recipe = load_recipe(RECIPE_PATH)
-    protocol_commit, source_tree, authorization_commit, authorization_public_ci = resolve_authorized_run()
+    require_cuda_determinism_environment(recipe)
+    protocol_commit, source_tree, authorization_commit, authorization_receipt_sha256, authorization_public_ci = resolve_authorized_run()
     import torch
     import transformers
 
@@ -1558,7 +1618,7 @@ def execute(args: argparse.Namespace) -> int:
     environment["sourceCommit"] = protocol_commit
     environment["sourceTree"] = source_tree
     environment["authorizationCommit"] = authorization_commit
-    environment["authorizationReceiptSha256"] = digest_file(ROOT / M5_A5_AUTHORIZATION_PATH)
+    environment["authorizationReceiptSha256"] = authorization_receipt_sha256
     environment["authorizationPublicCi"] = authorization_public_ci
     validate_environment_receipt(environment, recipe)
     validate_environment_matches_provisioning(environment, provisioning)

@@ -34,6 +34,25 @@ export const M5_A4_PATH = M5_NUMERIC_AUDIT_AUTHORIZATION_PATH;
 export const M5_A4_SHA256 = "8286dc24babe83a16fdf898fa5e70b6202a1da8c46ae2aeda8cf557134db0f03";
 export const M5_A5_AUTHORIZATION_PATH = "benchmark/evidence/m5/parity-recovery-authorization.json";
 export const M5_A5_STATUS = "m5-parity-recovery-authorized";
+export const M5_A5_COMMIT = "adc2b06aef8b427c9efba918bb53eaba25c46b77";
+export const M5_A5_TREE = "951fd5145156ab3fe5df3f4e4db0f09a3b06888d";
+export const M5_A5_SHA256 = "6aa5e08d4b44b01e232c39084a8286704dc3c7d9491f9b02ca8b7b3f63dcaa4d";
+export const M5_A6_AUTHORIZATION_PATH = "benchmark/evidence/m5/cublas-recovery-authorization.json";
+export const M5_A6_STATUS = "m5-cublas-recovery-authorized";
+// R6 is the exact deterministic-runtime recovery child of A5.  Keep this
+// map append-only and score-blind; it binds only the trusted environment path.
+export const M5_R6_EXPECTED = new Map([
+  ["benchmark/m5/README.md", "M"], ["benchmark/m5/contracts.py", "M"],
+  ["benchmark/m5/recipe.json", "M"], ["benchmark/m5/test_contracts.py", "M"],
+  ["benchmark/m5/train_gpu.py", "M"],
+  ["scripts/m5-preexec-bootstrap.py", "M"], ["scripts/m5-runpod-launch.sh", "M"],
+  ["scripts/m5-stage-policy.mjs", "M"],
+  ["scripts/check-m5-cublas-authorized-chain.mjs", "A"],
+  ["scripts/check-m5-authorized-chain.mjs", "M"], ["scripts/check-m5-run-authorization-stage.mjs", "M"],
+  ["scripts/check-m5-source-recovery-stage.mjs", "M"], ["scripts/run-static-verification.mjs", "M"],
+  ["scripts/m5-run-authorization.mjs", "M"], ["scripts/m5-training-contract.mjs", "M"],
+  ["scripts/test-m5-stage-policy.mjs", "M"], ["scripts/test-m5-training-contract.mjs", "M"],
+]);
 export const M5_R5_EXPECTED = new Map([
   ["benchmark/m5/README.md", "M"], ["benchmark/m5/contracts.py", "M"],
   ["benchmark/m5/evaluate_large_synthetic.py", "M"], ["benchmark/m5/evaluate_locked.py", "M"],

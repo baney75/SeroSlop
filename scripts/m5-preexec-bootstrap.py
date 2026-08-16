@@ -97,6 +97,10 @@ def runpod_environment() -> dict[str, str]:
     """Build the fixed RunPod child environment with only the verified Pod ID."""
     environment = clean_environment(RUNPOD_PATH)
     environment["RUNPOD_POD_ID"] = runpod_pod_id_from_init()
+    # PyTorch's deterministic CUDA matmul path requires this exact workspace
+    # configuration.  Set it at the trusted child boundary, after replacing
+    # the caller environment, so neither the caller nor PID-1 can override it.
+    environment["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     return environment
 
 

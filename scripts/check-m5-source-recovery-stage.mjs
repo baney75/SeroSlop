@@ -1,11 +1,16 @@
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { M5_A4_COMMIT, M5_A4_TREE, M5_A4_PATH, M5_A4_SHA256, M5_A5_AUTHORIZATION_PATH, M5_R5_EXPECTED, matchesExpectedRows } from "./m5-stage-policy.mjs";
-import { assertM5WorktreeExact, m5Git, m5GitBytes } from "./m5-safe-git.mjs";
-const git=(a)=>m5Git(a); const rows=(c)=>git(["diff-tree","--root","--no-renames","--name-status","--format=","-r",c]).split("\n").filter(Boolean).map(x=>{const [s,p]=x.split("\t");return [p,s];}); const parents=(c)=>git(["rev-list","--parents","-n","1",c]).split(" ").slice(1);
-const sha256=(bytes)=>createHash("sha256").update(bytes).digest("hex");
-const head=git(["rev-parse","HEAD"]);
-if(parents(head).length!==1||parents(head)[0]!==M5_A4_COMMIT||!matchesExpectedRows(rows(head),M5_R5_EXPECTED)||git(["rev-parse",`${M5_A4_COMMIT}^{tree}`])!==M5_A4_TREE) throw new Error("M5 R5 source recovery must be an exact child of A4");
-if(existsSync(M5_A5_AUTHORIZATION_PATH)) throw new Error("M5 source recovery cannot contain active A5 authorization");
-if(!existsSync(M5_A4_PATH)||sha256(m5GitBytes(["show",`${M5_A4_COMMIT}:${M5_A4_PATH}`]))!==M5_A4_SHA256) throw new Error("M5 A4 receipt changed");
-assertM5WorktreeExact(); console.log(JSON.stringify({head,parent:M5_A4_COMMIT,paths:M5_R5_EXPECTED.size,policy:"pass"}));
+import { validateM5A5AuthorizedChain } from "./check-m5-authorized-chain.mjs";
+import { M5_A5_COMMIT, M5_A5_TREE, M5_A6_AUTHORIZATION_PATH, M5_R6_EXPECTED, matchesExpectedRows } from "./m5-stage-policy.mjs";
+import { assertM5WorktreeExact, m5Git } from "./m5-safe-git.mjs";
+
+const git = (arguments_) => m5Git(arguments_);
+const rows = (commit) => git(["diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", commit])
+  .split("\n").filter(Boolean).map((line) => { const [status, pathname] = line.split("\t"); return [pathname, status]; });
+const parents = (commit) => git(["rev-list", "--parents", "-n", "1", commit]).split(" ").slice(1);
+const head = git(["rev-parse", "HEAD"]);
+const inherited = validateM5A5AuthorizedChain();
+if (inherited.authorization !== M5_A5_COMMIT || parents(head).length !== 1 || parents(head)[0] !== M5_A5_COMMIT ||
+    git(["rev-parse", `${M5_A5_COMMIT}^{tree}`]) !== M5_A5_TREE || !matchesExpectedRows(rows(head), M5_R6_EXPECTED) ||
+    existsSync(M5_A6_AUTHORIZATION_PATH)) throw new Error("M5 R6 source recovery lineage or surface changed");
+assertM5WorktreeExact();
+console.log(JSON.stringify({ head, parent: M5_A5_COMMIT, paths: M5_R6_EXPECTED.size, policy: "pass" }));

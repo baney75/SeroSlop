@@ -4,6 +4,7 @@ set -euo pipefail
 PATH=/opt/conda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 unset BASH_ENV ENV NODE_OPTIONS NODE_PATH PYTHONPATH PYTHONHOME PYTHONSTARTUP PYTHONINSPECT PYTHONUSERBASE PYTHONBREAKPOINT
+export CUBLAS_WORKSPACE_CONFIG=:4096:8
 for name in "${!GIT_@}"; do
   unset "$name"
 done

@@ -1,5 +1,8 @@
 # M5 RunPod GPU fine-tuning
 
+R6 binds `CUBLAS_WORKSPACE_CONFIG=:4096:8` at the trusted RunPod execution
+child boundary before Torch import; its A6 receipt is score-blind and H3-free.
+
 ## Source-recovery and authorization sequence
 
 The append-only public history retains every failed launch boundary: the
@@ -17,13 +20,16 @@ PyTorch-CPU versus ORT-CUDA error was `0.028517723083496094`, while the same
 ORT session with `use_tf32=0` was `0.0000247955322265625`. CPU ONNX parity also
 passed. The tolerance is not relaxed.
 
-Publish the exact 17-path R5 source-recovery child of A4. R5 freezes the
-diagnostic bytes, requires ORT CUDA with TF32 disabled for every model score,
-checks real-image export parity, and ranks candidates from each exported ONNX
-model instead of a bfloat16 PyTorch proxy. It does not change the training
-data, optimizer, loss, candidate grid, selector gates, terminal regressions,
-or H3 boundary. Wait for exact-head green CI. From the clean public-green R5
-commit, run:
+R5 and its one-file A5 authorization are immutable public history. R5 freezes
+the diagnostic bytes, requires ORT CUDA with TF32 disabled for every model
+score, checks real-image export parity, and ranks candidates from each exported
+ONNX model instead of a bfloat16 PyTorch proxy. Do not rerun the R5 authorizer.
+
+Publish the exact 17-path R6 deterministic-CUDA recovery child of A5. R6 adds
+the required `CUBLAS_WORKSPACE_CONFIG=:4096:8` before Torch import without
+changing the training data, optimizer, loss, candidate grid, selector gates,
+terminal regressions, or H3 boundary. Wait for exact-head green CI. From the
+clean public-green R6 commit, run:
 
 ```bash
 /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/python3 -I -c '
@@ -32,9 +38,9 @@ p = pathlib.Path(sys.argv[1]); raw = p.read_bytes()
 if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec bootstrap bytes changed")
 sys.argv = [str(p), *sys.argv[3:]]
 exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
-' scripts/m5-preexec-bootstrap.py 54d94c8e696b9accb7bae4de6427922c1c72975b105b0a35ce0f74e741dead6d authorize
-git add benchmark/evidence/m5/parity-recovery-authorization.json
-git commit -m "Evidence: authorize exact M5 parity recovery"
+' scripts/m5-preexec-bootstrap.py b2a187f1d7d81a4644c4667fae35f5826ff2ffb311d3cc499df59cfdb4b8ad3d authorize
+git add benchmark/evidence/m5/cublas-recovery-authorization.json
+git commit -m "Evidence: authorize exact M5 deterministic CUDA recovery"
 ```
 
 The inline system-Python loader verifies the stdlib-only pre-exec bootstrap before
@@ -43,12 +49,15 @@ then pins the operator Mac's absolute Node executable, version, and SHA-256 and
 starts it with a minimal environment. Do not use `npm`, an inherited `PATH`, or a
 different Node binary for this one-file writer.
 
-The schema-5 A5 authorization binds A4, the exact R5 commit/tree/17-path source
-map and public CI, the immutable diagnostic SHA-256, the packaged-M2 reference
-boundary, ONNX scoring, score blindness, and no H3 read. A5 must add only that
-receipt. Push it and wait for its own exact-head green CI before retrying paid
-preflight. Later selection, failure, 100K, and final stages must retain the
-complete public history through R5 and A5.
+The historical schema-5 A5 authorization binds A4, the exact R5 commit/tree,
+source map and public CI, the immutable diagnostic SHA-256, the packaged-M2
+reference boundary, ONNX scoring, score blindness, and no H3 read. The current
+schema-6 A6 authorization binds A5, the exact R6 commit/tree/17-path source map
+and public CI, and the deterministic cuBLAS runtime boundary. A6 must add only
+`benchmark/evidence/m5/cublas-recovery-authorization.json`. Push it and wait
+for its own exact-head green CI before retrying paid preflight. Later selection,
+failure, 100K, and final stages must retain the complete public history through
+R6 and A6.
 
 ## Accepted brief
 
@@ -99,7 +108,7 @@ Use one RunPod Secure Cloud L40S 48 GB Pod. The recommended image is:
 pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385
 ```
 
-The repository must be cloned at the exact public M5 A5 parity authorization commit. The launcher derives and verifies the full append-only lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. The pre-exec bootstrap reads the bounded PID-1 environment only in `runpod` mode, validates exactly one `RUNPOD_POD_ID`, and forwards only that provider variable into the otherwise fixed child environment. It never forwards `RUNPOD_API_KEY` or any neighboring environment record. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
+The repository must be cloned at the exact public M5 A6 deterministic-CUDA authorization commit. The launcher derives and verifies the full append-only lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. The pre-exec bootstrap reads the bounded PID-1 environment only in `runpod` mode, validates exactly one `RUNPOD_POD_ID`, and forwards that provider variable plus the fixed `CUBLAS_WORKSPACE_CONFIG=:4096:8` into the otherwise scrubbed child environment. It never forwards `RUNPOD_API_KEY` or any neighboring environment record. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
 
 The pre-exec gate detects source drift present when a command starts. It is not
 a sandbox against a hostile same-user process changing files after verification;
@@ -126,7 +135,7 @@ p = pathlib.Path(sys.argv[1]); raw = p.read_bytes()
 if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec bootstrap bytes changed")
 sys.argv = [str(p), *sys.argv[3:]]
 exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
-' scripts/m5-preexec-bootstrap.py 54d94c8e696b9accb7bae4de6427922c1c72975b105b0a35ce0f74e741dead6d "$@"
+' scripts/m5-preexec-bootstrap.py b2a187f1d7d81a4644c4667fae35f5826ff2ffb311d3cc499df59cfdb4b8ad3d "$@"
 }
 m5_preexec runpod-install
 m5_preexec runpod preflight -- \
@@ -196,12 +205,13 @@ The finalizer independently recomputes both regression packets from their stored
 
 ## Recovery and authorization lineage
 
-The public numeric receipt is A4. A source-only R5 recovery must be its exact
-single child with the frozen 17-row surface, and may not contain A5. Only the
-receipt-only `benchmark/evidence/m5/parity-recovery-authorization.json` A5
-child is an active authorization. The A5 receipt binds protocol P2, the exact
-R5 source map, successful public CI, the packaged-M2 parity boundary, and the
-initial diagnostic SHA; training remains score-blind and H3-free.
+The public numeric receipt is A4. R5 and its receipt-only A5 child preserve the
+packaged-M2 parity repair. R6 must be the exact frozen 17-path child of A5 and
+may not contain A6. Only the receipt-only
+`benchmark/evidence/m5/cublas-recovery-authorization.json` A6 child is an active
+training authorization. A6 binds the exact R6 source map, successful public CI,
+and fixed cuBLAS workspace before Torch import; training remains score-blind and
+H3-free.
 
 ## Cost and cleanup
 

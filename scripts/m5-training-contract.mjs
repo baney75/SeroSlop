@@ -36,6 +36,7 @@ export function validateM5Recipe(recipe) {
     throw new Error("M5 score-blind source packet changed");
   }
   if (JSON.stringify(recipe.training.onnxRuntimeProviderPolicy) !== JSON.stringify({ provider: "CUDAExecutionProvider", useTf32: false }) ||
+      JSON.stringify(recipe.training.deterministicCudaRuntime) !== JSON.stringify({ cublasWorkspaceConfig: ":4096:8", boundary: "trusted-runpod-execution-child-environment-before-torch-import" }) ||
       recipe.training.provider !== "RunPod Secure Cloud (operator-recorded control-plane receipt)" ||
       recipe.training.providerIdentityEvidence !== "operator-attested-control-plane-observation" ||
       recipe.training.providerSignedAttestation !== false ||

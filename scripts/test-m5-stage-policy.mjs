@@ -38,6 +38,8 @@ import {
   M5_R5_EXPECTED,
   M5_A4_COMMIT,
   M5_A5_AUTHORIZATION_PATH,
+  M5_A6_AUTHORIZATION_PATH,
+  M5_R6_EXPECTED,
   M5_RUN_AUTHORIZATION_PATH,
   classifyM5Stage,
   matchesExpectedRows,
@@ -74,6 +76,15 @@ assert.equal(matchesExpectedRows([...M5_R5_EXPECTED, ["extra", "M"]], M5_R5_EXPE
 assert.equal(matchesExpectedRows([...M5_R5_EXPECTED].map(([path, status], index) => [path, index === 0 ? "A" : status]), M5_R5_EXPECTED), false);
 assert.equal(M5_A4_COMMIT.length, 40);
 assert.equal(M5_A5_AUTHORIZATION_PATH, "benchmark/evidence/m5/parity-recovery-authorization.json");
+assert.equal(M5_A6_AUTHORIZATION_PATH, "benchmark/evidence/m5/cublas-recovery-authorization.json");
+assert.equal(M5_R6_EXPECTED.size, 17);
+assert.equal(M5_R6_EXPECTED.has("package.json"), false);
+assert.equal(M5_R6_EXPECTED.get("scripts/m5-run-authorization.mjs"), "M");
+assert.equal(M5_R6_EXPECTED.get("scripts/m5-training-contract.mjs"), "M");
+assert.equal(M5_R6_EXPECTED.get("scripts/check-m5-cublas-authorized-chain.mjs"), "A");
+assert.equal(matchesExpectedRows([...M5_R6_EXPECTED], M5_R6_EXPECTED), true);
+assert.equal(matchesExpectedRows([...M5_R6_EXPECTED].slice(1), M5_R6_EXPECTED), false);
+assert.equal(matchesExpectedRows([...M5_R6_EXPECTED, ["extra", "M"]], M5_R6_EXPECTED), false);
 assert.equal(environmentRows.length, 12);
 assert.equal(numericRows.length, 12);
 for (const [pathname] of environmentRows) assert.equal(M5_SOURCE_RECOVERY_EXPECTED.has(pathname), true);
@@ -157,7 +168,9 @@ assert.ok(dispatcher.includes("M5_A4_COMMIT"));
 assert.ok(dispatcher.includes("M5_NUMERIC_AUDIT_RECOVERY_EXPECTED"));
 assert.ok(dispatcher.includes("M5_RUNPOD_ENV_AUTHORIZATION_COMMIT"));
 assert.ok(dispatcher.includes("M5_A5_AUTHORIZATION_PATH"));
+assert.ok(dispatcher.includes("M5_A6_AUTHORIZATION_PATH"));
 assert.ok(dispatcher.includes("M5_R5_EXPECTED"));
+assert.ok(dispatcher.includes("M5_R6_EXPECTED"));
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 assert.equal(packageJson.scripts["check:m5-pipeline"], "node scripts/run-benchmark-python.mjs -m unittest benchmark.m5.test_contracts");
 for (const [stage, script] of [
@@ -187,6 +200,7 @@ for (const token of ["GIT_CONFIG_NOSYSTEM", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYS
 const runpodShell = readFileSync("scripts/m5-runpod-launch.sh", "utf8");
 assert.ok(runpodShell.includes("unset BASH_ENV ENV NODE_OPTIONS NODE_PATH"));
 assert.ok(runpodShell.includes("PATH=/opt/conda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"));
+assert.ok(runpodShell.includes("export CUBLAS_WORKSPACE_CONFIG=:4096:8"));
 assert.ok(runpodShell.includes("/usr/bin/uname -s"));
 assert.ok(runpodShell.includes("/usr/bin/git -c core.fsmonitor=false"));
 assert.ok(runpodShell.includes("safe_git rev-parse --show-toplevel"));
@@ -195,11 +209,19 @@ execFileSync("bash", ["-n", "scripts/m5-runpod-launch.sh"]);
 const preexecBootstrapPath = "scripts/m5-preexec-bootstrap.py";
 const preexecBootstrap = readFileSync(preexecBootstrapPath);
 const preexecBootstrapSha256 = createHash("sha256").update(preexecBootstrap).digest("hex");
-assert.equal(preexecBootstrapSha256, "54d94c8e696b9accb7bae4de6427922c1c72975b105b0a35ce0f74e741dead6d");
+assert.equal(preexecBootstrapSha256, "b2a187f1d7d81a4644c4667fae35f5826ff2ffb311d3cc499df59cfdb4b8ad3d");
+const readmeBootstrapDigests = [...readFileSync("benchmark/m5/README.md", "utf8").matchAll(/scripts\/m5-preexec-bootstrap\.py ([0-9a-f]{64})/gu)].map((match) => match[1]);
+assert.deepEqual(readmeBootstrapDigests, [preexecBootstrapSha256, preexecBootstrapSha256]);
+const m5Readme = readFileSync("benchmark/m5/README.md", "utf8");
+assert.match(m5Readme, /From the\s+clean public-green R6 commit, run:/u);
+assert.ok(m5Readme.includes("git add benchmark/evidence/m5/cublas-recovery-authorization.json"));
+assert.ok(m5Readme.includes('git commit -m "Evidence: authorize exact M5 deterministic CUDA recovery"'));
+assert.ok(!m5Readme.includes("git add benchmark/evidence/m5/parity-recovery-authorization.json"));
 const preexecSource = preexecBootstrap.toString("utf8");
 assert.ok(preexecSource.indexOf("verify_exact_worktree(allowed_untracked=allowed_untracked)") < preexecSource.indexOf('if mode == "authorize"'));
 assert.ok(preexecSource.includes('LOCAL_NODE = Path("/Users/baney/.local/node/bin/node")'));
 assert.ok(preexecSource.includes("LOCAL_NODE_SHA256 = \"3200fbd9f7fd4410426dd541e10d1ab829d3472f270d743c7fabd1696c03fe32\""));
+assert.ok(preexecSource.includes('environment["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"'));
 assert.ok(!JSON.parse(readFileSync("package.json", "utf8")).scripts["benchmark:m5:authorize"]);
 const directPython = spawnSync("python3", ["-I", "benchmark/m5/train_gpu.py", "--help"], {
   encoding: "utf8",
@@ -219,6 +241,7 @@ for (const pathname of ["benchmark/m5/train_gpu.py", "benchmark/m5/evaluate_lock
   assert.ok(source.includes(launcherDigest), `${pathname} does not bind the exact tracked M5 launcher bytes`);
 }
 const trainExecute = readFileSync("benchmark/m5/train_gpu.py", "utf8").split("def execute(args: argparse.Namespace) -> int:")[1];
+assert.ok(trainExecute.indexOf("require_cuda_determinism_environment(recipe)") < trainExecute.indexOf("import torch"));
 assert.ok(trainExecute.indexOf("resolve_authorized_run()") < trainExecute.indexOf("import torch"));
 
 const launcherUrl = pathToFileURL(resolve("scripts/m5-python-launch.mjs")).href;

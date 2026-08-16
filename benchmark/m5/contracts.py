@@ -211,7 +211,7 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
         raise ValueError("M5 fresh selector binding changed")
     training = recipe["training"]
     _require_keys(training, {
-        "provider", "onnxRuntimeProviderPolicy", "providerIdentityEvidence", "providerSignedAttestation", "runtimeConsistencyEvidence",
+        "provider", "onnxRuntimeProviderPolicy", "deterministicCudaRuntime", "providerIdentityEvidence", "providerSignedAttestation", "runtimeConsistencyEvidence",
         "requiredGpuProduct", "containerImage", "requirementsPath", "requirementsSha256",
         "minimumGpuMemoryBytes", "provisioningReceiptPath", "maximumPaidWallClockSeconds",
         "deadlineSafetySeconds", "providerAutoStopAvailable", "providerAutoStopRequired", "stopControl",
@@ -223,6 +223,7 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
     if (
         training["provider"] != "RunPod Secure Cloud (operator-recorded control-plane receipt)"
         or training["onnxRuntimeProviderPolicy"] != {"provider": "CUDAExecutionProvider", "useTf32": False}
+        or training["deterministicCudaRuntime"] != {"cublasWorkspaceConfig": ":4096:8", "boundary": "trusted-runpod-execution-child-environment-before-torch-import"}
         or training["providerIdentityEvidence"] != "operator-attested-control-plane-observation"
         or training["providerSignedAttestation"] is not False
         or training["runtimeConsistencyEvidence"] != "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt"
@@ -573,6 +574,7 @@ def validate_environment_receipt(receipt: Mapping[str, Any], recipe: Mapping[str
         "launchNodeVersion", "launchNodeSha256",
         "provisioningReceiptSha256", "containerImage", "requirementsSha256", "providerEvidenceBoundary",
         "providerIdentityEvidence", "providerSignedAttestation", "runtimeConsistencyEvidence",
+        "cublasWorkspaceConfig",
         "sourceCommit", "sourceTree", "authorizationCommit", "authorizationReceiptSha256", "authorizationPublicCi",
     }
     _require_keys(receipt, required, "environment receipt")
@@ -622,8 +624,9 @@ def validate_environment_receipt(receipt: Mapping[str, Any], recipe: Mapping[str
         receipt["providerIdentityEvidence"] != recipe["training"]["providerIdentityEvidence"]
         or receipt["providerSignedAttestation"] is not False
         or receipt["runtimeConsistencyEvidence"] != recipe["training"]["runtimeConsistencyEvidence"]
+        or receipt["cublasWorkspaceConfig"] != recipe["training"]["deterministicCudaRuntime"]["cublasWorkspaceConfig"]
     ):
-        raise ValueError("M5 provider identity claim exceeds its evidence")
+        raise ValueError("M5 provider identity or deterministic CUDA claim exceeds its evidence")
 
 
 def validate_run_authorization(
@@ -934,6 +937,53 @@ def validate_parity_recovery_authorization(
         or source_ci["workflowPath"] != ".github/workflows/quality.yml"
     ):
         raise ValueError("M5 parity recovery public CI binding changed")
+
+
+def validate_cublas_recovery_authorization(
+    receipt: Mapping[str, Any], *, protocol_commit: str, protocol_tree: str,
+    prior_authorization_commit: str, prior_authorization_tree: str,
+    prior_authorization_sha256: str, source_commit: str, source_tree: str,
+    source_path_map: Sequence[Mapping[str, Any]],
+) -> None:
+    """Validate the score-blind deterministic CUDA workspace recovery receipt."""
+    _require_keys(receipt, {
+        "schemaVersion", "status", "protocolCommit", "protocolTree",
+        "priorAuthorizationCommit", "priorAuthorizationTree", "priorAuthorizationPath",
+        "priorAuthorizationSha256", "sourceCommit", "sourceTree", "sourcePathMap",
+        "runtimeBoundary", "cublasWorkspaceConfig", "sourcePublicCi", "authorizationPath",
+        "scoreBlind", "h3PixelsRead",
+    }, "M5 cuBLAS recovery authorization")
+    if (
+        receipt["schemaVersion"] != 6 or receipt["status"] != "m5-cublas-recovery-authorized"
+        or receipt["protocolCommit"] != protocol_commit or receipt["protocolTree"] != protocol_tree
+        or receipt["priorAuthorizationCommit"] != prior_authorization_commit
+        or receipt["priorAuthorizationTree"] != prior_authorization_tree
+        or receipt["priorAuthorizationPath"] != "benchmark/evidence/m5/parity-recovery-authorization.json"
+        or receipt["priorAuthorizationSha256"] != prior_authorization_sha256
+        or receipt["sourceCommit"] != source_commit or receipt["sourceTree"] != source_tree
+        or list(receipt["sourcePathMap"]) != list(source_path_map)
+        or receipt["runtimeBoundary"] != "trusted-runpod-execution-child-environment-before-torch-import"
+        or receipt["cublasWorkspaceConfig"] != ":4096:8"
+        or receipt["authorizationPath"] != "benchmark/evidence/m5/cublas-recovery-authorization.json"
+        or receipt["scoreBlind"] is not True or receipt["h3PixelsRead"] is not False
+    ):
+        raise ValueError("M5 cuBLAS recovery authorization binding changed")
+    for value in (protocol_commit, protocol_tree, prior_authorization_commit, prior_authorization_tree, source_commit, source_tree):
+        if not HEX40.fullmatch(str(value)):
+            raise ValueError("M5 cuBLAS recovery authorization Git identity is invalid")
+    if not HEX64.fullmatch(str(prior_authorization_sha256)):
+        raise ValueError("M5 prior parity authorization digest is invalid")
+    for row in receipt["sourcePathMap"]:
+        _require_keys(row, {"path", "sha256"}, "M5 cuBLAS recovery source path")
+        if not isinstance(row["path"], str) or not HEX64.fullmatch(str(row["sha256"])):
+            raise ValueError("M5 cuBLAS recovery source path digest is invalid")
+    source_ci = receipt["sourcePublicCi"]
+    _require_keys(source_ci, {"conclusion", "event", "headSha", "runId", "status", "url", "workflowPath"}, "M5 cuBLAS recovery public CI")
+    if (source_ci["conclusion"] != "success" or source_ci["event"] != "push" or source_ci["headSha"] != source_commit
+        or isinstance(source_ci["runId"], bool) or not isinstance(source_ci["runId"], int) or source_ci["runId"] <= 0
+        or source_ci["status"] != "completed" or source_ci["url"] != f"https://github.com/baney75/prooflens/actions/runs/{source_ci['runId']}"
+        or source_ci["workflowPath"] != ".github/workflows/quality.yml"):
+        raise ValueError("M5 cuBLAS recovery public CI binding changed")
 
 
 def validate_provisioning_receipt(receipt: Mapping[str, Any], recipe: Mapping[str, Any]) -> None:

@@ -23,6 +23,8 @@ const mutations = [
   (value) => { value.sourceEvidence.initialParityDiagnostic.path = "wrong.json"; },
   (value) => { value.sourceEvidence.initialParityDiagnostic.sha256 = "0".repeat(64); },
   (value) => { value.training.onnxRuntimeProviderPolicy.useTf32 = true; },
+  (value) => { value.training.deterministicCudaRuntime.cublasWorkspaceConfig = ":16:8"; },
+  (value) => { delete value.training.deterministicCudaRuntime; },
   (value) => { value.selection.falsePositiveConfidence.poolAcrossVariants = true; },
   (value) => { value.selection.falsePositiveConfidence.trialsPerVariant = 1_200; },
   (value) => { value.largeSyntheticEvaluation.scoreBlindnessEvidence.privatePriorScoringAbsenceProven = true; },

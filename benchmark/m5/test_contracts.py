@@ -43,6 +43,7 @@ from benchmark.m5.contracts import (
     validate_manifest_rows,
     validate_numeric_audit_authorization,
     validate_parity_recovery_authorization,
+    validate_cublas_recovery_authorization,
     validate_recipe,
     validate_initial_parity_diagnostic,
     validate_selection_lock,
@@ -90,6 +91,7 @@ from benchmark.m5.train_gpu import (
     pack_float32,
     parser as training_parser,
     predict_onnx_variant,
+    require_cuda_determinism_environment,
     resolve_authorized_protocol_commit,
     validate_source_recovery_history,
     write_json,
@@ -142,6 +144,7 @@ def training_summary_fixture(
         "providerIdentityEvidence": training["providerIdentityEvidence"],
         "providerSignedAttestation": False,
         "runtimeConsistencyEvidence": training["runtimeConsistencyEvidence"],
+        "cublasWorkspaceConfig": training["deterministicCudaRuntime"]["cublasWorkspaceConfig"],
         "sourceCommit": "a" * 40,
         "sourceTree": "c" * 40,
         "authorizationCommit": "d" * 40,
@@ -460,8 +463,49 @@ class M5ContractsTest(unittest.TestCase):
         finally:
             function_globals["runpod_pod_id_from_init"] = original_reader
         self.assertEqual(environment["RUNPOD_POD_ID"], pod_id)
+        self.assertEqual(environment["CUBLAS_WORKSPACE_CONFIG"], ":4096:8")
         self.assertNotIn("RUNPOD_API_KEY", environment)
         self.assertFalse(any(key.startswith("AWS_") for key in environment))
+        source = (ROOT / "scripts/m5-preexec-bootstrap.py").read_text()
+        self.assertLess(source.index('environment["CUBLAS_WORKSPACE_CONFIG"]'), source.index('os.execve("/bin/bash"'))
+        self.assertLess(source.index('environment["CUBLAS_WORKSPACE_CONFIG"]'), source.index('"scripts/m5-runpod-launch.sh"'))
+        try:
+            function_globals["runpod_pod_id_from_init"] = lambda: pod_id
+            with mock.patch.dict(os.environ, {"CUBLAS_WORKSPACE_CONFIG": "caller-override"}, clear=False):
+                environment = bootstrap["runpod_environment"]()
+        finally:
+            function_globals["runpod_pod_id_from_init"] = original_reader
+        self.assertEqual(environment["CUBLAS_WORKSPACE_CONFIG"], ":4096:8")
+
+    def test_cublas_recovery_authorization_is_score_blind_and_exact(self) -> None:
+        paths = [{"path": "scripts/m5-preexec-bootstrap.py", "sha256": "a" * 64}]
+        receipt = {
+            "schemaVersion": 6, "status": "m5-cublas-recovery-authorized",
+            "protocolCommit": M5_P2_COMMIT, "protocolTree": M5_P2_TREE,
+            "priorAuthorizationCommit": "c" * 40, "priorAuthorizationTree": "d" * 40,
+            "priorAuthorizationPath": "benchmark/evidence/m5/parity-recovery-authorization.json",
+            "priorAuthorizationSha256": "e" * 64, "sourceCommit": "f" * 40, "sourceTree": "a" * 40,
+            "sourcePathMap": paths,
+            "runtimeBoundary": "trusted-runpod-execution-child-environment-before-torch-import",
+            "cublasWorkspaceConfig": ":4096:8",
+            "sourcePublicCi": {"conclusion": "success", "event": "push", "headSha": "f" * 40,
+                               "runId": 1234, "status": "completed",
+                               "url": "https://github.com/baney75/prooflens/actions/runs/1234",
+                               "workflowPath": ".github/workflows/quality.yml"},
+            "authorizationPath": "benchmark/evidence/m5/cublas-recovery-authorization.json",
+            "scoreBlind": True, "h3PixelsRead": False,
+        }
+        kwargs = {"protocol_commit": M5_P2_COMMIT, "protocol_tree": M5_P2_TREE,
+                  "prior_authorization_commit": receipt["priorAuthorizationCommit"],
+                  "prior_authorization_tree": receipt["priorAuthorizationTree"],
+                  "prior_authorization_sha256": receipt["priorAuthorizationSha256"],
+                  "source_commit": receipt["sourceCommit"], "source_tree": receipt["sourceTree"],
+                  "source_path_map": paths}
+        validate_cublas_recovery_authorization(receipt, **kwargs)
+        broken = copy.deepcopy(receipt)
+        broken["cublasWorkspaceConfig"] = ":16:8"
+        with self.assertRaises(ValueError):
+            validate_cublas_recovery_authorization(broken, **kwargs)
 
     def test_recipe_and_candidate_grid(self) -> None:
         self.assertEqual(
@@ -587,6 +631,7 @@ class M5ContractsTest(unittest.TestCase):
             "providerIdentityEvidence": "operator-attested-control-plane-observation",
             "providerSignedAttestation": False,
             "runtimeConsistencyEvidence": "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt",
+            "cublasWorkspaceConfig": ":4096:8",
             "sourceCommit": "a" * 40,
             "sourceTree": "c" * 40,
             "authorizationCommit": "d" * 40,
@@ -598,6 +643,13 @@ class M5ContractsTest(unittest.TestCase):
             },
         }
         validate_environment_receipt(receipt, self.recipe)
+        with mock.patch.dict(os.environ, {"CUBLAS_WORKSPACE_CONFIG": ":4096:8"}, clear=False):
+            require_cuda_determinism_environment(self.recipe)
+        with mock.patch.dict(os.environ, {"CUBLAS_WORKSPACE_CONFIG": ":16:8"}, clear=False):
+            with self.assertRaises(ValueError):
+                require_cuda_determinism_environment(self.recipe)
+        source = (ROOT / "benchmark/m5/train_gpu.py").read_text(encoding="utf-8")
+        self.assertLess(source.index("require_cuda_determinism_environment(recipe)"), source.index("    import torch\n", source.index("def execute")))
         for key, value in (("launchNodeVersion", "v24.18.0"), ("launchNodeSha256", "0" * 64)):
             broken = dict(receipt)
             broken[key] = value
@@ -751,6 +803,7 @@ class M5ContractsTest(unittest.TestCase):
             "providerIdentityEvidence": "operator-attested-control-plane-observation",
             "providerSignedAttestation": False,
             "runtimeConsistencyEvidence": "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt",
+            "cublasWorkspaceConfig": ":4096:8",
             "sourceCommit": "a" * 40,
             "sourceTree": "c" * 40,
             "authorizationCommit": "d" * 40,
@@ -1064,6 +1117,7 @@ class M5ContractsTest(unittest.TestCase):
             ("providerIdentityEvidence", "provider-signed"),
             ("providerSignedAttestation", True),
             ("runtimeConsistencyEvidence", "unbound"),
+            ("cublasWorkspaceConfig", ":16:8"),
         ):
             broken_environment = copy.deepcopy(lock)
             broken_environment["trainingSummary"]["environment"][key] = replacement
