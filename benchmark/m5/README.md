@@ -2,12 +2,17 @@
 
 ## Source-recovery and authorization sequence
 
-Publish P3 as the exact direct child of public P2, run the source-recovery
-stage gate, and wait for exact-head green CI. Then create P4 as the direct
-one-file child containing only `benchmark/evidence/m5/run-authorization.json`.
-The canonical writer records P2/P3 commits and trees plus hashes for every P3
-source path and refuses to write until anonymous public `main` and the exact-head
-`quality` push run both show P3. From the clean, public, green P3 commit run:
+The first P3 source packet, `fba4b51ef5073e0a189ab6baaaf155fccf785dc6`,
+is retained as immutable public red history. Its static suite failed because a
+host-boundary test expected the macOS exit code on GitHub's Linux runner; no
+training or inference ran. Publish its sole exact nine-path CI-recovery child,
+run the source-recovery stage gate, and wait for exact-head green CI. Then create
+P4 as the direct one-file child containing only
+`benchmark/evidence/m5/run-authorization.json`. The canonical writer records
+P2, the failed P3, and the recovered source history plus hashes for every
+effective P3 source path. It refuses to write until anonymous public `main` and
+the exact-head `quality` push run both show the recovered source. From that
+clean, public, green recovery commit run:
 
 ```bash
 /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/python3 -I -c '
@@ -29,8 +34,8 @@ different Node binary for this one-file writer.
 
 The P4 commit must add only that receipt. Push it and wait for its own exact-head
 green CI before creating any paid Pod. RunPod preflight and training run only
-from clean P4; later
-selection, failure, 100K, and final stages must retain the P2 → P3 → P4 chain.
+from clean P4; later selection, failure, 100K, and final stages must retain the
+P2 → failed P3 → CI recovery → P4 chain.
 
 ## Accepted brief
 

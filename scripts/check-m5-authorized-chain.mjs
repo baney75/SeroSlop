@@ -3,9 +3,12 @@ import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { TextDecoder } from "node:util";
 import {
+  M5_FAILED_SOURCE_COMMIT,
+  M5_FAILED_SOURCE_TREE,
   M5_P2_COMMIT,
   M5_P2_TREE,
   M5_RUN_AUTHORIZATION_PATH,
+  M5_SOURCE_CI_RECOVERY_EXPECTED,
   M5_SOURCE_RECOVERY_EXPECTED,
   matchesExpectedRows,
 } from "./m5-stage-policy.mjs";
@@ -52,10 +55,14 @@ export function validateM5AuthorizedChain() {
   if (authorizationParents.length !== 1) throw new Error("M5 P4 authorization must have one parent");
   const source = authorizationParents[0];
   const sourceParents = git(["rev-list", "--parents", "-n", "1", source]).split(" ").slice(1);
-  if (sourceParents.length !== 1 || sourceParents[0] !== M5_P2_COMMIT ||
+  const failedSourceParents = git(["rev-list", "--parents", "-n", "1", M5_FAILED_SOURCE_COMMIT]).split(" ").slice(1);
+  if (sourceParents.length !== 1 || sourceParents[0] !== M5_FAILED_SOURCE_COMMIT ||
+      !matchesExpectedRows(rows(source), M5_SOURCE_CI_RECOVERY_EXPECTED) ||
+      git(["rev-parse", `${M5_FAILED_SOURCE_COMMIT}^{tree}`]) !== M5_FAILED_SOURCE_TREE ||
+      failedSourceParents.length !== 1 || failedSourceParents[0] !== M5_P2_COMMIT ||
       git(["rev-parse", `${M5_P2_COMMIT}^{tree}`]) !== M5_P2_TREE ||
-      !matchesExpectedRows(rows(source), M5_SOURCE_RECOVERY_EXPECTED)) {
-    throw new Error("M5 P2->P3->P4 chain is invalid");
+      !matchesExpectedRows(rows(M5_FAILED_SOURCE_COMMIT), M5_SOURCE_RECOVERY_EXPECTED)) {
+    throw new Error("M5 P2->failed-P3->CI-recovery->P4 chain is invalid");
   }
   const raw = readFileSync(M5_RUN_AUTHORIZATION_PATH);
   const receipt = parseCanonicalM5Authorization(raw);

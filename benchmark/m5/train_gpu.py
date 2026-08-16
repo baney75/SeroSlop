@@ -126,6 +126,8 @@ M5_PROTOCOL_RECOVERY_PATHS = frozenset({
 })
 M5_P2_COMMIT = "1c4ac973785f937fa9023018863941e6d89d8693"
 M5_P2_TREE = "a56caae4291e275029076417fb2111be76b07a41"
+M5_FAILED_SOURCE_COMMIT = "fba4b51ef5073e0a189ab6baaaf155fccf785dc6"
+M5_FAILED_SOURCE_TREE = "9176b515dfe87a5d5136f0103ef2f8b81fab2938"
 M5_RUN_AUTHORIZATION_PATH = "benchmark/evidence/m5/run-authorization.json"
 M5_SOURCE_RECOVERY_ROWS = {
     "benchmark/m5/README.md": "M",
@@ -155,6 +157,17 @@ M5_SOURCE_RECOVERY_ROWS = {
     "scripts/run-static-verification.mjs": "M",
 }
 M5_SOURCE_RECOVERY_PATHS = frozenset(M5_SOURCE_RECOVERY_ROWS)
+M5_SOURCE_CI_RECOVERY_ROWS = {
+    "benchmark/m5/README.md": "M",
+    "benchmark/m5/test_contracts.py": "M",
+    "benchmark/m5/train_gpu.py": "M",
+    "scripts/check-m5-authorized-chain.mjs": "M",
+    "scripts/check-m5-source-recovery-stage.mjs": "M",
+    "scripts/m5-run-authorization.mjs": "M",
+    "scripts/m5-stage-policy.mjs": "M",
+    "scripts/run-static-verification.mjs": "M",
+    "scripts/test-m5-stage-policy.mjs": "M",
+}
 
 
 @dataclass(frozen=True)
@@ -343,8 +356,30 @@ def resolve_authorized_run() -> tuple[str, str, str, dict[str, Any]]:
     return source, source_tree, head, require_public_authorization_commit(head)
 
 
+def commit_rows(commit: str) -> dict[str, str]:
+    rows: dict[str, str] = {}
+    for line in run(["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", commit]).splitlines():
+        status, pathname = line.split("\t", maxsplit=1)
+        if pathname in rows:
+            raise ValueError(f"M5 commit contains a duplicate path: {commit}")
+        rows[pathname] = status
+    return rows
+
+
+def validate_source_recovery_history(source: str) -> None:
+    source_parents = run(["git", "rev-list", "--parents", "-n", "1", source]).split()[1:]
+    failed_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_FAILED_SOURCE_COMMIT]).split()[1:]
+    if (source_parents != [M5_FAILED_SOURCE_COMMIT]
+            or commit_rows(source) != M5_SOURCE_CI_RECOVERY_ROWS
+            or run(["git", "rev-parse", f"{M5_FAILED_SOURCE_COMMIT}^{{tree}}"] ) != M5_FAILED_SOURCE_TREE
+            or failed_parents != [M5_P2_COMMIT]
+            or commit_rows(M5_FAILED_SOURCE_COMMIT) != M5_SOURCE_RECOVERY_ROWS
+            or run(["git", "rev-parse", f"{M5_P2_COMMIT}^{{tree}}"] ) != M5_P2_TREE):
+        raise ValueError("M5 runtime requires the exact P2 -> failed P3 -> CI-recovery source history")
+
+
 def validate_authorization_commit(authorization_commit: str) -> tuple[str, str, str]:
-    """Validate an inherited P4 receipt and return (P3 source, tree, receipt SHA-256)."""
+    """Validate an inherited P4 receipt and return (recovered source, tree, receipt SHA-256)."""
     authorization_parents = run(["git", "rev-list", "--parents", "-n", "1", authorization_commit]).split()[1:]
     if len(authorization_parents) != 1:
         raise ValueError("M5 authorization must have one source parent")
@@ -357,15 +392,7 @@ def validate_authorization_commit(authorization_commit: str) -> tuple[str, str, 
         authorization_rows[pathname] = status
     if authorization_rows != {M5_RUN_AUTHORIZATION_PATH: "A"}:
         raise ValueError("M5 authorization must be an exact receipt-only commit")
-    source_parents = run(["git", "rev-list", "--parents", "-n", "1", source]).split()[1:]
-    if source_parents != [M5_P2_COMMIT] or run(["git", "rev-parse", f"{M5_P2_COMMIT}^{{tree}}"]) != M5_P2_TREE:
-        raise ValueError("M5 runtime requires the exact P3 source-recovery child of P2")
-    rows = {}
-    for line in run(["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", source]).splitlines():
-        status, pathname = line.split("\t", maxsplit=1)
-        rows[pathname] = status
-    if rows != M5_SOURCE_RECOVERY_ROWS:
-        raise ValueError("M5 P3 source changed outside its exact authorized surface")
+    validate_source_recovery_history(source)
     auth_path = ROOT / M5_RUN_AUTHORIZATION_PATH
     raw = auth_path.read_bytes() if auth_path.is_file() and not auth_path.is_symlink() else b""
     if not raw or raw != canonical_json(parse_json_bytes(raw, label="M5 run authorization")):

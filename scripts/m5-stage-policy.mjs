@@ -4,6 +4,8 @@ export const M5_ORIGINAL_PROTOCOL_COMMIT = "89bd1c833abbaa23195d45cd9a82fc3e117b
 export const M5_ORIGINAL_PROTOCOL_TREE = "d16f4d1033416a2935427dc6ced6ceb4ffea4674";
 export const M5_P2_COMMIT = "1c4ac973785f937fa9023018863941e6d89d8693";
 export const M5_P2_TREE = "a56caae4291e275029076417fb2111be76b07a41";
+export const M5_FAILED_SOURCE_COMMIT = "fba4b51ef5073e0a189ab6baaaf155fccf785dc6";
+export const M5_FAILED_SOURCE_TREE = "9176b515dfe87a5d5136f0103ef2f8b81fab2938";
 export const M5_RUN_AUTHORIZATION_PATH = "benchmark/evidence/m5/run-authorization.json";
 export const M5_SELECTION_LOCK_PATH = "benchmark/evidence/m5/selection-lock.json";
 export const M5_FAILURE_PATH = "benchmark/evidence/m5/failed-training-attempt-1.json";
@@ -109,6 +111,21 @@ export const M5_SOURCE_RECOVERY_EXPECTED = new Map([
   ["scripts/run-static-verification.mjs", "M"],
 ]);
 
+// The first P3 packet is immutable public history. Its GitHub Actions run
+// failed only because a host-specific test expected the macOS exit code on
+// Linux. The sole authorized repair is this exact append-only surface.
+export const M5_SOURCE_CI_RECOVERY_EXPECTED = new Map([
+  ["benchmark/m5/README.md", "M"],
+  ["benchmark/m5/test_contracts.py", "M"],
+  ["benchmark/m5/train_gpu.py", "M"],
+  ["scripts/check-m5-authorized-chain.mjs", "M"],
+  ["scripts/check-m5-source-recovery-stage.mjs", "M"],
+  ["scripts/m5-run-authorization.mjs", "M"],
+  ["scripts/m5-stage-policy.mjs", "M"],
+  ["scripts/run-static-verification.mjs", "M"],
+  ["scripts/test-m5-stage-policy.mjs", "M"],
+]);
+
 export const M5_LOCK_EXPECTED = new Map([[M5_SELECTION_LOCK_PATH, "A"]]);
 export const M5_FAILURE_EXPECTED = new Map([[M5_FAILURE_PATH, "A"]]);
 export const M5_LARGE_SOURCE_EXPECTED = new Map([
@@ -162,17 +179,24 @@ export function matchesM5ProtocolLineage({
     baseTree === M5_BASE_SOURCE_TREE;
 }
 
-export function matchesM5SourceRecoveryLineage({ sourceCommit = "SOURCE_COMMIT", sourceParents, sourceRows, authorizationParents, authorizationRows }) {
-  return sourceParents.length === 1 && sourceParents[0] === M5_P2_COMMIT &&
-    matchesExpectedRows(sourceRows, M5_SOURCE_RECOVERY_EXPECTED) &&
+export function matchesM5SourceRecoveryCommit({ sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) {
+  return sourceParents.length === 1 && sourceParents[0] === M5_FAILED_SOURCE_COMMIT &&
+    matchesExpectedRows(sourceRows, M5_SOURCE_CI_RECOVERY_EXPECTED) &&
+    failedSourceTree === M5_FAILED_SOURCE_TREE &&
+    failedSourceParents.length === 1 && failedSourceParents[0] === M5_P2_COMMIT &&
+    matchesExpectedRows(failedSourceRows, M5_SOURCE_RECOVERY_EXPECTED);
+}
+
+export function matchesM5SourceRecoveryLineage({ sourceCommit = "SOURCE_COMMIT", sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows, authorizationParents, authorizationRows }) {
+  return matchesM5SourceRecoveryCommit({ sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) &&
     authorizationParents.length === 1 && authorizationParents[0] === sourceCommit &&
     matchesExpectedRows(authorizationRows, new Map([[M5_RUN_AUTHORIZATION_PATH, "A"]]));
 }
 
-export function matchesM5AuthorizedChain({ authorizationCommit, authorizationParents, authorizationRows, sourceCommit, sourceParents, sourceRows }) {
+export function matchesM5AuthorizedChain({ authorizationCommit, authorizationParents, authorizationRows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) {
   return authorizationCommit && authorizationParents.length === 1 && authorizationParents[0] === sourceCommit &&
     matchesExpectedRows(authorizationRows, new Map([[M5_RUN_AUTHORIZATION_PATH, "A"]])) &&
-    matchesM5SourceRecoveryLineage({ sourceCommit, sourceParents, sourceRows, authorizationParents: [sourceCommit], authorizationRows });
+    matchesM5SourceRecoveryLineage({ sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows, authorizationParents: [sourceCommit], authorizationRows });
 }
 
 export function classifyM5Stage({ protocolExists, lockExists, failureExists, largeSourceLockExists, finalExists, sourceRecoveryExists = false, authorizationExists = false }) {

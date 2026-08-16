@@ -4,9 +4,12 @@ import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { get } from "node:https";
 import { dirname } from "node:path";
 import {
+  M5_FAILED_SOURCE_COMMIT,
+  M5_FAILED_SOURCE_TREE,
   M5_P2_COMMIT,
   M5_P2_TREE,
   M5_RUN_AUTHORIZATION_PATH,
+  M5_SOURCE_CI_RECOVERY_EXPECTED,
   M5_SOURCE_RECOVERY_EXPECTED,
   matchesExpectedRows,
 } from "./m5-stage-policy.mjs";
@@ -41,11 +44,16 @@ if (existsSync(M5_RUN_AUTHORIZATION_PATH)) throw new Error("M5 run authorization
 assertM5WorktreeExact();
 const head = git(["rev-parse", "HEAD"]);
 const parents = git(["rev-list", "--parents", "-n", "1", head]).split(" ").slice(1);
-if (parents.length !== 1 || parents[0] !== M5_P2_COMMIT || git(["rev-parse", `${M5_P2_COMMIT}^{tree}`]) !== M5_P2_TREE) {
-  throw new Error("M5 run authorization requires a direct P3 child of public P2");
+const failedParents = git(["rev-list", "--parents", "-n", "1", M5_FAILED_SOURCE_COMMIT]).split(" ").slice(1);
+if (parents.length !== 1 || parents[0] !== M5_FAILED_SOURCE_COMMIT ||
+    git(["rev-parse", `${M5_FAILED_SOURCE_COMMIT}^{tree}`]) !== M5_FAILED_SOURCE_TREE ||
+    failedParents.length !== 1 || failedParents[0] !== M5_P2_COMMIT ||
+    git(["rev-parse", `${M5_P2_COMMIT}^{tree}`]) !== M5_P2_TREE) {
+  throw new Error("M5 run authorization requires the exact append-only CI recovery child");
 }
-if (!matchesExpectedRows(rows(head), M5_SOURCE_RECOVERY_EXPECTED)) {
-  throw new Error("M5 source recovery changed outside its exact authorized surface");
+if (!matchesExpectedRows(rows(M5_FAILED_SOURCE_COMMIT), M5_SOURCE_RECOVERY_EXPECTED) ||
+    !matchesExpectedRows(rows(head), M5_SOURCE_CI_RECOVERY_EXPECTED)) {
+  throw new Error("M5 source recovery history changed outside its exact authorized surfaces");
 }
 const publicReference = await getJson("https://api.github.com/repos/baney75/prooflens/git/ref/heads/main");
 if (publicReference.object?.sha !== head) {

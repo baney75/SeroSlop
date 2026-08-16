@@ -42,9 +42,15 @@ from benchmark.m5.contracts import (
 from benchmark.m5.train_gpu import (
     M5_BASE_SOURCE_COMMIT,
     M5_BASE_SOURCE_TREE,
+    M5_FAILED_SOURCE_COMMIT,
+    M5_FAILED_SOURCE_TREE,
     M5_ORIGINAL_PROTOCOL_COMMIT,
     M5_ORIGINAL_PROTOCOL_TREE,
+    M5_P2_COMMIT,
+    M5_P2_TREE,
     M5_PROTOCOL_RECOVERY_PATHS,
+    M5_SOURCE_CI_RECOVERY_ROWS,
+    M5_SOURCE_RECOVERY_ROWS,
     PaidTimeBudget,
     accumulation_window_samples,
     atomic_torch_save,
@@ -54,6 +60,7 @@ from benchmark.m5.train_gpu import (
     pack_float32,
     parser as training_parser,
     resolve_authorized_protocol_commit,
+    validate_source_recovery_history,
     write_json,
 )
 from benchmark.m5.large_synthetic import DhashIndex, canonical_gzip, generator_is_excluded
@@ -647,6 +654,49 @@ class M5ContractsTest(unittest.TestCase):
              mock.patch("benchmark.m5.train_gpu.assert_worktree_exact", side_effect=ValueError("exact-worktree untracked surface")):
             with self.assertRaisesRegex(ValueError, "untracked surface"):
                 resolve_authorized_protocol_commit()
+
+    def test_source_recovery_history_is_append_only_and_exact(self) -> None:
+        source = "c" * 40
+
+        def rows(payload: dict[str, str]) -> str:
+            return "\n".join(f"{status}\t{path}" for path, status in sorted(payload.items()))
+
+        def fake_run(command: list[str], *, cwd: Path = ROOT) -> str:
+            del cwd
+            if command == ["git", "rev-list", "--parents", "-n", "1", source]:
+                return f"{source} {M5_FAILED_SOURCE_COMMIT}"
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", source]:
+                return rows(M5_SOURCE_CI_RECOVERY_ROWS)
+            if command == ["git", "rev-parse", f"{M5_FAILED_SOURCE_COMMIT}^{{tree}}"]:
+                return M5_FAILED_SOURCE_TREE
+            if command == ["git", "rev-list", "--parents", "-n", "1", M5_FAILED_SOURCE_COMMIT]:
+                return f"{M5_FAILED_SOURCE_COMMIT} {M5_P2_COMMIT}"
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_FAILED_SOURCE_COMMIT]:
+                return rows(M5_SOURCE_RECOVERY_ROWS)
+            if command == ["git", "rev-parse", f"{M5_P2_COMMIT}^{{tree}}"]:
+                return M5_P2_TREE
+            raise AssertionError(command)
+
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=fake_run):
+            validate_source_recovery_history(source)
+
+        def skipped_failed_source(command: list[str], *, cwd: Path = ROOT) -> str:
+            if command == ["git", "rev-list", "--parents", "-n", "1", source]:
+                return f"{source} {M5_P2_COMMIT}"
+            return fake_run(command, cwd=cwd)
+
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=skipped_failed_source):
+            with self.assertRaisesRegex(ValueError, "failed P3"):
+                validate_source_recovery_history(source)
+
+        def wrong_failed_tree(command: list[str], *, cwd: Path = ROOT) -> str:
+            if command == ["git", "rev-parse", f"{M5_FAILED_SOURCE_COMMIT}^{{tree}}"]:
+                return "0" * 40
+            return fake_run(command, cwd=cwd)
+
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=wrong_failed_tree):
+            with self.assertRaisesRegex(ValueError, "failed P3"):
+                validate_source_recovery_history(source)
 
     def test_selection_lock_is_recomputed_from_embedded_logits(self) -> None:
         rows = selector_rows()
