@@ -5,8 +5,10 @@ from base64 import b64encode
 from collections import namedtuple
 import gzip
 from hashlib import sha256
+import io
 import json
 import math
+import os
 from pathlib import Path
 import pickle
 import runpy
@@ -33,6 +35,7 @@ from benchmark.m5.contracts import (
     validate_environment_receipt,
     validate_provisioning_receipt,
     validate_run_authorization,
+    validate_runpod_environment_authorization,
     validate_runtime_recovery_authorization,
     validate_regression_state,
     validate_failure_receipt,
@@ -54,10 +57,15 @@ from benchmark.m5.train_gpu import (
     M5_P2_TREE,
     M5_P4_COMMIT,
     M5_P4_TREE,
+    M5_RUNTIME_AUTHORIZATION_COMMIT,
+    M5_RUNTIME_AUTHORIZATION_TREE,
+    M5_RUNTIME_RECOVERY_COMMIT,
+    M5_RUNTIME_RECOVERY_TREE,
     M5_PROTOCOL_RECOVERY_PATHS,
     M5_SOURCE_CI_RECOVERY_ROWS,
     M5_SOURCE_RECOVERY_ROWS,
     M5_RUNTIME_RECOVERY_ROWS,
+    M5_RUNPOD_ENV_RECOVERY_ROWS,
     PaidTimeBudget,
     accumulation_window_samples,
     atomic_torch_save,
@@ -234,6 +242,41 @@ class M5ContractsTest(unittest.TestCase):
             broken[key] = "e" * (64 if key.endswith("Sha256") else 40)
             with self.assertRaises(ValueError):
                 validate_runtime_recovery_authorization(broken, **arguments)
+
+    def test_runpod_environment_authorization_binds_prior_runtime_authorization(self) -> None:
+        paths = [{"path": "benchmark/m5/train_gpu.py", "sha256": "a" * 64}]
+        receipt = {
+            "schemaVersion": 3, "status": "m5-runpod-environment-recovery-authorized",
+            "protocolCommit": M5_P2_COMMIT, "protocolTree": M5_P2_TREE,
+            "priorAuthorizationCommit": M5_RUNTIME_AUTHORIZATION_COMMIT,
+            "priorAuthorizationTree": M5_RUNTIME_AUTHORIZATION_TREE,
+            "priorAuthorizationPath": "benchmark/evidence/m5/runtime-recovery-authorization.json",
+            "priorAuthorizationSha256": "eeee532d699705faef1e35d49748c8264387880e0e573d2b8c61e412944c9ce9",
+            "sourceCommit": "c" * 40, "sourceTree": "d" * 40, "sourcePathMap": paths,
+            "sourcePublicCi": {
+                "conclusion": "success", "event": "push", "headSha": "c" * 40,
+                "runId": 789, "status": "completed",
+                "url": "https://github.com/baney75/prooflens/actions/runs/789",
+                "workflowPath": ".github/workflows/quality.yml",
+            },
+            "environmentBoundary": "validated-single-runpod-pod-id-from-pid1-environ-no-other-record-forwarded",
+            "authorizationPath": "benchmark/evidence/m5/runpod-environment-authorization.json",
+            "scoreBlind": True, "h3PixelsRead": False,
+        }
+        arguments = {
+            "protocol_commit": M5_P2_COMMIT, "protocol_tree": M5_P2_TREE,
+            "prior_authorization_commit": M5_RUNTIME_AUTHORIZATION_COMMIT,
+            "prior_authorization_tree": M5_RUNTIME_AUTHORIZATION_TREE,
+            "prior_authorization_sha256": receipt["priorAuthorizationSha256"],
+            "source_commit": receipt["sourceCommit"], "source_tree": receipt["sourceTree"],
+            "source_path_map": paths,
+        }
+        validate_runpod_environment_authorization(receipt, **arguments)
+        for key in ("priorAuthorizationCommit", "priorAuthorizationSha256", "sourceCommit", "authorizationPath", "environmentBoundary"):
+            broken = copy.deepcopy(receipt)
+            broken[key] = "e" * (64 if key.endswith("Sha256") else 40)
+            with self.assertRaises(ValueError):
+                validate_runpod_environment_authorization(broken, **arguments)
     def setUp(self) -> None:
         self.recipe = load_recipe(ROOT / "benchmark/m5/recipe.json")
 
@@ -254,6 +297,59 @@ class M5ContractsTest(unittest.TestCase):
         unsafe.linkname = "../../outside"
         with self.assertRaises(ValueError):
             bootstrap["validate_member"](unsafe)
+
+    def test_runpod_bootstrap_forwards_only_exact_pid1_pod_id(self) -> None:
+        bootstrap = runpy.run_path(ROOT / "scripts/m5-preexec-bootstrap.py")
+        parse = bootstrap["parse_runpod_pod_id"]
+        pod_id = "pod_123-abc"
+        secret = "never-forward-this-api-key"
+        payload = f"RUNPOD_API_KEY={secret}\0RUNPOD_POD_ID={pod_id}\0AWS_SECRET_ACCESS_KEY=neighbor\0".encode()
+        self.assertEqual(parse(payload), pod_id)
+        cases = [
+            b"RUNPOD_API_KEY=secret\0",
+            b"RUNPOD_POD_ID=one\0RUNPOD_POD_ID=two\0",
+            b"RUNPOD_POD_ID=\0",
+            b"RUNPOD_POD_ID=has space\0",
+            b"RUNPOD_POD_ID=bad\xff\0",
+            b"RUNPOD_POD_ID=unterminated",
+            b"X" * (1024 * 1024 + 1),
+        ]
+        for broken in cases:
+            with self.subTest(broken=broken[:40]):
+                with self.assertRaises(Exception) as raised:
+                    parse(broken)
+                self.assertNotIn(secret, str(raised.exception))
+                self.assertNotIn(pod_id, str(raised.exception))
+
+        function_globals = bootstrap["runpod_pod_id_from_init"].__globals__
+        original_path = function_globals["Path"]
+
+        class FakeProcPath:
+            def open(self, mode: str) -> io.BytesIO:
+                self_mode = mode
+                if self_mode != "rb":
+                    raise AssertionError(self_mode)
+                return io.BytesIO(payload)
+
+        try:
+            function_globals["Path"] = lambda _value: FakeProcPath()
+            with mock.patch.dict(os.environ, {"RUNPOD_POD_ID": pod_id}, clear=False):
+                self.assertEqual(bootstrap["runpod_pod_id_from_init"](), pod_id)
+            with mock.patch.dict(os.environ, {"RUNPOD_POD_ID": "different"}, clear=False):
+                with self.assertRaisesRegex(ValueError, "differ"):
+                    bootstrap["runpod_pod_id_from_init"]()
+        finally:
+            function_globals["Path"] = original_path
+
+        original_reader = function_globals["runpod_pod_id_from_init"]
+        try:
+            function_globals["runpod_pod_id_from_init"] = lambda: pod_id
+            environment = bootstrap["runpod_environment"]()
+        finally:
+            function_globals["runpod_pod_id_from_init"] = original_reader
+        self.assertEqual(environment["RUNPOD_POD_ID"], pod_id)
+        self.assertNotIn("RUNPOD_API_KEY", environment)
+        self.assertFalse(any(key.startswith("AWS_") for key in environment))
 
     def test_recipe_and_candidate_grid(self) -> None:
         self.assertEqual(
@@ -703,8 +799,20 @@ class M5ContractsTest(unittest.TestCase):
         def fake_run(command: list[str], *, cwd: Path = ROOT) -> str:
             del cwd
             if command == ["git", "rev-list", "--parents", "-n", "1", source]:
-                return f"{source} {M5_P4_COMMIT}"
+                return f"{source} {M5_RUNTIME_AUTHORIZATION_COMMIT}"
             if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", source]:
+                return rows(M5_RUNPOD_ENV_RECOVERY_ROWS)
+            if command == ["git", "rev-parse", f"{M5_RUNTIME_AUTHORIZATION_COMMIT}^{{tree}}"]:
+                return M5_RUNTIME_AUTHORIZATION_TREE
+            if command == ["git", "rev-list", "--parents", "-n", "1", M5_RUNTIME_AUTHORIZATION_COMMIT]:
+                return f"{M5_RUNTIME_AUTHORIZATION_COMMIT} {M5_RUNTIME_RECOVERY_COMMIT}"
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_RUNTIME_AUTHORIZATION_COMMIT]:
+                return "A\tbenchmark/evidence/m5/runtime-recovery-authorization.json"
+            if command == ["git", "rev-parse", f"{M5_RUNTIME_RECOVERY_COMMIT}^{{tree}}"]:
+                return M5_RUNTIME_RECOVERY_TREE
+            if command == ["git", "rev-list", "--parents", "-n", "1", M5_RUNTIME_RECOVERY_COMMIT]:
+                return f"{M5_RUNTIME_RECOVERY_COMMIT} {M5_P4_COMMIT}"
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_RUNTIME_RECOVERY_COMMIT]:
                 return rows(M5_RUNTIME_RECOVERY_ROWS)
             if command == ["git", "rev-parse", f"{M5_P4_COMMIT}^{{tree}}"]:
                 return M5_P4_TREE

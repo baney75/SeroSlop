@@ -18,8 +18,16 @@ one-file authorization
 P2, the failed P3, and the recovered source history plus hashes for every
 effective P3 source path, and binds the immutable P4 commit, tree, old receipt
 path, and old receipt digest. It refuses to write until anonymous public `main`
-and the exact-head `quality` push run both show the runtime recovery. From that
-clean, public, green runtime-recovery commit run:
+and the exact-head `quality` push run both show the runtime recovery. That
+authorization is preserved as public-green history, but the trusted pre-exec
+bootstrap removed RunPod's own `RUNPOD_POD_ID` while scrubbing the caller
+environment, so its preflight also stopped before CUDA or model loading. Publish
+the sole exact 12-path RunPod-environment recovery child of that authorization
+and wait for exact-head green CI. The same canonical writer then creates only
+`benchmark/evidence/m5/runpod-environment-authorization.json`; it binds the
+prior authorization commit, tree, path, and digest plus the recovered 26-path
+effective source map and the new public-green source run. From that clean,
+public, green RunPod-environment recovery commit run:
 
 ```bash
 /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/python3 -I -c '
@@ -28,9 +36,9 @@ p = pathlib.Path(sys.argv[1]); raw = p.read_bytes()
 if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec bootstrap bytes changed")
 sys.argv = [str(p), *sys.argv[3:]]
 exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
-' scripts/m5-preexec-bootstrap.py 9f73cfac68387affb4fce9dbfc37b1e56883178203e6d6b2f871b3ae77bdf6b1 authorize
-git add benchmark/evidence/m5/runtime-recovery-authorization.json
-git commit -m "Evidence: authorize exact M5 runtime recovery"
+' scripts/m5-preexec-bootstrap.py 54d94c8e696b9accb7bae4de6427922c1c72975b105b0a35ce0f74e741dead6d authorize
+git add benchmark/evidence/m5/runpod-environment-authorization.json
+git commit -m "Evidence: authorize exact M5 RunPod environment recovery"
 ```
 
 The inline system-Python loader verifies the stdlib-only pre-exec bootstrap before
@@ -43,7 +51,8 @@ The new authorization commit must add only that receipt. Push it and wait for
 its own exact-head green CI before retrying paid preflight. RunPod preflight and
 training run only from that clean authorization head; later selection, failure,
 100K, and final stages must retain the complete
-P2 → failed P3 → CI recovery → P4 → runtime recovery → authorization chain.
+P2 → failed P3 → CI recovery → P4 → runtime recovery → authorization →
+RunPod-environment recovery → authorization chain.
 
 ## Accepted brief
 
@@ -94,7 +103,7 @@ Use one RunPod Secure Cloud L40S 48 GB Pod. The recommended image is:
 pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385
 ```
 
-The repository must be cloned at the exact public M5 runtime-recovery authorization commit. The launcher derives and verifies the full append-only lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
+The repository must be cloned at the exact public M5 RunPod-environment authorization commit. The launcher derives and verifies the full append-only lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. The pre-exec bootstrap reads the bounded PID-1 environment only in `runpod` mode, validates exactly one `RUNPOD_POD_ID`, and forwards only that provider variable into the otherwise fixed child environment. It never forwards `RUNPOD_API_KEY` or any neighboring environment record. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
 
 The pre-exec gate detects source drift present when a command starts. It is not
 a sandbox against a hostile same-user process changing files after verification;
@@ -121,7 +130,7 @@ p = pathlib.Path(sys.argv[1]); raw = p.read_bytes()
 if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec bootstrap bytes changed")
 sys.argv = [str(p), *sys.argv[3:]]
 exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
-' scripts/m5-preexec-bootstrap.py 9f73cfac68387affb4fce9dbfc37b1e56883178203e6d6b2f871b3ae77bdf6b1 "$@"
+' scripts/m5-preexec-bootstrap.py 54d94c8e696b9accb7bae4de6427922c1c72975b105b0a35ce0f74e741dead6d "$@"
 }
 m5_preexec runpod-install
 m5_preexec runpod preflight -- \

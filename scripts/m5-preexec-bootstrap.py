@@ -57,6 +57,49 @@ def clean_environment(path: str) -> dict[str, str]:
     }
 
 
+def parse_runpod_pod_id(payload: bytes) -> str:
+    """Extract exactly one bounded ASCII Pod ID without exposing neighbors."""
+    if not payload or len(payload) > 1024 * 1024 or not payload.endswith(b"\0"):
+        raise ValueError("M5 RunPod PID-1 environment is malformed")
+    matches = []
+    for row in payload.split(b"\0"):
+        if not row:
+            continue
+        key, separator, value = row.partition(b"=")
+        if separator and key == b"RUNPOD_POD_ID":
+            try:
+                matches.append(value.decode("ascii", errors="strict"))
+            except UnicodeDecodeError:
+                raise ValueError("M5 RunPod PID-1 Pod ID is malformed") from None
+    if len(matches) != 1:
+        raise ValueError("M5 RunPod launch requires exactly one PID-1 Pod ID")
+    pod_id = matches[0]
+    if not 1 <= len(pod_id) <= 128 or any(not (character.isascii() and (character.isalnum() or character in "_-")) for character in pod_id):
+        raise ValueError("M5 RunPod PID-1 Pod ID is malformed")
+    return pod_id
+
+
+def runpod_pod_id_from_init() -> str:
+    """Read only RUNPOD_POD_ID from a bounded container-init environment."""
+    try:
+        with Path("/proc/1/environ").open("rb") as handle:
+            payload = handle.read(1024 * 1024 + 1)
+    except OSError:
+        raise ValueError("M5 RunPod PID-1 environment is unavailable") from None
+    pod_id = parse_runpod_pod_id(payload)
+    caller_id = os.environ.get("RUNPOD_POD_ID")
+    if caller_id is not None and caller_id != pod_id:
+        raise ValueError("M5 caller and PID-1 RunPod Pod IDs differ")
+    return pod_id
+
+
+def runpod_environment() -> dict[str, str]:
+    """Build the fixed RunPod child environment with only the verified Pod ID."""
+    environment = clean_environment(RUNPOD_PATH)
+    environment["RUNPOD_POD_ID"] = runpod_pod_id_from_init()
+    return environment
+
+
 def git_bytes(arguments: Sequence[str], root: Path) -> bytes:
     return subprocess.check_output(
         [GIT, *GIT_ARGUMENTS, *arguments],
@@ -172,7 +215,7 @@ def main() -> int:
             raise ValueError("M5 RunPod execution requires fixed Linux x86_64 and a launch mode")
         os.execve("/bin/bash", [
             "/bin/bash", "--noprofile", "--norc", "scripts/m5-runpod-launch.sh", *arguments,
-        ], clean_environment(RUNPOD_PATH))
+        ], runpod_environment())
     raise ValueError(f"Unknown M5 pre-exec mode: {mode}")
 
 
