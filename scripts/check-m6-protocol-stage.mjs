@@ -1,0 +1,21 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { m5Git, m5GitBytes } from "./m5-safe-git.mjs";
+import { M6_BASE_COMMIT, M6_BASE_TREE, M6_RECIPE_PATH, M6_RECIPE_SHA256, M6_CENSUS_SHA256, parseM6Recipe, matchesProspectiveP } from "./m6-stage-policy.mjs";
+
+const git = (args) => m5Git(args);
+const head = git(["rev-parse", "HEAD"]);
+const parents = git(["rev-list", "--parents", "-n", "1", head]).split(" ").slice(1);
+if (parents.length !== 1 || parents[0] !== M6_BASE_COMMIT) throw new Error("M6 P parent mismatch");
+if (git(["rev-parse", `${M6_BASE_COMMIT}^{tree}`]) !== M6_BASE_TREE) throw new Error("M6 base tree changed");
+const rows = git(["diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", head]).split("\n").filter(Boolean).map((line) => { const [status, path] = line.split("\t"); return { status, path }; });
+const statuses = Object.fromEntries(rows.map(({ path, status }) => [path, status]));
+const paths = rows.map(({ path }) => path);
+if (!matchesProspectiveP({ head, parents, paths, statuses })) throw new Error("M6 P path/status map mismatch");
+const recipeBytes = m5GitBytes(["show", `${head}:${M6_RECIPE_PATH}`]);
+if (createHash("sha256").update(recipeBytes).digest("hex") !== M6_RECIPE_SHA256) throw new Error("M6 recipe HEAD bytes changed");
+parseM6Recipe(recipeBytes);
+const censusPath = "benchmark/m6/census-evidence.json";
+const censusBytes = m5GitBytes(["show", `${head}:${censusPath}`]);
+if (createHash("sha256").update(censusBytes).digest("hex") !== M6_CENSUS_SHA256) throw new Error("M6 census HEAD bytes changed");
+console.log(JSON.stringify({ status: "m6-protocol-pass", head, parent: parents[0], rows }));
