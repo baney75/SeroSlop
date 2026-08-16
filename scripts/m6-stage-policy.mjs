@@ -3,13 +3,27 @@ import { createHash } from "node:crypto";
 
 export const M6_BASE_COMMIT = "76d0a807dcf240245830b8510e623d838e43cd4c";
 export const M6_BASE_TREE = "5c10012b9520e3936efc86e08ff0a53adecec868";
+export const M6_P_COMMIT = "3b29ea2f9e1ad46e4cd78f47c9ccf5fe3a99877e";
+export const M6_P_TREE = "dfd29cd86f4f746d403b14994055a575d82f83c4";
 export const M6_CENSUS_SHA256 = "61f494f09fe256d771bacb809712b5c645e5b25f63cffca52dfc40d0e0ac7adf";
-export const M6_RECIPE_SHA256 = "56bfe2487760c833c796289e3d4c5e8ef0eb65e62493229f9d62631a573ab613";
+export const M6_P_RECIPE_SHA256 = "56bfe2487760c833c796289e3d4c5e8ef0eb65e62493229f9d62631a573ab613";
+export const M6_RECIPE_SHA256 = "42f594fd26ac4949f191eb5c773c977ec8e5bee586f766c9a648afce85bc2984";
 export const M6_RECIPE_PATH = "benchmark/m6/recipe.json";
 export const M6_CENSUS_PATH = "benchmark/m6/census-evidence.json";
 export const M6_PROTOCOL_PATHS = Object.freeze([
   "benchmark/m6/README.md", "benchmark/m6/THIRD_PARTY_NOTICES.md", "benchmark/m6/__init__.py", "benchmark/m6/census-evidence.json", "benchmark/m6/contracts.py", "benchmark/m6/preflight.py", "benchmark/m6/prepare.py", "benchmark/m6/recipe.json", "benchmark/m6/test_contracts.py",
   "package.json", "scripts/check-m6-protocol-stage.mjs", "scripts/m6-stage-policy.mjs", "scripts/run-static-verification.mjs", "scripts/test-m6-stage-policy.mjs",
+]);
+export const M6_PROTOCOL_RECOVERY_EXPECTED = Object.freeze([
+  ["benchmark/m6/README.md", "M"],
+  ["benchmark/m6/contracts.py", "M"],
+  ["benchmark/m6/prepare.py", "M"],
+  ["benchmark/m6/recipe.json", "M"],
+  ["benchmark/m6/test_contracts.py", "M"],
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/run-static-verification.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
 ]);
 export const M6_STAGES = Object.freeze(["m6-protocol", "m6-source-lock", "m6-preflight", "m6-trained", "m6-evaluated"]);
 
@@ -65,6 +79,20 @@ export function matchesProspectiveP({ head, parents = [], paths = [], statuses =
 
 export function isM6ProtocolHead({ head, parent, treePaths = [] } = {}) {
   return parent === M6_BASE_COMMIT && M6_PROTOCOL_PATHS.every((path) => treePaths.includes(path)) && head !== M6_BASE_COMMIT;
+}
+
+function normalizedRows(rows = []) {
+  return [...rows].map(([path, status]) => [path, status]).sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+export function matchesM6ProtocolRecovery({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== M6_P_COMMIT &&
+    parent === M6_P_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_PROTOCOL_RECOVERY_EXPECTED));
+}
+
+export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
+  return isM6ProtocolHead({ head, parent, treePaths }) || matchesM6ProtocolRecovery({ head, parent, rows });
 }
 
 export function recipeSha256() { return createHash("sha256").update(readFileSync(M6_RECIPE_PATH)).digest("hex"); }

@@ -6,7 +6,7 @@ import { classifyM4Stage, M4_FAILURE_PATH, M4_PUBLICATION_LOCK_PATH } from "./m4
 import { classifyM3Stage, M3_FAILURE_PATH, M3_PUBLICATION_LOCK_PATH } from "./m3-stage-policy.mjs";
 import { classifyM5Stage, M5_FAILURE_PATH, M5_FINAL_RECEIPT_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_A5_AUTHORIZATION_PATH, M5_A5_COMMIT, M5_A6_AUTHORIZATION_PATH, M5_A6_COMMIT, M5_A7_AUTHORIZATION_PATH, M5_NUMERIC_AUDIT_RECOVERY_EXPECTED, M5_R5_EXPECTED, M5_R6_EXPECTED, M5_R7_EXPECTED, M5_A4_COMMIT, M5_RUNPOD_ENV_AUTHORIZATION_COMMIT, M5_SELECTION_LOCK_PATH, matchesExpectedRows } from "./m5-stage-policy.mjs";
 import { m5Git } from "./m5-safe-git.mjs";
-import { isM6ProtocolHead } from "./m6-stage-policy.mjs";
+import { isM6ProtocolLineageHead } from "./m6-stage-policy.mjs";
 
 function git(arguments_) {
   return m5Git(arguments_);
@@ -31,7 +31,12 @@ const m6ProtocolExists = (() => {
   try {
     const parent = git(["rev-list", "--parents", "-n", "1", head]).split(" ").slice(1);
     const treePaths = git(["ls-tree", "-r", "--name-only", head]).split("\n");
-    return parent.length === 1 && isM6ProtocolHead({ head, parent: parent[0], treePaths });
+    const rows = git(["diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", head])
+      .split("\n").filter(Boolean).map((line) => {
+        const [status, path] = line.split("\t");
+        return [path, status];
+      });
+    return parent.length === 1 && isM6ProtocolLineageHead({ head, parent: parent[0], treePaths, rows });
   } catch { return false; }
 })();
 const m5LockExists = existsSync(M5_SELECTION_LOCK_PATH);

@@ -106,7 +106,21 @@ def validate_recipe(recipe: Mapping[str, Any]) -> None:
     if ev != {"items": 100000, "batches": 1000, "batchSize": 100, "synthetic": {"omniFakeOOD": 30000, "omniFakeSETValidation": 70000}, "assignedBeforeSelectorScoring": True, "itemDisjoint": True, "selectionInfluence": False, "selectionExcludesSelector": True, "strictMeanRecallGreaterThan": 0.95, "strictMedianBatchRecallGreaterThan": 0.95, "failureConsumesPanel": True}:
         raise ValueError("evaluation precommit changed")
     overlap = recipe["overlap"]
-    if overlap != {"layers": ["canonical dataset row ID/filename/source group", "decoded image SHA256", "EXIF-oriented RGB dHash64 Hamming<=8"], "against": ["cross-partition", "all M2-M5 metadata", "H3 metadata only"], "h3PixelsRead": False}:
+    if overlap != {
+        "layers": [
+            "canonical dataset row ID/filename/source group",
+            "encoded image bytes SHA256",
+            "decoded EXIF-oriented RGB SHA256 for fresh rows only",
+            "EXIF-oriented RGB dHash64 Hamming<=8",
+        ],
+        "against": [
+            "fresh cross-partition for all four layers",
+            "all M2-M5 metadata for canonical identity, encoded bytes SHA256, and dHash only",
+            "H3 metadata only for canonical identity, encoded bytes SHA256, and dHash only",
+        ],
+        "historicalDecodedRgbSha256": "unavailable; no historical pixels are read",
+        "h3PixelsRead": False,
+    }:
         raise ValueError("overlap boundary changed")
     p = recipe["preflight"]
     expected_p = {"minimumPairedItemsPerSecond": 90, "maximumPeakGpuMemoryBytes": 44_000_000_000, "minimumFreeRamBytes": 20_000_000_000, "minimumFreeDiskBytes": 220_000_000_000, "projectedPeakDiskBytes": 180_000_000_000, "maximumL40SHourlyUsd": 3.50, "maximumProjectedGpuUsd": 24, "maximumAllInUsd": 30, "hardWallSeconds": 43200, "safetySeconds": 300, "reads": ["source-locked N", "paired items", "one-batch wall time", "provider rates"], "forbids": ["selector", "regressions", "evaluation", "H3"]}
@@ -119,66 +133,55 @@ def validate_recipe(recipe: Mapping[str, Any]) -> None:
 
 
 def validate_manifest_row(row: Mapping[str, Any]) -> None:
-    required = {"dataset", "revision", "partition", "rowId", "filename", "sourceGroup", "label", "imageSha256", "dhash64"}
-    if set(row) != required or not isinstance(row["rowId"], str) or not row["rowId"]:
+    base = {
+        "dataset", "revision", "partition", "rowId", "filename", "sourceGroup",
+        "label", "encodedBytesSha256", "decodedRgbSha256", "dhash64",
+    }
+    train_or_selector = base | {"role", "roleIndex"}
+    evaluation = train_or_selector | {"batch", "evalIndex"}
+    if set(row) not in {frozenset(base), frozenset(train_or_selector), frozenset(evaluation)}:
+        raise ValueError("manifest row schema/key invalid")
+    if not isinstance(row["rowId"], str) or not row["rowId"]:
         raise ValueError("manifest row schema/key invalid")
     for key in ("dataset", "partition", "filename", "sourceGroup"):
         if not isinstance(row[key], str) or not row[key] or "\\" in row[key] or row[key].startswith("/") or ".." in row[key].split("/"):
             raise ValueError("manifest string/path field invalid")
-    if row["dataset"] not in {"JamalLee/Omni-Fake-SET", "JamalLee/Omni-Fake-OOD"} or row["partition"] not in {"train", "validation", "test"}:
-        raise ValueError("manifest dataset/partition invalid")
-    if not HEX40.fullmatch(row["revision"]) or not HEX64.fullmatch(row["imageSha256"]):
+    source_triplet = (row["dataset"], row["revision"], row["partition"])
+    if source_triplet not in {
+        ("JamalLee/Omni-Fake-SET", "724e97f5fc9f4b89f59631a8d4e6331712b7d441", "train"),
+        ("JamalLee/Omni-Fake-SET", "724e97f5fc9f4b89f59631a8d4e6331712b7d441", "validation"),
+        ("JamalLee/Omni-Fake-OOD", "9ed7e38bbdb4aeb2eb553896a5890680a9ffcf17", "test"),
+    }:
+        raise ValueError("manifest dataset/revision/partition invalid")
+    if not HEX40.fullmatch(row["revision"]) or not HEX64.fullmatch(row["encodedBytesSha256"]) or not HEX64.fullmatch(row["decodedRgbSha256"]):
         raise ValueError("manifest digest invalid")
     if not isinstance(row["dhash64"], str) or not re.fullmatch(r"[0-9a-f]{16}", row["dhash64"]):
         raise ValueError("dHash64 invalid")
     if row["label"] not in {"real", "full_synthetic"}:
         raise ValueError("tampered rows are forbidden")
-
-def assign_evaluation(rows: list[Mapping[str, Any]], *, set_count: int = 70000, ood_count: int = 30000) -> list[dict[str, Any]]:
-    """Assign eval membership before any score; OOD never enters selector/train."""
-    eligible = [r for r in rows if r.get("label") == "full_synthetic" and r.get("role") == "eval" and ((r.get("dataset") == "JamalLee/Omni-Fake-SET" and r.get("partition") == "validation") or (r.get("dataset") == "JamalLee/Omni-Fake-OOD" and r.get("partition") == "test"))]
-    set_rows = sorted((r for r in eligible if r.get("dataset") == "JamalLee/Omni-Fake-SET"), key=lambda r: r.get("imageSha256", ""))[:set_count]
-    ood_rows = sorted((r for r in eligible if r.get("dataset") == "JamalLee/Omni-Fake-OOD"), key=lambda r: r.get("imageSha256", ""))[:ood_count]
-    if len(set_rows) != set_count or len(ood_rows) != ood_count: raise ValueError("evaluation quotas unavailable")
-    selected = set_rows + ood_rows
-    identities = {(r.get("dataset"), r.get("partition"), r.get("rowId"), r.get("imageSha256")) for r in selected}
-    if len(identities) != len(selected): raise ValueError("duplicate evaluation identity")
-    return [{"evalIndex": i, "batch": i // 100, **dict(row)} for i, row in enumerate(selected)]
-
-def overlap_reject(rows: list[Mapping[str, Any]], historical: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    ids = {(r.get("dataset"), r.get("rowId"), r.get("filename"), r.get("sourceGroup")) for r in historical}
-    shas = {r.get("imageSha256") for r in historical}; hashes = {r.get("dhash64") for r in historical}
-    out = []; fresh = set()
-    for row in rows:
-        key = (row.get("dataset"), row.get("rowId"), row.get("filename"), row.get("sourceGroup"))
-        if key in fresh or row.get("imageSha256") in {r.get("imageSha256") for r in out}: continue
-        if key in ids or row.get("imageSha256") in shas: continue
-        if any(isinstance(row.get("dhash64"), str) and isinstance(h, str) and (int(row["dhash64"], 16) ^ int(h, 16)).bit_count() <= 8 for h in hashes): continue
-        out.append(dict(row))
-        fresh.add(key)
-    return out
-
-def assign_train_selector(rows: list[Mapping[str, Any]], *, train_count: int = 40000, selector_each: int = 2000):
-    clean = [r for r in rows if r.get("dataset") == "JamalLee/Omni-Fake-SET" and r.get("partition") in {"train", "validation"} and r.get("label") in {"real", "full_synthetic"} and r.get("role") not in {"eval", "history", "h3"}]
-    real = sorted((r for r in clean if r.get("label") == "real" and r.get("partition") == "train"), key=lambda r: (r.get("sourceGroup", ""), r.get("imageSha256", "")))
-    synth = sorted((r for r in clean if r.get("label") == "full_synthetic" and r.get("partition") == "train"), key=lambda r: (r.get("sourceGroup", ""), r.get("imageSha256", "")))
-    if not real or not synth: raise ValueError("train quota unavailable")
-    def rr(items, sources):
-        buckets = {s: sorted((r for r in items if r.get("sourceGroup") == s), key=lambda r: r.get("imageSha256", "")) for s in sources}; out=[]
-        while len(out) < selector_each:
-            progressed = False
-            for source in sources:
-                if buckets[source]: out.append(buckets[source].pop(0)); progressed = True
-                if len(out) >= selector_each: break
-            if not progressed: break
-        return out
-    selector_real = rr([r for r in clean if r.get("partition") == "validation" and r.get("label") == "real"], sorted({r.get("sourceGroup") for r in clean if r.get("partition") == "validation" and r.get("label") == "real"}))
-    selector_synth = rr([r for r in clean if r.get("partition") == "validation" and r.get("label") == "full_synthetic" and r.get("sourceGroup") in GENERATORS], list(GENERATORS))
-    if len({r.get("sourceGroup") for r in selector_synth}) != len(GENERATORS): raise ValueError("selector generator representation incomplete")
-    selector_ids = {r.get("rowId") for r in selector_real + selector_synth}
-    count = min(len(real), len(synth), train_count)
-    train = real[:count] + synth[:count]
-    return train, selector_real + selector_synth
+    if "role" in row:
+        if row["role"] not in {"train", "selector", "evaluation"}:
+            raise ValueError("manifest role invalid")
+        if type(row["roleIndex"]) is not int or row["roleIndex"] < 0:
+            raise ValueError("manifest role index invalid")
+        if row["role"] == "evaluation":
+            if set(row) != evaluation:
+                raise ValueError("evaluation manifest row schema changed")
+            if type(row["batch"]) is not int or row["batch"] < 0:
+                raise ValueError("evaluation batch invalid")
+            if type(row["evalIndex"]) is not int or row["evalIndex"] < 0:
+                raise ValueError("evaluation index invalid")
+            if row["evalIndex"] != row["roleIndex"]:
+                raise ValueError("evaluation index binding changed")
+            if row["label"] != "full_synthetic" or row["partition"] not in {"validation", "test"}:
+                raise ValueError("evaluation source role changed")
+        else:
+            if set(row) != train_or_selector:
+                raise ValueError("train/selector manifest row schema changed")
+            if row["role"] == "train" and (row["dataset"], row["partition"]) != ("JamalLee/Omni-Fake-SET", "train"):
+                raise ValueError("training source role changed")
+            if row["role"] == "selector" and (row["dataset"], row["partition"]) != ("JamalLee/Omni-Fake-SET", "validation"):
+                raise ValueError("selector source role changed")
 
 
 def validate_preflight(observed: Mapping[str, Any], recipe: Mapping[str, Any] | None = None) -> None:
