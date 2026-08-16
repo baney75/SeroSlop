@@ -1,167 +1,28 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { TextDecoder } from "node:util";
-import {
-  M5_CI_RECOVERY_COMMIT,
-  M5_CI_RECOVERY_TREE,
-  M5_FAILED_SOURCE_COMMIT,
-  M5_FAILED_SOURCE_TREE,
-  M5_P2_COMMIT,
-  M5_P2_TREE,
-  M5_P4_AUTHORIZATION_SHA256,
-  M5_P4_COMMIT,
-  M5_P4_TREE,
-  M5_RUN_AUTHORIZATION_PATH,
-  M5_NUMERIC_AUDIT_AUTHORIZATION_PATH,
-  M5_NUMERIC_AUDIT_RECOVERY_EXPECTED,
-  M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
-  M5_RUNPOD_ENV_AUTHORIZATION_PATH,
-  M5_RUNPOD_ENV_AUTHORIZATION_SHA256,
-  M5_RUNPOD_ENV_AUTHORIZATION_TREE,
-  M5_RUNPOD_ENV_RECOVERY_COMMIT,
-  M5_RUNPOD_ENV_RECOVERY_EXPECTED,
-  M5_RUNPOD_ENV_RECOVERY_TREE,
-  M5_RUNTIME_AUTHORIZATION_COMMIT,
-  M5_RUNTIME_AUTHORIZATION_PATH,
-  M5_RUNTIME_AUTHORIZATION_SHA256,
-  M5_RUNTIME_AUTHORIZATION_TREE,
-  M5_RUNTIME_RECOVERY_COMMIT,
-  M5_RUNTIME_RECOVERY_EXPECTED,
-  M5_RUNTIME_RECOVERY_TREE,
-  M5_SOURCE_CI_RECOVERY_EXPECTED,
-  M5_SOURCE_RECOVERY_EXPECTED,
-  matchesExpectedRows,
-} from "./m5-stage-policy.mjs";
+import { M5_A4_COMMIT, M5_A4_TREE, M5_A4_PATH, M5_A4_SHA256, M5_A5_AUTHORIZATION_PATH, M5_A5_STATUS, M5_R5_EXPECTED } from "./m5-stage-policy.mjs";
 import { m5Git, m5GitBytes } from "./m5-safe-git.mjs";
-
-const git = (args) => m5Git(args);
-const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const rows = (commit) => git(["diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", commit])
-  .split("\n").filter(Boolean).map((line) => { const [status, path] = line.split("\t"); return [path, status]; });
-const parents = (commit) => git(["rev-list", "--parents", "-n", "1", commit]).split(" ").slice(1);
-const canonical = (value) => {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
-  return value;
-};
-const exactKeys = (value, expected) => value && typeof value === "object" && !Array.isArray(value) &&
-  JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...expected].sort());
-
-export function parseCanonicalM5Authorization(raw) {
-  const text = new TextDecoder("utf-8", { fatal: true }).decode(raw);
-  const receipt = JSON.parse(text);
-  const expectedBytes = Buffer.from(`${JSON.stringify(canonical(receipt))}\n`, "utf8");
-  if (!raw.equals(expectedBytes)) throw new Error("M5 authorization is not canonical strict UTF-8 JSON");
-  return receipt;
+const git = (a) => m5Git(a); const sha = (b) => createHash("sha256").update(b).digest("hex");
+const rows = (c) => git(["diff-tree","--root","--no-renames","--name-status","--format=","-r",c]).split("\n").filter(Boolean).map((x) => { const [s,p]=x.split("\t"); return [p,s]; });
+const parents = (c) => git(["rev-list","--parents","-n","1",c]).split(" ").slice(1);
+const canonical = (v) => Array.isArray(v) ? v.map(canonical) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])) : v;
+const exact = (v, ks) => v && !Array.isArray(v) && typeof v === "object" && JSON.stringify(Object.keys(v).sort()) === JSON.stringify([...ks].sort());
+export function parseCanonicalM5Authorization(raw) { const r=JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(raw)); if (!raw.equals(Buffer.from(`${JSON.stringify(canonical(r))}\n`))) throw new Error("M5 authorization is not canonical strict UTF-8 JSON"); return r; }
+export function requireM5AuthorizationSchema(r) {
+  if (!exact(r,["authorizationPath","parityBoundary","diagnosticSha256","h3PixelsRead","priorAuthorizationCommit","priorAuthorizationPath","priorAuthorizationSha256","priorAuthorizationTree","protocolCommit","protocolTree","schemaVersion","scoreBlind","sourceCommit","sourcePathMap","sourcePublicCi","sourceTree","status"]) || !exact(r.sourcePublicCi,["conclusion","event","headSha","runId","status","url","workflowPath"])) throw new Error("M5 parity authorization schema changed");
 }
-
-export function requireM5AuthorizationSchema(receipt) {
-  if (!exactKeys(receipt, [
-    "authorizationPath", "numericBoundary", "h3PixelsRead", "protocolCommit", "protocolTree", "schemaVersion", "scoreBlind",
-    "priorAuthorizationCommit", "priorAuthorizationPath", "priorAuthorizationSha256", "priorAuthorizationTree",
-    "sourceCommit", "sourcePathMap", "sourcePublicCi", "sourceTree", "status",
-  ]) || !exactKeys(receipt.sourcePublicCi, ["conclusion", "event", "headSha", "runId", "status", "url", "workflowPath"])) {
-    throw new Error("M5 numeric audit authorization schema changed");
-  }
-}
-
 export function validateM5AuthorizedChain() {
-  const oldP4Additions = git(["log", "--first-parent", "--no-renames", "--diff-filter=A", "--format=%H", "--", M5_RUN_AUTHORIZATION_PATH])
-    .split("\n").filter(Boolean);
-  if (oldP4Additions.length !== 1 || oldP4Additions[0] !== M5_P4_COMMIT ||
-      !matchesExpectedRows(rows(M5_P4_COMMIT), new Map([[M5_RUN_AUTHORIZATION_PATH, "A"]])) ||
-      git(["rev-parse", `${M5_P4_COMMIT}^{tree}`]) !== M5_P4_TREE ||
-      digest(m5GitBytes(["show", `${M5_P4_COMMIT}:${M5_RUN_AUTHORIZATION_PATH}`])) !== M5_P4_AUTHORIZATION_SHA256) {
-    throw new Error("M5 prior P4 authorization history changed");
-  }
-
-  const runtimeAdditions = git(["log", "--first-parent", "--no-renames", "--diff-filter=A", "--format=%H", "--", M5_RUNTIME_AUTHORIZATION_PATH])
-    .split("\n").filter(Boolean);
-  if (runtimeAdditions.length !== 1 || runtimeAdditions[0] !== M5_RUNTIME_AUTHORIZATION_COMMIT ||
-      !matchesExpectedRows(rows(M5_RUNTIME_AUTHORIZATION_COMMIT), new Map([[M5_RUNTIME_AUTHORIZATION_PATH, "A"]])) ||
-      git(["rev-parse", `${M5_RUNTIME_AUTHORIZATION_COMMIT}^{tree}`]) !== M5_RUNTIME_AUTHORIZATION_TREE ||
-      digest(m5GitBytes(["show", `${M5_RUNTIME_AUTHORIZATION_COMMIT}:${M5_RUNTIME_AUTHORIZATION_PATH}`])) !== M5_RUNTIME_AUTHORIZATION_SHA256) {
-    throw new Error("M5 prior runtime authorization history changed");
-  }
-
-  const environmentAdditions = git(["log", "--first-parent", "--no-renames", "--diff-filter=A", "--format=%H", "--", M5_RUNPOD_ENV_AUTHORIZATION_PATH])
-    .split("\n").filter(Boolean);
-  if (environmentAdditions.length !== 1 || environmentAdditions[0] !== M5_RUNPOD_ENV_AUTHORIZATION_COMMIT ||
-      !matchesExpectedRows(rows(M5_RUNPOD_ENV_AUTHORIZATION_COMMIT), new Map([[M5_RUNPOD_ENV_AUTHORIZATION_PATH, "A"]])) ||
-      git(["rev-parse", `${M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}^{tree}`]) !== M5_RUNPOD_ENV_AUTHORIZATION_TREE ||
-      digest(m5GitBytes(["show", `${M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}:${M5_RUNPOD_ENV_AUTHORIZATION_PATH}`])) !== M5_RUNPOD_ENV_AUTHORIZATION_SHA256) {
-    throw new Error("M5 prior RunPod environment authorization history changed");
-  }
-
-  const additions = git(["log", "--first-parent", "--no-renames", "--diff-filter=A", "--format=%H", "--", M5_NUMERIC_AUDIT_AUTHORIZATION_PATH])
-    .split("\n").filter(Boolean);
-  if (additions.length !== 1) throw new Error("M5 numeric audit authorization must have exactly one committed addition");
-  const authorization = additions[0];
-  if (!matchesExpectedRows(rows(authorization), new Map([[M5_NUMERIC_AUDIT_AUTHORIZATION_PATH, "A"]]))) {
-    throw new Error("M5 numeric audit authorization changed outside its one-file surface");
-  }
-  const authorizationParents = parents(authorization);
-  if (authorizationParents.length !== 1) throw new Error("M5 numeric audit authorization must have one parent");
-  const source = authorizationParents[0];
-
-  if (parents(source).length !== 1 || parents(source)[0] !== M5_RUNPOD_ENV_AUTHORIZATION_COMMIT ||
-      !matchesExpectedRows(rows(source), M5_NUMERIC_AUDIT_RECOVERY_EXPECTED) ||
-      parents(M5_RUNPOD_ENV_AUTHORIZATION_COMMIT).length !== 1 || parents(M5_RUNPOD_ENV_AUTHORIZATION_COMMIT)[0] !== M5_RUNPOD_ENV_RECOVERY_COMMIT ||
-      git(["rev-parse", `${M5_RUNPOD_ENV_RECOVERY_COMMIT}^{tree}`]) !== M5_RUNPOD_ENV_RECOVERY_TREE ||
-      !matchesExpectedRows(rows(M5_RUNPOD_ENV_RECOVERY_COMMIT), M5_RUNPOD_ENV_RECOVERY_EXPECTED) ||
-      parents(M5_RUNPOD_ENV_RECOVERY_COMMIT).length !== 1 || parents(M5_RUNPOD_ENV_RECOVERY_COMMIT)[0] !== M5_RUNTIME_AUTHORIZATION_COMMIT ||
-      parents(M5_RUNTIME_AUTHORIZATION_COMMIT).length !== 1 || parents(M5_RUNTIME_AUTHORIZATION_COMMIT)[0] !== M5_RUNTIME_RECOVERY_COMMIT ||
-      git(["rev-parse", `${M5_RUNTIME_RECOVERY_COMMIT}^{tree}`]) !== M5_RUNTIME_RECOVERY_TREE ||
-      !matchesExpectedRows(rows(M5_RUNTIME_RECOVERY_COMMIT), M5_RUNTIME_RECOVERY_EXPECTED) ||
-      parents(M5_RUNTIME_RECOVERY_COMMIT).length !== 1 || parents(M5_RUNTIME_RECOVERY_COMMIT)[0] !== M5_P4_COMMIT ||
-      parents(M5_P4_COMMIT).length !== 1 || parents(M5_P4_COMMIT)[0] !== M5_CI_RECOVERY_COMMIT ||
-      parents(M5_CI_RECOVERY_COMMIT).length !== 1 || parents(M5_CI_RECOVERY_COMMIT)[0] !== M5_FAILED_SOURCE_COMMIT ||
-      git(["rev-parse", `${M5_CI_RECOVERY_COMMIT}^{tree}`]) !== M5_CI_RECOVERY_TREE ||
-      !matchesExpectedRows(rows(M5_CI_RECOVERY_COMMIT), M5_SOURCE_CI_RECOVERY_EXPECTED) ||
-      git(["rev-parse", `${M5_FAILED_SOURCE_COMMIT}^{tree}`]) !== M5_FAILED_SOURCE_TREE ||
-      parents(M5_FAILED_SOURCE_COMMIT).length !== 1 || parents(M5_FAILED_SOURCE_COMMIT)[0] !== M5_P2_COMMIT ||
-      git(["rev-parse", `${M5_P2_COMMIT}^{tree}`]) !== M5_P2_TREE ||
-      !matchesExpectedRows(rows(M5_FAILED_SOURCE_COMMIT), M5_SOURCE_RECOVERY_EXPECTED)) {
-    throw new Error("M5 full append-only authorization chain is invalid");
-  }
-
-  const raw = readFileSync(M5_NUMERIC_AUDIT_AUTHORIZATION_PATH);
-  if (!raw.equals(m5GitBytes(["show", `${authorization}:${M5_NUMERIC_AUDIT_AUTHORIZATION_PATH}`]))) {
-    throw new Error("M5 inherited numeric audit authorization bytes changed");
-  }
-  const receipt = parseCanonicalM5Authorization(raw);
-  requireM5AuthorizationSchema(receipt);
-  const sourceTree = git(["rev-parse", `${source}^{tree}`]);
-  const expectedMap = [...M5_SOURCE_RECOVERY_EXPECTED.keys()].sort().map((path) => ({
-    path,
-    sha256: digest(m5GitBytes(["show", `${source}:${path}`])),
-  }));
-  const ci = receipt.sourcePublicCi;
-  if (receipt.schemaVersion !== 4 || receipt.status !== "m5-numeric-audit-recovery-authorized" ||
-      receipt.protocolCommit !== M5_P2_COMMIT || receipt.protocolTree !== M5_P2_TREE ||
-      receipt.priorAuthorizationCommit !== M5_RUNPOD_ENV_AUTHORIZATION_COMMIT || receipt.priorAuthorizationTree !== M5_RUNPOD_ENV_AUTHORIZATION_TREE ||
-      receipt.priorAuthorizationPath !== M5_RUNPOD_ENV_AUTHORIZATION_PATH || receipt.priorAuthorizationSha256 !== M5_RUNPOD_ENV_AUTHORIZATION_SHA256 ||
-      receipt.sourceCommit !== source || receipt.sourceTree !== sourceTree ||
-      JSON.stringify(receipt.sourcePathMap) !== JSON.stringify(expectedMap) ||
-      receipt.numericBoundary !== "source-balanced-weights-unchanged-math-fsum-audit-only" ||
-      receipt.authorizationPath !== M5_NUMERIC_AUDIT_AUTHORIZATION_PATH || receipt.scoreBlind !== true || receipt.h3PixelsRead !== false ||
-      ci.conclusion !== "success" || ci.event !== "push" || ci.headSha !== source ||
-      !Number.isInteger(ci.runId) || ci.runId <= 0 || ci.status !== "completed" ||
-      ci.url !== `https://github.com/baney75/prooflens/actions/runs/${ci.runId}` || ci.workflowPath !== ".github/workflows/quality.yml") {
-    throw new Error("M5 numeric audit authorization binding changed");
-  }
-  return {
-    authorization,
-    authorizationReceiptSha256: digest(raw),
-    priorAuthorization: M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
-    receipt,
-    source,
-    sourceTree,
-  };
+  if (!existsSync(M5_A5_AUTHORIZATION_PATH)) throw new Error("M5 A5 authorization receipt is missing");
+  const additions=git(["log","--first-parent","--no-renames","--diff-filter=A","--format=%H","--",M5_A5_AUTHORIZATION_PATH]).split("\n").filter(Boolean); if(additions.length!==1) throw new Error("M5 A5 authorization must have one committed addition");
+  const authorization=additions[0], ap=parents(authorization); if(ap.length!==1) throw new Error("M5 A5 authorization must have one R5 parent"); const source=ap[0];
+  if(source===M5_A4_COMMIT || parents(source).length!==1 || parents(source)[0]!==M5_A4_COMMIT || JSON.stringify(rows(source).sort())!==JSON.stringify([...M5_R5_EXPECTED].sort())) throw new Error("M5 R5 recovery lineage is not exact");
+  if(git(["rev-parse",`${M5_A4_COMMIT}^{tree}`])!==M5_A4_TREE || sha(m5GitBytes(["show",`${M5_A4_COMMIT}:${M5_A4_PATH}`]))!==M5_A4_SHA256) throw new Error("M5 A4 binding changed");
+  if(JSON.stringify(rows(authorization))!==JSON.stringify([[M5_A5_AUTHORIZATION_PATH,"A"]])) throw new Error("M5 A5 authorization must be receipt-only");
+  const raw=readFileSync(M5_A5_AUTHORIZATION_PATH); if(!raw.equals(m5GitBytes(["show",`${authorization}:${M5_A5_AUTHORIZATION_PATH}`]))) throw new Error("M5 A5 receipt bytes changed"); const receipt=parseCanonicalM5Authorization(raw); requireM5AuthorizationSchema(receipt);
+  const expected=[...M5_R5_EXPECTED.keys()].sort().map(path=>({path,sha256:sha(m5GitBytes(["show",`${source}:${path}`]))})); const ci=receipt.sourcePublicCi;
+  if(receipt.schemaVersion!==5||receipt.status!==M5_A5_STATUS||receipt.protocolCommit!=="1c4ac973785f937fa9023018863941e6d89d8693"||receipt.protocolTree!=="a56caae4291e275029076417fb2111be76b07a41"||receipt.priorAuthorizationCommit!==M5_A4_COMMIT||receipt.priorAuthorizationTree!==M5_A4_TREE||receipt.priorAuthorizationPath!==M5_A4_PATH||receipt.priorAuthorizationSha256!==M5_A4_SHA256||receipt.sourceCommit!==source||receipt.sourceTree!==git(["rev-parse",`${source}^{tree}`])||JSON.stringify(receipt.sourcePathMap)!==JSON.stringify(expected)||receipt.parityBoundary!=="packaged-m2-reference-preserved-real-input-parity-and-onnx-scoring"||receipt.diagnosticSha256!=="c9c673efa0b1a6e4ea79b195ec16c71ae8ac91f962390a49c4e570b6d8de5c11"||receipt.authorizationPath!==M5_A5_AUTHORIZATION_PATH||receipt.scoreBlind!==true||receipt.h3PixelsRead!==false||typeof ci.runId!=="number"||ci.runId<=0||ci.url!==`https://github.com/baney75/prooflens/actions/runs/${ci.runId}`||ci.workflowPath!==".github/workflows/quality.yml"||ci.headSha!==source||ci.event!=="push"||ci.status!=="completed"||ci.conclusion!=="success") throw new Error("M5 A5 authorization binding changed");
+  return {authorization,source,sourceTree:receipt.sourceTree,authorizationReceiptSha256:sha(raw),receipt};
 }
-
-if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  const result = validateM5AuthorizedChain();
-  console.log(JSON.stringify({ authorization: result.authorization, source: result.source, protocol: M5_P2_COMMIT, policy: "pass" }));
-}
+if(process.argv[1]&&pathToFileURL(process.argv[1]).href===import.meta.url) console.log(JSON.stringify({...validateM5AuthorizedChain(),policy:"pass"}));

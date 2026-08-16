@@ -35,6 +35,9 @@ import {
   M5_RUNTIME_RECOVERY_EXPECTED,
   M5_SOURCE_CI_RECOVERY_EXPECTED,
   M5_SOURCE_RECOVERY_EXPECTED,
+  M5_R5_EXPECTED,
+  M5_A4_COMMIT,
+  M5_A5_AUTHORIZATION_PATH,
   M5_RUN_AUTHORIZATION_PATH,
   classifyM5Stage,
   matchesExpectedRows,
@@ -63,6 +66,14 @@ const ciRecoveryRows = [...M5_SOURCE_CI_RECOVERY_EXPECTED.entries()];
 const runtimeRows = [...M5_RUNTIME_RECOVERY_EXPECTED.entries()];
 const environmentRows = [...M5_RUNPOD_ENV_RECOVERY_EXPECTED.entries()];
 const numericRows = [...M5_NUMERIC_AUDIT_RECOVERY_EXPECTED.entries()];
+assert.equal(M5_R5_EXPECTED.size, 17);
+assert.equal(M5_R5_EXPECTED.has("benchmark/evidence/m5/initial-parity-diagnostic.json"), true);
+assert.equal(matchesExpectedRows([...M5_R5_EXPECTED], M5_R5_EXPECTED), true);
+assert.equal(matchesExpectedRows([...M5_R5_EXPECTED].slice(1), M5_R5_EXPECTED), false);
+assert.equal(matchesExpectedRows([...M5_R5_EXPECTED, ["extra", "M"]], M5_R5_EXPECTED), false);
+assert.equal(matchesExpectedRows([...M5_R5_EXPECTED].map(([path, status], index) => [path, index === 0 ? "A" : status]), M5_R5_EXPECTED), false);
+assert.equal(M5_A4_COMMIT.length, 40);
+assert.equal(M5_A5_AUTHORIZATION_PATH, "benchmark/evidence/m5/parity-recovery-authorization.json");
 assert.equal(environmentRows.length, 12);
 assert.equal(numericRows.length, 12);
 for (const [pathname] of environmentRows) assert.equal(M5_SOURCE_RECOVERY_EXPECTED.has(pathname), true);
@@ -132,6 +143,7 @@ assert.equal(classifyM5Stage({ protocolExists: false, lockExists: false, failure
 assert.equal(classifyM5Stage({ protocolExists: true, lockExists: false, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-protocol");
 assert.equal(classifyM5Stage({ protocolExists: true, sourceRecoveryExists: true, lockExists: false, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-source-recovery");
 assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, sourceRecoveryExists: true, lockExists: false, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-source-recovery");
+assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, sourceRecoveryExists: false, lockExists: false, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-authorized");
 assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, lockExists: true, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-pinned");
 assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, lockExists: true, failureExists: false, largeSourceLockExists: true, finalExists: false }), "m5-eval-locked");
 assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, lockExists: false, failureExists: true, largeSourceLockExists: false, finalExists: false }), "m5-failed");
@@ -141,9 +153,11 @@ assert.throws(() => classifyM5Stage({ protocolExists: true, lockExists: true, fa
 assert.throws(() => classifyM5Stage({ protocolExists: true, lockExists: false, failureExists: false, largeSourceLockExists: true, finalExists: false }));
 assert.throws(() => classifyM5Stage({ protocolExists: true, lockExists: true, failureExists: false, largeSourceLockExists: false, finalExists: true }));
 const dispatcher = readFileSync("scripts/run-static-verification.mjs", "utf8");
-assert.ok(dispatcher.includes("M5_NUMERIC_AUDIT_AUTHORIZATION_PATH"));
+assert.ok(dispatcher.includes("M5_A4_COMMIT"));
 assert.ok(dispatcher.includes("M5_NUMERIC_AUDIT_RECOVERY_EXPECTED"));
 assert.ok(dispatcher.includes("M5_RUNPOD_ENV_AUTHORIZATION_COMMIT"));
+assert.ok(dispatcher.includes("M5_A5_AUTHORIZATION_PATH"));
+assert.ok(dispatcher.includes("M5_R5_EXPECTED"));
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 assert.equal(packageJson.scripts["check:m5-pipeline"], "node scripts/run-benchmark-python.mjs -m unittest benchmark.m5.test_contracts");
 for (const [stage, script] of [

@@ -61,6 +61,7 @@ from benchmark.m5.contracts import (
     unpack_float32,
     validate_manifest_rows,
     validate_selection_lock,
+    ort_cuda_providers,
 )
 from benchmark.m5.train_gpu import (
     Item,
@@ -241,9 +242,7 @@ def execute(args: argparse.Namespace) -> int:
     state_path = output_dir / "regression-state.json"
     if state_path.exists():
         raise ValueError("M5 terminal regression state already exists; replay is forbidden")
-    if "CUDAExecutionProvider" not in ort.get_available_providers():
-        raise ValueError("M5 terminal regression requires CUDAExecutionProvider")
-    session = ort.InferenceSession(str(model_path), providers=["CUDAExecutionProvider"])
+    session = ort.InferenceSession(str(model_path), providers=ort_cuda_providers(ort))
     selector_manifest = ROOT / recipe["sourceEvidence"]["selectorManifest"]["path"]
     if digest_file(selector_manifest) != recipe["sourceEvidence"]["selectorManifest"]["sha256"]:
         raise ValueError("M5 selector manifest bytes changed before ONNX replay")

@@ -25,6 +25,26 @@ export const M5_RUN_AUTHORIZATION_PATH = "benchmark/evidence/m5/run-authorizatio
 export const M5_RUNTIME_AUTHORIZATION_PATH = "benchmark/evidence/m5/runtime-recovery-authorization.json";
 export const M5_RUNPOD_ENV_AUTHORIZATION_PATH = "benchmark/evidence/m5/runpod-environment-authorization.json";
 export const M5_NUMERIC_AUDIT_AUTHORIZATION_PATH = "benchmark/evidence/m5/numeric-audit-authorization.json";
+// A4 is the public numeric-audit receipt. R5 is the exact recovery child and
+// A5 is its sole active parity authorization receipt. R5/A5 commit ids are
+// intentionally derived from the checked-out parent chain, never hardcoded.
+export const M5_A4_COMMIT = "f3d86077cf5e7a124d09b593d69e9a1769d7e295";
+export const M5_A4_TREE = "d93819ff013943ac48c6dafc659effc9cfbf3e95";
+export const M5_A4_PATH = M5_NUMERIC_AUDIT_AUTHORIZATION_PATH;
+export const M5_A4_SHA256 = "8286dc24babe83a16fdf898fa5e70b6202a1da8c46ae2aeda8cf557134db0f03";
+export const M5_A5_AUTHORIZATION_PATH = "benchmark/evidence/m5/parity-recovery-authorization.json";
+export const M5_A5_STATUS = "m5-parity-recovery-authorized";
+export const M5_R5_EXPECTED = new Map([
+  ["benchmark/m5/README.md", "M"], ["benchmark/m5/contracts.py", "M"],
+  ["benchmark/m5/evaluate_large_synthetic.py", "M"], ["benchmark/m5/evaluate_locked.py", "M"],
+  ["benchmark/m5/recipe.json", "M"], ["benchmark/m5/test_contracts.py", "M"], ["benchmark/m5/train_gpu.py", "M"],
+  ["benchmark/evidence/m5/initial-parity-diagnostic.json", "A"],
+  ["scripts/check-m5-authorized-chain.mjs", "M"], ["scripts/check-m5-run-authorization-stage.mjs", "M"],
+  ["scripts/check-m5-source-recovery-stage.mjs", "M"], ["scripts/m5-run-authorization.mjs", "M"],
+  ["scripts/m5-stage-policy.mjs", "M"], ["scripts/m5-training-contract.mjs", "M"],
+  ["scripts/run-static-verification.mjs", "M"], ["scripts/test-m5-stage-policy.mjs", "M"],
+  ["scripts/test-m5-training-contract.mjs", "M"],
+]);
 export const M5_SELECTION_LOCK_PATH = "benchmark/evidence/m5/selection-lock.json";
 export const M5_FAILURE_PATH = "benchmark/evidence/m5/failed-training-attempt-1.json";
 export const M5_FINAL_RECEIPT_PATH = "benchmark/evidence/m5/finalization-receipt.json";
@@ -296,7 +316,7 @@ export function matchesM5RunpodEnvironmentRecoveryCommit({ environmentParents, e
     matchesM5RuntimeRecoveryCommit({ runtimeParents, runtimeRows, p4Tree, p4Parents, p4Rows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows });
 }
 
-export function classifyM5Stage({ protocolExists, lockExists, failureExists, largeSourceLockExists, finalExists, sourceRecoveryExists = false, authorizationExists = false }) {
+export function classifyM5Stage({ protocolExists, lockExists, failureExists, largeSourceLockExists, finalExists, sourceRecoveryExists = false, authorizationExists = false, a5Exists = authorizationExists }) {
   if (!protocolExists && (lockExists || failureExists || largeSourceLockExists || finalExists)) {
     throw new Error("M5 evidence cannot exist without the M5 protocol");
   }
@@ -306,7 +326,7 @@ export function classifyM5Stage({ protocolExists, lockExists, failureExists, lar
   }
   if (largeSourceLockExists && !lockExists) throw new Error("M5 100K source lock requires the public selection lock");
   if (finalExists && !largeSourceLockExists) throw new Error("M5 final evidence requires the public 100K source lock");
-  if ((lockExists || failureExists || largeSourceLockExists || finalExists) && !authorizationExists) {
+  if ((lockExists || failureExists || largeSourceLockExists || finalExists) && !a5Exists) {
     throw new Error("M5 result evidence requires the public run authorization");
   }
   if (failureExists) return "m5-failed";
@@ -314,6 +334,6 @@ export function classifyM5Stage({ protocolExists, lockExists, failureExists, lar
   if (largeSourceLockExists) return "m5-eval-locked";
   if (lockExists) return "m5-pinned";
   if (sourceRecoveryExists) return "m5-source-recovery";
-  if (authorizationExists) return "m5-authorized";
+  if (a5Exists) return "m5-authorized";
   return "m5-protocol";
 }

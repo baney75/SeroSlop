@@ -79,8 +79,9 @@ from benchmark.m5.contracts import (
     source_balanced_weights,
     validate_environment_receipt,
     validate_manifest_rows,
-    validate_numeric_audit_authorization,
+    validate_parity_recovery_authorization,
     validate_provisioning_receipt,
+    ort_cuda_providers,
 )
 
 
@@ -147,6 +148,14 @@ M5_RUN_AUTHORIZATION_PATH = "benchmark/evidence/m5/run-authorization.json"
 M5_RUNTIME_AUTHORIZATION_PATH = "benchmark/evidence/m5/runtime-recovery-authorization.json"
 M5_RUNPOD_ENV_AUTHORIZATION_PATH = "benchmark/evidence/m5/runpod-environment-authorization.json"
 M5_NUMERIC_AUDIT_AUTHORIZATION_PATH = "benchmark/evidence/m5/numeric-audit-authorization.json"
+M5_A4_COMMIT = "f3d86077cf5e7a124d09b593d69e9a1769d7e295"
+M5_A4_TREE = "d93819ff013943ac48c6dafc659effc9cfbf3e95"
+M5_A4_AUTHORIZATION_SHA256 = "8286dc24babe83a16fdf898fa5e70b6202a1da8c46ae2aeda8cf557134db0f03"
+M5_A5_AUTHORIZATION_PATH = "benchmark/evidence/m5/parity-recovery-authorization.json"
+M5_A5_STATUS = "m5-parity-recovery-authorized"
+M5_R5_ROWS = {
+    "benchmark/m5/README.md":"M", "benchmark/m5/contracts.py":"M", "benchmark/m5/evaluate_large_synthetic.py":"M", "benchmark/m5/evaluate_locked.py":"M", "benchmark/m5/recipe.json":"M", "benchmark/m5/test_contracts.py":"M", "benchmark/m5/train_gpu.py":"M", "benchmark/evidence/m5/initial-parity-diagnostic.json":"A", "scripts/check-m5-authorized-chain.mjs":"M", "scripts/check-m5-run-authorization-stage.mjs":"M", "scripts/check-m5-source-recovery-stage.mjs":"M", "scripts/m5-run-authorization.mjs":"M", "scripts/m5-stage-policy.mjs":"M", "scripts/m5-training-contract.mjs":"M", "scripts/run-static-verification.mjs":"M", "scripts/test-m5-stage-policy.mjs":"M", "scripts/test-m5-training-contract.mjs":"M",
+}
 M5_SOURCE_RECOVERY_ROWS = {
     "benchmark/m5/README.md": "M",
     "benchmark/m5/contracts.py": "M",
@@ -366,7 +375,7 @@ def resolve_authorized_protocol_commit() -> str:
 
 
 def require_public_authorization_commit(authorization_commit: str) -> dict[str, Any]:
-    """Require anonymous public main and exact-head green quality for P4."""
+    """Require anonymous public main and exact-head green quality for A5."""
     opener = build_opener(ProxyHandler({}))
     reference_request = Request(
         "https://api.github.com/repos/baney75/prooflens/git/ref/heads/main",
@@ -375,7 +384,7 @@ def require_public_authorization_commit(authorization_commit: str) -> dict[str, 
     with opener.open(reference_request, timeout=30) as response:
         reference = json.loads(response.read().decode("utf-8", errors="strict"))
     if reference.get("object", {}).get("sha") != authorization_commit:
-        raise ValueError("M5 runtime requires the exact public P4 main head")
+        raise ValueError("M5 runtime requires the exact public A5 main head")
     request = Request(
         f"https://api.github.com/repos/baney75/prooflens/actions/runs?event=push&head_sha={authorization_commit}&per_page=100",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "seroslop-m5-runtime"},
@@ -390,7 +399,7 @@ def require_public_authorization_commit(authorization_commit: str) -> dict[str, 
         and row.get("path") == ".github/workflows/quality.yml"
     )), None)
     if run_row is None:
-        raise ValueError("M5 runtime requires exact-head successful public P4 quality CI")
+        raise ValueError("M5 runtime requires exact-head successful public A5 quality CI")
     return {
         "conclusion": "success",
         "event": "push",
@@ -403,11 +412,11 @@ def require_public_authorization_commit(authorization_commit: str) -> dict[str, 
 
 
 def resolve_authorized_run() -> tuple[str, str, str, dict[str, Any]]:
-    """Require the clean public numeric authorization and return its proof."""
+    """Require the clean public A5 parity authorization and return its proof."""
     head = run(["git", "rev-parse", "HEAD"])
     parents = run(["git", "rev-list", "--parents", "-n", "1", head]).split()[1:]
     if len(parents) != 1:
-        raise ValueError("M5 runtime requires the receipt-only numeric authorization child")
+        raise ValueError("M5 runtime requires the receipt-only A5 authorization child")
     source = parents[0]
     validated_source, source_tree, _receipt_sha256 = validate_authorization_commit(head)
     if validated_source != source:
@@ -427,45 +436,21 @@ def commit_rows(commit: str) -> dict[str, str]:
 
 
 def validate_source_recovery_history(source: str) -> None:
-    source_parents = run(["git", "rev-list", "--parents", "-n", "1", source]).split()[1:]
-    runpod_environment_authorization_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_RUNPOD_ENV_AUTHORIZATION_COMMIT]).split()[1:]
-    runpod_environment_recovery_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_RUNPOD_ENV_RECOVERY_COMMIT]).split()[1:]
-    runtime_authorization_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_RUNTIME_AUTHORIZATION_COMMIT]).split()[1:]
-    runtime_recovery_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_RUNTIME_RECOVERY_COMMIT]).split()[1:]
-    p4_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_P4_COMMIT]).split()[1:]
-    ci_recovery_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_CI_RECOVERY_COMMIT]).split()[1:]
-    failed_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_FAILED_SOURCE_COMMIT]).split()[1:]
-    if (source_parents != [M5_RUNPOD_ENV_AUTHORIZATION_COMMIT]
-            or commit_rows(source) != M5_NUMERIC_AUDIT_RECOVERY_ROWS
-            or run(["git", "rev-parse", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}^{{tree}}"] ) != M5_RUNPOD_ENV_AUTHORIZATION_TREE
-            or runpod_environment_authorization_parents != [M5_RUNPOD_ENV_RECOVERY_COMMIT]
-            or commit_rows(M5_RUNPOD_ENV_AUTHORIZATION_COMMIT) != {M5_RUNPOD_ENV_AUTHORIZATION_PATH: "A"}
-            or sha256(git_bytes(["show", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}:{M5_RUNPOD_ENV_AUTHORIZATION_PATH}"])).hexdigest() != M5_RUNPOD_ENV_AUTHORIZATION_SHA256
-            or run(["git", "rev-parse", f"{M5_RUNPOD_ENV_RECOVERY_COMMIT}^{{tree}}"] ) != M5_RUNPOD_ENV_RECOVERY_TREE
-            or runpod_environment_recovery_parents != [M5_RUNTIME_AUTHORIZATION_COMMIT]
-            or commit_rows(M5_RUNPOD_ENV_RECOVERY_COMMIT) != M5_RUNPOD_ENV_RECOVERY_ROWS
-            or run(["git", "rev-parse", f"{M5_RUNTIME_AUTHORIZATION_COMMIT}^{{tree}}"] ) != M5_RUNTIME_AUTHORIZATION_TREE
-            or runtime_authorization_parents != [M5_RUNTIME_RECOVERY_COMMIT]
-            or commit_rows(M5_RUNTIME_AUTHORIZATION_COMMIT) != {M5_RUNTIME_AUTHORIZATION_PATH: "A"}
-            or sha256(git_bytes(["show", f"{M5_RUNTIME_AUTHORIZATION_COMMIT}:{M5_RUNTIME_AUTHORIZATION_PATH}"])).hexdigest() != M5_RUNTIME_AUTHORIZATION_SHA256
-            or run(["git", "rev-parse", f"{M5_RUNTIME_RECOVERY_COMMIT}^{{tree}}"] ) != M5_RUNTIME_RECOVERY_TREE
-            or runtime_recovery_parents != [M5_P4_COMMIT]
-            or commit_rows(M5_RUNTIME_RECOVERY_COMMIT) != M5_RUNTIME_RECOVERY_ROWS
-            or run(["git", "rev-parse", f"{M5_P4_COMMIT}^{{tree}}"] ) != M5_P4_TREE
-            or p4_parents != [M5_CI_RECOVERY_COMMIT]
-            or commit_rows(M5_P4_COMMIT) != {M5_RUN_AUTHORIZATION_PATH: "A"}
-            or run(["git", "rev-parse", f"{M5_CI_RECOVERY_COMMIT}^{{tree}}"] ) != M5_CI_RECOVERY_TREE
-            or ci_recovery_parents != [M5_FAILED_SOURCE_COMMIT]
-            or commit_rows(M5_CI_RECOVERY_COMMIT) != M5_SOURCE_CI_RECOVERY_ROWS
-            or run(["git", "rev-parse", f"{M5_FAILED_SOURCE_COMMIT}^{{tree}}"] ) != M5_FAILED_SOURCE_TREE
-            or failed_parents != [M5_P2_COMMIT]
-            or commit_rows(M5_FAILED_SOURCE_COMMIT) != M5_SOURCE_RECOVERY_ROWS
-            or run(["git", "rev-parse", f"{M5_P2_COMMIT}^{{tree}}"] ) != M5_P2_TREE):
-        raise ValueError("M5 runtime requires the exact P2 -> failed P3 -> CI recovery -> P4 -> runtime recovery -> RunPod environment recovery -> numeric audit recovery history")
+    # R5 is the exact sole child of public A4; older recovery descendants are
+    # cryptographically bound by A4's fixed tree and receipt digest.
+    if run(["git", "rev-list", "--parents", "-n", "1", source]).split()[1:] == [M5_A4_COMMIT] and commit_rows(source) == M5_R5_ROWS:
+        if (
+            run(["git", "rev-parse", f"{M5_A4_COMMIT}^{{tree}}"]) != M5_A4_TREE
+            or commit_rows(M5_A4_COMMIT) != {M5_NUMERIC_AUDIT_AUTHORIZATION_PATH: "A"}
+            or sha256(git_bytes(["show", f"{M5_A4_COMMIT}:{M5_NUMERIC_AUDIT_AUTHORIZATION_PATH}"])).hexdigest() != M5_A4_AUTHORIZATION_SHA256
+        ):
+            raise ValueError("M5 A4 tree or receipt changed")
+        return
+    raise ValueError("M5 runtime requires exact A4 -> R5 recovery history")
 
 
 def validate_authorization_commit(authorization_commit: str) -> tuple[str, str, str]:
-    """Validate numeric authorization and return (recovered source, tree, receipt SHA-256)."""
+    """Validate A5 authorization and return (recovered source, tree, receipt SHA-256)."""
     authorization_parents = run(["git", "rev-list", "--parents", "-n", "1", authorization_commit]).split()[1:]
     if len(authorization_parents) != 1:
         raise ValueError("M5 authorization must have one source parent")
@@ -474,34 +459,36 @@ def validate_authorization_commit(authorization_commit: str) -> tuple[str, str, 
     for line in run(["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", authorization_commit]).splitlines():
         status, pathname = line.split("\t", maxsplit=1)
         if pathname in authorization_rows:
-            raise ValueError("M5 P4 authorization contains a duplicate path")
+            raise ValueError("M5 A5 authorization contains a duplicate path")
         authorization_rows[pathname] = status
-    if authorization_rows != {M5_NUMERIC_AUDIT_AUTHORIZATION_PATH: "A"}:
-        raise ValueError("M5 numeric audit authorization must be an exact receipt-only commit")
+    if authorization_rows != {M5_A5_AUTHORIZATION_PATH: "A"}:
+        raise ValueError("M5 A5 authorization must be an exact receipt-only commit")
+    if source == M5_A4_COMMIT or run(["git", "rev-parse", f"{M5_A4_COMMIT}^{{tree}}"]) != M5_A4_TREE:
+        raise ValueError("M5 A4 parent changed")
     validate_source_recovery_history(source)
-    prior_raw = git_bytes(["show", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}:{M5_RUNPOD_ENV_AUTHORIZATION_PATH}"])
-    if sha256(prior_raw).hexdigest() != M5_RUNPOD_ENV_AUTHORIZATION_SHA256:
-        raise ValueError("M5 prior RunPod environment authorization bytes changed")
-    auth_path = ROOT / M5_NUMERIC_AUDIT_AUTHORIZATION_PATH
+    prior_raw = git_bytes(["show", f"{M5_A4_COMMIT}:{M5_NUMERIC_AUDIT_AUTHORIZATION_PATH}"])
+    if sha256(prior_raw).hexdigest() != M5_A4_AUTHORIZATION_SHA256:
+        raise ValueError("M5 prior numeric authorization bytes changed")
+    auth_path = ROOT / M5_A5_AUTHORIZATION_PATH
     raw = auth_path.read_bytes() if auth_path.is_file() and not auth_path.is_symlink() else b""
-    if not raw or raw != canonical_json(parse_json_bytes(raw, label="M5 numeric audit authorization")):
-        raise ValueError("M5 runtime requires canonical numeric audit authorization")
-    receipt = parse_json_bytes(raw, label="M5 numeric audit authorization")
-    committed_raw = git_bytes(["show", f"{authorization_commit}:{M5_NUMERIC_AUDIT_AUTHORIZATION_PATH}"])
+    if not raw or raw != canonical_json(parse_json_bytes(raw, label="M5 A5 parity authorization")):
+        raise ValueError("M5 runtime requires canonical A5 parity authorization")
+    receipt = parse_json_bytes(raw, label="M5 A5 parity authorization")
+    committed_raw = git_bytes(["show", f"{authorization_commit}:{M5_A5_AUTHORIZATION_PATH}"])
     if committed_raw != raw:
-        raise ValueError("M5 inherited runtime authorization bytes changed")
+        raise ValueError("M5 A5 authorization bytes changed")
     source_tree = run(["git", "rev-parse", f"{source}^{{tree}}"])
     expected_map = [
         {"path": path, "sha256": sha256(git_bytes(["show", f"{source}:{path}"])).hexdigest()}
-        for path in sorted(M5_SOURCE_RECOVERY_PATHS)
+        for path in sorted(M5_R5_ROWS)
     ]
-    validate_numeric_audit_authorization(
+    validate_parity_recovery_authorization(
         receipt,
         protocol_commit=M5_P2_COMMIT,
         protocol_tree=M5_P2_TREE,
-        prior_authorization_commit=M5_RUNPOD_ENV_AUTHORIZATION_COMMIT,
-        prior_authorization_tree=M5_RUNPOD_ENV_AUTHORIZATION_TREE,
-        prior_authorization_sha256=M5_RUNPOD_ENV_AUTHORIZATION_SHA256,
+        prior_authorization_commit=M5_A4_COMMIT,
+        prior_authorization_tree=M5_A4_TREE,
+        prior_authorization_sha256=M5_A4_AUTHORIZATION_SHA256,
         source_commit=source,
         source_tree=source_tree,
         source_path_map=expected_map,
@@ -796,9 +783,9 @@ def verify_initial_model_parity(model: Any, items: Sequence[Item], recipe: Mappi
     pixels = np.stack(arrays).astype(np.float32)
     with torch.inference_mode():
         reference = model(pixel_values=torch.from_numpy(pixels)).logits.detach().cpu().numpy()
-    providers = ort.get_available_providers()
-    provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in providers else "CPUExecutionProvider"
-    session = ort.InferenceSession(str(ROOT / recipe["initialModel"]["path"]), providers=[provider])
+    providers = ort_cuda_providers(ort)
+    provider = providers[0][0] if isinstance(providers[0], tuple) else providers[0]
+    session = ort.InferenceSession(str(ROOT / recipe["initialModel"]["path"]), providers=providers)
     actual = session.run(["logits"], {"pixel_values": pixels})[0]
     maximum = float(np.max(np.abs(reference - actual)))
     if maximum > recipe["initialModel"]["maximumPytorchOnnxParityError"]:
@@ -1112,7 +1099,14 @@ def load_checkpoint_model(base_model: Any, checkpoint: Path) -> Any:
     return model
 
 
-def export_onnx(model: Any, destination: Path, recipe: Mapping[str, Any]) -> dict[str, Any]:
+def export_onnx(
+    model: Any,
+    destination: Path,
+    recipe: Mapping[str, Any],
+    *,
+    parity_pixels: np.ndarray | None = None,
+    providers: list[Any] | None = None,
+) -> dict[str, Any]:
     import onnx
     import onnxruntime as ort
     import torch
@@ -1135,13 +1129,23 @@ def export_onnx(model: Any, destination: Path, recipe: Mapping[str, Any]) -> dic
     onnx.checker.check_model(graph, full_check=True)
     if destination.stat().st_size > recipe["deliverable"]["maximumBytes"]:
         raise ValueError("M5 candidate exceeds the browser model-size gate")
-    providers = ort.get_available_providers()
-    provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in providers else "CPUExecutionProvider"
-    session = ort.InferenceSession(str(destination), providers=[provider])
+    providers = providers if providers is not None else ort_cuda_providers(ort)
+    if not providers:
+        raise ValueError("M5 ONNX export parity requires an execution provider")
+    provider = providers[0][0] if isinstance(providers[0], tuple) else providers[0]
+    session = ort.InferenceSession(str(destination), providers=providers)
     with torch.no_grad():
         reference = wrapper(dummy).detach().cpu().numpy()
     actual = session.run(["logits"], {"pixel_values": dummy.numpy()})[0]
     parity = float(np.max(np.abs(reference - actual)))
+    if parity_pixels is not None:
+        pixels = np.asarray(parity_pixels, dtype=np.float32)
+        if pixels.ndim != 4 or pixels.shape[1:] != (3, INPUT_SIZE, INPUT_SIZE) or not np.any(pixels != 0):
+            raise ValueError("M5 export parity probe must be a nonzero NCHW image batch")
+        with torch.no_grad():
+            reference = wrapper(torch.from_numpy(pixels)).detach().cpu().numpy()
+        actual = session.run(["logits"], {"pixel_values": pixels})[0]
+        parity = max(parity, float(np.max(np.abs(reference - actual))))
     if parity > recipe["initialModel"]["maximumPytorchOnnxParityError"]:
         raise ValueError(f"M5 ONNX parity failed: {parity}")
     return {
@@ -1150,17 +1154,17 @@ def export_onnx(model: Any, destination: Path, recipe: Mapping[str, Any]) -> dic
         "sha256": digest_file(destination),
         "parityMaximumAbsoluteError": parity,
         "parityProvider": provider,
+        "parityProviderOptions": {"use_tf32": "0"} if provider == "CUDAExecutionProvider" else {},
     }
 
 
-def predict_variant(
-    model: Any,
+def predict_onnx_variant(
+    session: Any,
     items: Sequence[Item],
     variant: str,
     recipe: Mapping[str, Any],
     budget: PaidTimeBudget,
 ) -> list[float]:
-    import torch
     from torch.utils.data import DataLoader
 
     dataset = ImageDataset(items, branch="selector", epoch=0, variant=variant, training=False)
@@ -1172,16 +1176,11 @@ def predict_variant(
         pin_memory=True,
         collate_fn=collate,
     )
-    model = model.to("cuda").eval()
     values: list[float] = []
-    with torch.inference_mode():
-        for batch_index, (pixels, _labels, _weights, _anchors, _indexes) in enumerate(loader, start=1):
-            budget.check(f"selector-{variant}-batch-{batch_index}")
-            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                logits = model(pixel_values=pixels.to("cuda", non_blocking=True)).logits.reshape(-1).float()
-            values.extend(float(value) for value in logits.cpu().numpy())
-    model.to("cpu")
-    torch.cuda.empty_cache()
+    for batch_index, (pixels, _labels, _weights, _anchors, _indexes) in enumerate(loader, start=1):
+        budget.check(f"selector-onnx-{variant}-batch-{batch_index}")
+        logits = session.run(["logits"], {"pixel_values": pixels.numpy()})[0]
+        values.extend(float(value) for value in np.asarray(logits, dtype=np.float32).reshape(-1))
     return values
 
 
@@ -1232,8 +1231,13 @@ def evaluate_candidates(
         model = load_checkpoint_model(base_model, checkpoint)
         candidate_id = checkpoint.stem
         onnx_path = output_dir / "models" / f"{candidate_id}.onnx"
-        model_receipt = export_onnx(model, onnx_path, recipe)
-        logits = {variant: predict_variant(model, selector_items, variant, recipe, budget) for variant in VARIANTS}
+        with Image.open(selector_items[0].path) as opened:
+            probe_image = ImageOps.exif_transpose(opened).convert("RGB")
+        probe = preprocess_image(probe_image, selector_items[0], "original", training=False, branch="selector-parity", epoch=0)
+        model_receipt = export_onnx(model, onnx_path, recipe, parity_pixels=np.expand_dims(probe, axis=0))
+        import onnxruntime as ort
+        session = ort.InferenceSession(str(onnx_path), providers=ort_cuda_providers(ort))
+        logits = {variant: predict_onnx_variant(session, selector_items, variant, recipe, budget) for variant in VARIANTS}
         selected = choose_selector_threshold(logits, selector_rows, recipe["selection"]["gates"])
         row: dict[str, Any] = {
             "candidateId": candidate_id,
@@ -1484,7 +1488,12 @@ def run_preflight(
     teacher.to("cpu")
     torch.cuda.empty_cache()
     budget.check("preflight-export")
-    model_receipt = export_onnx(model, preflight_dir / "model.onnx", recipe)
+    model_receipt = export_onnx(
+        model,
+        preflight_dir / "model.onnx",
+        recipe,
+        parity_pixels=pixels.detach().cpu().numpy()[:1],
+    )
     receipt = {
         "schemaVersion": 1,
         "status": "preflight-pass",
@@ -1549,7 +1558,7 @@ def execute(args: argparse.Namespace) -> int:
     environment["sourceCommit"] = protocol_commit
     environment["sourceTree"] = source_tree
     environment["authorizationCommit"] = authorization_commit
-    environment["authorizationReceiptSha256"] = digest_file(ROOT / M5_NUMERIC_AUDIT_AUTHORIZATION_PATH)
+    environment["authorizationReceiptSha256"] = digest_file(ROOT / M5_A5_AUTHORIZATION_PATH)
     environment["authorizationPublicCi"] = authorization_public_ci
     validate_environment_receipt(environment, recipe)
     validate_environment_matches_provisioning(environment, provisioning)

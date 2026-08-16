@@ -62,6 +62,7 @@ from benchmark.m5.contracts import (
     read_jsonl,
     validate_regression_state,
     validate_selection_lock,
+    ort_cuda_providers,
 )
 from benchmark.m5.large_synthetic import DATA_ROOT, verify_public_packet
 from benchmark.m5.train_gpu import Item, assert_worktree_exact, git_text, preprocess_image, validate_authorization_commit
@@ -281,9 +282,7 @@ def execute(args: argparse.Namespace) -> int:
     model_path = ROOT / selection["selectedModel"]["path"]
     if model_path.stat().st_size != selection["selectedModel"]["bytes"] or digest_file(model_path) != selection["selectedModel"]["sha256"]:
         raise ValueError("M5 large-synthetic selected model bytes changed")
-    if "CUDAExecutionProvider" not in ort.get_available_providers():
-        raise ValueError("M5 100,000-image evaluation requires CUDAExecutionProvider")
-    session = ort.InferenceSession(str(model_path), providers=["CUDAExecutionProvider"])
+    session = ort.InferenceSession(str(model_path), providers=ort_cuda_providers(ort))
     rows = load_rows(recipe)
     threshold = float(selection["rawThreshold"])
     logits: list[float] = []

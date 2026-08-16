@@ -16,6 +16,17 @@ from typing import Any, Iterable, Mapping, Sequence
 
 
 VARIANTS = ("original", "screenshot", "social-q75", "social-heavy")
+
+# Every M5 ONNX score is pinned to CUDA with TF32 disabled.  Keeping this as
+# data (rather than relying on ORT's defaults) makes parity reproducible across
+# the train, replay, and large-panel processes.
+ORT_CUDA_PROVIDER = ("CUDAExecutionProvider", {"use_tf32": "0"})
+
+
+def ort_cuda_providers(ort: Any) -> list[tuple[str, dict[str, str]]]:
+    if "CUDAExecutionProvider" not in ort.get_available_providers():
+        raise ValueError("M5 requires CUDAExecutionProvider")
+    return [(ORT_CUDA_PROVIDER[0], dict(ORT_CUDA_PROVIDER[1]))]
 ROOT = Path(__file__).resolve().parents[2]
 SELECTOR_SOURCES = (
     "british-library-plates",
@@ -75,6 +86,35 @@ def load_recipe(path: Path) -> dict[str, Any]:
     recipe = parse_json_bytes(path.read_bytes(), label="recipe")
     validate_recipe(recipe)
     return recipe
+
+
+def validate_initial_parity_diagnostic(value: Mapping[str, Any], recipe: Mapping[str, Any]) -> None:
+    if not isinstance(value, Mapping):
+        raise ValueError("M5 initial parity diagnostic must be an object")
+    required = {"comparisons", "h3PixelsRead", "items", "modelSha256", "pixelsSha256", "providers", "schemaVersion", "selectorRead", "status", "terminalRegressionsRead"}
+    if set(value) != required or value["schemaVersion"] != 1 or value["status"] != "m5-initial-parity-diagnostic" or value["items"] != 16:
+        raise ValueError("M5 initial parity diagnostic schema changed")
+    if value["modelSha256"] != recipe["initialModel"]["sha256"] or value["h3PixelsRead"] or value["selectorRead"] or value["terminalRegressionsRead"]:
+        raise ValueError("M5 initial parity diagnostic boundary changed")
+    if not isinstance(value.get("comparisons"), Mapping) or not isinstance(value.get("providers"), Mapping):
+        raise ValueError("M5 initial parity diagnostic nested objects changed")
+    comparisons = value["comparisons"]
+    for name in ("pytorchCpuVsOrtCudaDefault", "pytorchCpuVsOrtCudaTf32Disabled"):
+        if not isinstance(comparisons.get(name), Mapping) or not isinstance(comparisons[name].get("maximumAbsoluteError"), (int, float)):
+            raise ValueError("M5 initial parity diagnostic comparison types changed")
+    if comparisons["pytorchCpuVsOrtCudaDefault"]["maximumAbsoluteError"] <= 0.02:
+        raise ValueError("M5 initial parity diagnostic does not record the TF32/default failure")
+    if comparisons["pytorchCpuVsOrtCudaTf32Disabled"]["maximumAbsoluteError"] > recipe["initialModel"]["maximumPytorchOnnxParityError"]:
+        raise ValueError("M5 TF32-disabled parity diagnostic exceeds the frozen tolerance")
+    try:
+        options = value["providers"]["cudaTf32Disabled"]["CUDAExecutionProvider"]
+        default_options = value["providers"]["cudaDefault"]["CUDAExecutionProvider"]
+    except (KeyError, TypeError):
+        raise ValueError("M5 parity diagnostic provider nesting changed") from None
+    if not isinstance(options, Mapping) or not isinstance(default_options, Mapping):
+        raise ValueError("M5 parity diagnostic provider types changed")
+    if options.get("use_tf32") != "0" or default_options.get("use_tf32") != "1":
+        raise ValueError("M5 parity diagnostic provider evidence changed")
 
 
 def _require_keys(value: Mapping[str, Any], keys: set[str], label: str) -> None:
@@ -139,6 +179,13 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
     }:
         raise ValueError("M5 browser preprocessing changed")
     source = recipe["sourceEvidence"]
+    diagnostic = source["initialParityDiagnostic"]
+    if diagnostic != {
+        "path": "benchmark/evidence/m5/initial-parity-diagnostic.json",
+        "sha256": "c9c673efa0b1a6e4ea79b195ec16c71ae8ac91f962390a49c4e570b6d8de5c11",
+    } or digest_file(ROOT / diagnostic["path"]) != diagnostic["sha256"]:
+        raise ValueError("M5 initial parity diagnostic binding changed")
+    validate_initial_parity_diagnostic(parse_json_bytes((ROOT / diagnostic["path"]).read_bytes(), label="initial parity diagnostic"), recipe)
     training_manifest = source["trainingManifest"]
     if training_manifest != {
         "trackedPath": "benchmark/evidence/m4/train-manifest.jsonl.gz",
@@ -164,7 +211,7 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
         raise ValueError("M5 fresh selector binding changed")
     training = recipe["training"]
     _require_keys(training, {
-        "provider", "providerIdentityEvidence", "providerSignedAttestation", "runtimeConsistencyEvidence",
+        "provider", "onnxRuntimeProviderPolicy", "providerIdentityEvidence", "providerSignedAttestation", "runtimeConsistencyEvidence",
         "requiredGpuProduct", "containerImage", "requirementsPath", "requirementsSha256",
         "minimumGpuMemoryBytes", "provisioningReceiptPath", "maximumPaidWallClockSeconds",
         "deadlineSafetySeconds", "providerAutoStopAvailable", "providerAutoStopRequired", "stopControl",
@@ -175,6 +222,7 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
     }, "training")
     if (
         training["provider"] != "RunPod Secure Cloud (operator-recorded control-plane receipt)"
+        or training["onnxRuntimeProviderPolicy"] != {"provider": "CUDAExecutionProvider", "useTf32": False}
         or training["providerIdentityEvidence"] != "operator-attested-control-plane-observation"
         or training["providerSignedAttestation"] is not False
         or training["runtimeConsistencyEvidence"] != "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt"
@@ -821,6 +869,73 @@ def validate_numeric_audit_authorization(
         raise ValueError("M5 numeric audit public CI binding changed")
 
 
+def validate_parity_recovery_authorization(
+    receipt: Mapping[str, Any],
+    *,
+    protocol_commit: str,
+    protocol_tree: str,
+    prior_authorization_commit: str,
+    prior_authorization_tree: str,
+    prior_authorization_sha256: str,
+    source_commit: str,
+    source_tree: str,
+    source_path_map: Sequence[Mapping[str, Any]],
+) -> None:
+    """Validate the receipt authorizing the TF32-off, ONNX-scored recovery."""
+    _require_keys(receipt, {
+        "schemaVersion", "status", "protocolCommit", "protocolTree",
+        "priorAuthorizationCommit", "priorAuthorizationTree", "priorAuthorizationPath",
+        "priorAuthorizationSha256", "sourceCommit", "sourceTree", "sourcePathMap",
+        "parityBoundary", "diagnosticSha256", "sourcePublicCi", "authorizationPath",
+        "scoreBlind", "h3PixelsRead",
+    }, "M5 parity recovery authorization")
+    if (
+        receipt["schemaVersion"] != 5
+        or receipt["status"] != "m5-parity-recovery-authorized"
+        or receipt["protocolCommit"] != protocol_commit
+        or receipt["protocolTree"] != protocol_tree
+        or receipt["priorAuthorizationCommit"] != prior_authorization_commit
+        or receipt["priorAuthorizationTree"] != prior_authorization_tree
+        or receipt["priorAuthorizationPath"] != "benchmark/evidence/m5/numeric-audit-authorization.json"
+        or receipt["priorAuthorizationSha256"] != prior_authorization_sha256
+        or receipt["sourceCommit"] != source_commit
+        or receipt["sourceTree"] != source_tree
+        or list(receipt["sourcePathMap"]) != list(source_path_map)
+        or receipt["parityBoundary"] != "packaged-m2-reference-preserved-real-input-parity-and-onnx-scoring"
+        or receipt["diagnosticSha256"] != "c9c673efa0b1a6e4ea79b195ec16c71ae8ac91f962390a49c4e570b6d8de5c11"
+        or receipt["authorizationPath"] != "benchmark/evidence/m5/parity-recovery-authorization.json"
+        or receipt["scoreBlind"] is not True
+        or receipt["h3PixelsRead"] is not False
+    ):
+        raise ValueError("M5 parity recovery authorization binding changed")
+    for value in (
+        protocol_commit, protocol_tree, prior_authorization_commit,
+        prior_authorization_tree, source_commit, source_tree,
+    ):
+        if not HEX40.fullmatch(str(value)):
+            raise ValueError("M5 parity recovery authorization Git identity is invalid")
+    if not HEX64.fullmatch(str(prior_authorization_sha256)):
+        raise ValueError("M5 prior numeric authorization digest is invalid")
+    for row in receipt["sourcePathMap"]:
+        _require_keys(row, {"path", "sha256"}, "M5 parity recovery source path")
+        if not isinstance(row["path"], str) or not HEX64.fullmatch(str(row["sha256"])):
+            raise ValueError("M5 parity recovery source path digest is invalid")
+    source_ci = receipt["sourcePublicCi"]
+    _require_keys(source_ci, {"conclusion", "event", "headSha", "runId", "status", "url", "workflowPath"}, "M5 parity recovery public CI")
+    if (
+        source_ci["conclusion"] != "success"
+        or source_ci["event"] != "push"
+        or source_ci["headSha"] != source_commit
+        or isinstance(source_ci["runId"], bool)
+        or not isinstance(source_ci["runId"], int)
+        or source_ci["runId"] <= 0
+        or source_ci["status"] != "completed"
+        or source_ci["url"] != f"https://github.com/baney75/prooflens/actions/runs/{source_ci['runId']}"
+        or source_ci["workflowPath"] != ".github/workflows/quality.yml"
+    ):
+        raise ValueError("M5 parity recovery public CI binding changed")
+
+
 def validate_provisioning_receipt(receipt: Mapping[str, Any], recipe: Mapping[str, Any]) -> None:
     _require_keys(
         receipt,
@@ -1189,12 +1304,14 @@ def validate_selection_lock(
         accepted_keys = common_keys | {"rawThreshold", "metrics", "selectionKey"}
         _require_keys(candidate, accepted_keys if candidate.get("accepted") is True else common_keys, "candidate")
         model = candidate["model"]
-        _require_keys(model, {"path", "bytes", "sha256", "parityMaximumAbsoluteError", "parityProvider"}, "candidate model")
+        _require_keys(model, {"path", "bytes", "sha256", "parityMaximumAbsoluteError", "parityProvider", "parityProviderOptions"}, "candidate model")
         if (
             not isinstance(model["bytes"], int)
             or model["bytes"] <= 0
             or model["bytes"] > recipe["deliverable"]["maximumBytes"]
             or not HEX64.fullmatch(str(model["sha256"]))
+            or model["parityProvider"] != "CUDAExecutionProvider"
+            or model["parityProviderOptions"] != {"use_tf32": "0"}
             or float(model["parityMaximumAbsoluteError"]) > recipe["initialModel"]["maximumPytorchOnnxParityError"]
         ):
             raise ValueError("M5 candidate model receipt is invalid")

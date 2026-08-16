@@ -29,10 +29,14 @@ export function validateM5Recipe(recipe) {
       recipe.sourceEvidence.trainingManifest.compressedSha256 !== "e5dfc79869541ae5c6703b60de250930f1fb8247790f55b67bb1805f5ac73a93" ||
       recipe.sourceEvidence.selectorManifest.items !== 600 ||
       recipe.sourceEvidence.selectorManifest.sha256 !== "643eb365a603309b94b112403ef4250b565b9863d2ec61a5cc48aa80d5f85caa" ||
+      recipe.sourceEvidence.initialParityDiagnostic.path !== "benchmark/evidence/m5/initial-parity-diagnostic.json" ||
+      recipe.sourceEvidence.initialParityDiagnostic.sha256 !== "c9c673efa0b1a6e4ea79b195ec16c71ae8ac91f962390a49c4e570b6d8de5c11" ||
+      createHash("sha256").update(readFileSync(recipe.sourceEvidence.initialParityDiagnostic.path)).digest("hex") !== recipe.sourceEvidence.initialParityDiagnostic.sha256 ||
       recipe.sourceEvidence.h3PixelsRead !== false) {
     throw new Error("M5 score-blind source packet changed");
   }
-  if (recipe.training.provider !== "RunPod Secure Cloud (operator-recorded control-plane receipt)" ||
+  if (JSON.stringify(recipe.training.onnxRuntimeProviderPolicy) !== JSON.stringify({ provider: "CUDAExecutionProvider", useTf32: false }) ||
+      recipe.training.provider !== "RunPod Secure Cloud (operator-recorded control-plane receipt)" ||
       recipe.training.providerIdentityEvidence !== "operator-attested-control-plane-observation" ||
       recipe.training.providerSignedAttestation !== false ||
       recipe.training.runtimeConsistencyEvidence !== "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt" ||

@@ -6,6 +6,7 @@ from collections import namedtuple
 import gzip
 from hashlib import sha256
 import io
+import inspect
 import json
 import math
 import os
@@ -41,9 +42,13 @@ from benchmark.m5.contracts import (
     validate_failure_receipt,
     validate_manifest_rows,
     validate_numeric_audit_authorization,
+    validate_parity_recovery_authorization,
     validate_recipe,
+    validate_initial_parity_diagnostic,
     validate_selection_lock,
     canonical_json,
+    ort_cuda_providers,
+    parse_json_bytes,
 )
 from benchmark.m5.train_gpu import (
     M5_BASE_SOURCE_COMMIT,
@@ -58,6 +63,9 @@ from benchmark.m5.train_gpu import (
     M5_P2_TREE,
     M5_P4_COMMIT,
     M5_P4_TREE,
+    M5_A4_COMMIT,
+    M5_A4_TREE,
+    M5_R5_ROWS,
     M5_RUNTIME_AUTHORIZATION_COMMIT,
     M5_RUNTIME_AUTHORIZATION_TREE,
     M5_RUNTIME_RECOVERY_COMMIT,
@@ -76,10 +84,12 @@ from benchmark.m5.train_gpu import (
     accumulation_window_samples,
     atomic_torch_save,
     ensure_run_marker,
+    evaluate_candidates,
     export_onnx,
     load_or_recover_branch_history,
     pack_float32,
     parser as training_parser,
+    predict_onnx_variant,
     resolve_authorized_protocol_commit,
     validate_source_recovery_history,
     write_json,
@@ -184,6 +194,27 @@ def training_summary_fixture(
 
 
 class M5ContractsTest(unittest.TestCase):
+
+    def test_initial_parity_diagnostic_is_score_blind_and_tf32_bound(self) -> None:
+        diagnostic_path = ROOT / self.recipe["sourceEvidence"]["initialParityDiagnostic"]["path"]
+        diagnostic = parse_json_bytes(diagnostic_path.read_bytes(), label="initial parity diagnostic")
+        validate_initial_parity_diagnostic(diagnostic, self.recipe)
+
+    def test_onnx_scoring_disables_tf32_and_uses_exported_candidates(self) -> None:
+        fake_ort = SimpleNamespace(get_available_providers=lambda: ["CUDAExecutionProvider", "CPUExecutionProvider"])
+        self.assertEqual(
+            ort_cuda_providers(fake_ort),
+            [("CUDAExecutionProvider", {"use_tf32": "0"})],
+        )
+        with self.assertRaisesRegex(ValueError, "CUDAExecutionProvider"):
+            ort_cuda_providers(SimpleNamespace(get_available_providers=lambda: ["CPUExecutionProvider"]))
+        evaluation_source = inspect.getsource(evaluate_candidates)
+        prediction_source = inspect.getsource(predict_onnx_variant)
+        self.assertIn("export_onnx", evaluation_source)
+        self.assertIn("ort.InferenceSession", evaluation_source)
+        self.assertIn("predict_onnx_variant", evaluation_source)
+        self.assertIn("session.run", prediction_source)
+        self.assertNotIn("autocast", prediction_source)
 
     def test_run_authorization_binds_exact_p3_source(self) -> None:
         paths = [
@@ -318,6 +349,45 @@ class M5ContractsTest(unittest.TestCase):
             broken[key] = "e" * (64 if key.endswith("Sha256") else 40)
             with self.assertRaises(ValueError):
                 validate_numeric_audit_authorization(broken, **arguments)
+
+    def test_parity_recovery_authorization_binds_a4_and_r5(self) -> None:
+        paths = [{"path": "benchmark/m5/train_gpu.py", "sha256": "a" * 64}]
+        receipt = {
+            "schemaVersion": 5, "status": "m5-parity-recovery-authorized",
+            "protocolCommit": M5_P2_COMMIT, "protocolTree": M5_P2_TREE,
+            "priorAuthorizationCommit": "f3d86077cf5e7a124d09b593d69e9a1769d7e295",
+            "priorAuthorizationTree": "d93819ff013943ac48c6dafc659effc9cfbf3e95",
+            "priorAuthorizationPath": "benchmark/evidence/m5/numeric-audit-authorization.json",
+            "priorAuthorizationSha256": "8286dc24babe83a16fdf898fa5e70b6202a1da8c46ae2aeda8cf557134db0f03",
+            "sourceCommit": "c" * 40, "sourceTree": "d" * 40, "sourcePathMap": paths,
+            "sourcePublicCi": {
+                "conclusion": "success", "event": "push", "headSha": "c" * 40,
+                "runId": 988, "status": "completed",
+                "url": "https://github.com/baney75/prooflens/actions/runs/988",
+                "workflowPath": ".github/workflows/quality.yml",
+            },
+            "parityBoundary": "packaged-m2-reference-preserved-real-input-parity-and-onnx-scoring",
+            "diagnosticSha256": "c9c673efa0b1a6e4ea79b195ec16c71ae8ac91f962390a49c4e570b6d8de5c11",
+            "authorizationPath": "benchmark/evidence/m5/parity-recovery-authorization.json",
+            "scoreBlind": True, "h3PixelsRead": False,
+        }
+        arguments = {
+            "protocol_commit": M5_P2_COMMIT, "protocol_tree": M5_P2_TREE,
+            "prior_authorization_commit": receipt["priorAuthorizationCommit"],
+            "prior_authorization_tree": receipt["priorAuthorizationTree"],
+            "prior_authorization_sha256": receipt["priorAuthorizationSha256"],
+            "source_commit": receipt["sourceCommit"], "source_tree": receipt["sourceTree"],
+            "source_path_map": paths,
+        }
+        validate_parity_recovery_authorization(receipt, **arguments)
+        for key in (
+            "priorAuthorizationCommit", "priorAuthorizationSha256", "sourceCommit",
+            "authorizationPath", "parityBoundary", "diagnosticSha256", "scoreBlind",
+        ):
+            broken = copy.deepcopy(receipt)
+            broken[key] = False if key == "scoreBlind" else "e" * (64 if key.endswith("Sha256") else 40)
+            with self.assertRaises(ValueError):
+                validate_parity_recovery_authorization(broken, **arguments)
 
     def setUp(self) -> None:
         self.recipe = load_recipe(ROOT / "benchmark/m5/recipe.json")
@@ -649,7 +719,7 @@ class M5ContractsTest(unittest.TestCase):
         candidates.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=candidates) as directory:
             destination = Path(directory) / "tiny.onnx"
-            export_onnx(TinyClassifier(), destination, self.recipe)
+            export_onnx(TinyClassifier(), destination, self.recipe, providers=["CPUExecutionProvider"])
             signature = model_signature(destination)
         self.assertEqual(signature["inputs"], [("pixel_values", ["batch", 3, 384, 384])])
         self.assertEqual(signature["outputs"], [("logits", ["batch", 1])])
@@ -861,55 +931,13 @@ class M5ContractsTest(unittest.TestCase):
         def fake_run(command: list[str], *, cwd: Path = ROOT) -> str:
             del cwd
             if command == ["git", "rev-list", "--parents", "-n", "1", source]:
-                return f"{source} {M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}"
+                return f"{source} {M5_A4_COMMIT}"
             if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", source]:
-                return rows(M5_NUMERIC_AUDIT_RECOVERY_ROWS)
-            if command == ["git", "rev-parse", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}^{{tree}}"]:
-                return M5_RUNPOD_ENV_AUTHORIZATION_TREE
-            if command == ["git", "rev-list", "--parents", "-n", "1", M5_RUNPOD_ENV_AUTHORIZATION_COMMIT]:
-                return f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT} {M5_RUNPOD_ENV_RECOVERY_COMMIT}"
-            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_RUNPOD_ENV_AUTHORIZATION_COMMIT]:
-                return "A\tbenchmark/evidence/m5/runpod-environment-authorization.json"
-            if command == ["git", "show", f"{M5_RUNPOD_ENV_AUTHORIZATION_COMMIT}:benchmark/evidence/m5/runpod-environment-authorization.json"]:
-                raise AssertionError("git bytes are mocked separately")
-            if command == ["git", "rev-parse", f"{M5_RUNPOD_ENV_RECOVERY_COMMIT}^{{tree}}"]:
-                return M5_RUNPOD_ENV_RECOVERY_TREE
-            if command == ["git", "rev-list", "--parents", "-n", "1", M5_RUNPOD_ENV_RECOVERY_COMMIT]:
-                return f"{M5_RUNPOD_ENV_RECOVERY_COMMIT} {M5_RUNTIME_AUTHORIZATION_COMMIT}"
-            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_RUNPOD_ENV_RECOVERY_COMMIT]:
-                return rows(M5_RUNPOD_ENV_RECOVERY_ROWS)
-            if command == ["git", "rev-parse", f"{M5_RUNTIME_AUTHORIZATION_COMMIT}^{{tree}}"]:
-                return M5_RUNTIME_AUTHORIZATION_TREE
-            if command == ["git", "rev-list", "--parents", "-n", "1", M5_RUNTIME_AUTHORIZATION_COMMIT]:
-                return f"{M5_RUNTIME_AUTHORIZATION_COMMIT} {M5_RUNTIME_RECOVERY_COMMIT}"
-            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_RUNTIME_AUTHORIZATION_COMMIT]:
-                return "A\tbenchmark/evidence/m5/runtime-recovery-authorization.json"
-            if command == ["git", "rev-parse", f"{M5_RUNTIME_RECOVERY_COMMIT}^{{tree}}"]:
-                return M5_RUNTIME_RECOVERY_TREE
-            if command == ["git", "rev-list", "--parents", "-n", "1", M5_RUNTIME_RECOVERY_COMMIT]:
-                return f"{M5_RUNTIME_RECOVERY_COMMIT} {M5_P4_COMMIT}"
-            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_RUNTIME_RECOVERY_COMMIT]:
-                return rows(M5_RUNTIME_RECOVERY_ROWS)
-            if command == ["git", "rev-parse", f"{M5_P4_COMMIT}^{{tree}}"]:
-                return M5_P4_TREE
-            if command == ["git", "rev-list", "--parents", "-n", "1", M5_P4_COMMIT]:
-                return f"{M5_P4_COMMIT} {M5_CI_RECOVERY_COMMIT}"
-            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_P4_COMMIT]:
-                return "A\tbenchmark/evidence/m5/run-authorization.json"
-            if command == ["git", "rev-parse", f"{M5_CI_RECOVERY_COMMIT}^{{tree}}"]:
-                return M5_CI_RECOVERY_TREE
-            if command == ["git", "rev-list", "--parents", "-n", "1", M5_CI_RECOVERY_COMMIT]:
-                return f"{M5_CI_RECOVERY_COMMIT} {M5_FAILED_SOURCE_COMMIT}"
-            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_CI_RECOVERY_COMMIT]:
-                return rows(M5_SOURCE_CI_RECOVERY_ROWS)
-            if command == ["git", "rev-parse", f"{M5_FAILED_SOURCE_COMMIT}^{{tree}}"]:
-                return M5_FAILED_SOURCE_TREE
-            if command == ["git", "rev-list", "--parents", "-n", "1", M5_FAILED_SOURCE_COMMIT]:
-                return f"{M5_FAILED_SOURCE_COMMIT} {M5_P2_COMMIT}"
-            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_FAILED_SOURCE_COMMIT]:
-                return rows(M5_SOURCE_RECOVERY_ROWS)
-            if command == ["git", "rev-parse", f"{M5_P2_COMMIT}^{{tree}}"]:
-                return M5_P2_TREE
+                return rows(M5_R5_ROWS)
+            if command == ["git", "rev-parse", f"{M5_A4_COMMIT}^{{tree}}"]:
+                return M5_A4_TREE
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_A4_COMMIT]:
+                return "A\tbenchmark/evidence/m5/numeric-audit-authorization.json"
             raise AssertionError(command)
 
         with mock.patch("benchmark.m5.train_gpu.run", side_effect=fake_run):
@@ -921,16 +949,16 @@ class M5ContractsTest(unittest.TestCase):
             return fake_run(command, cwd=cwd)
 
         with mock.patch("benchmark.m5.train_gpu.run", side_effect=skipped_prior_authorization):
-            with self.assertRaisesRegex(ValueError, "runtime recovery"):
+            with self.assertRaisesRegex(ValueError, "A4 -> R5"):
                 validate_source_recovery_history(source)
 
-        def wrong_failed_tree(command: list[str], *, cwd: Path = ROOT) -> str:
-            if command == ["git", "rev-parse", f"{M5_FAILED_SOURCE_COMMIT}^{{tree}}"]:
+        def wrong_a4_tree(command: list[str], *, cwd: Path = ROOT) -> str:
+            if command == ["git", "rev-parse", f"{M5_A4_COMMIT}^{{tree}}"]:
                 return "0" * 40
             return fake_run(command, cwd=cwd)
 
-        with mock.patch("benchmark.m5.train_gpu.run", side_effect=wrong_failed_tree):
-            with self.assertRaisesRegex(ValueError, "runtime recovery"):
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=wrong_a4_tree):
+            with self.assertRaisesRegex(ValueError, "A4 tree"):
                 validate_source_recovery_history(source)
 
     def test_python_history_map_matches_literal_failed_p3_commit(self) -> None:
@@ -969,6 +997,7 @@ class M5ContractsTest(unittest.TestCase):
                 "sha256": f"{order + 1:064x}",
                 "parityMaximumAbsoluteError": 0.0,
                 "parityProvider": "CUDAExecutionProvider",
+                "parityProviderOptions": {"use_tf32": "0"},
             }
             candidates.append({
                 "candidateId": candidate_id,
@@ -1070,6 +1099,7 @@ class M5ContractsTest(unittest.TestCase):
                 "sha256": f"{index + 1:064x}",
                 "parityMaximumAbsoluteError": 0.0,
                 "parityProvider": "CUDAExecutionProvider",
+                "parityProviderOptions": {"use_tf32": "0"},
             },
             "selectorLogits": {variant: packet for variant in VARIANTS},
             "accepted": False,

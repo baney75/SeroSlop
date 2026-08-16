@@ -2,40 +2,28 @@
 
 ## Source-recovery and authorization sequence
 
-The first P3 source packet, `fba4b51ef5073e0a189ab6baaaf155fccf785dc6`,
-is retained as immutable public red history. Its static suite failed because a
-host-boundary test expected the macOS exit code on GitHub's Linux runner; no
-training or inference ran. Publish its sole exact nine-path CI-recovery child,
-run the source-recovery stage gate, and wait for exact-head green CI. Then create
-P4 as the direct one-file child containing only
-`benchmark/evidence/m5/run-authorization.json`. P4 is preserved as public-green
-history, but its Python history map omitted the already-frozen
-`scripts/m5-preexec-bootstrap.py` row, so its RunPod preflight failed before
-CUDA or model loading. Publish the sole exact 11-path runtime-recovery child of
-P4 and wait for exact-head green CI. The canonical writer then creates the new
-one-file authorization
-`benchmark/evidence/m5/runtime-recovery-authorization.json`. It records
-P2, the failed P3, and the recovered source history plus hashes for every
-effective P3 source path, and binds the immutable P4 commit, tree, old receipt
-path, and old receipt digest. It refuses to write until anonymous public `main`
-and the exact-head `quality` push run both show the runtime recovery. That
-authorization is preserved as public-green history, but the trusted pre-exec
-bootstrap removed RunPod's own `RUNPOD_POD_ID` while scrubbing the caller
-environment, so its preflight also stopped before CUDA or model loading. Publish
-the sole exact 12-path RunPod-environment recovery child of that authorization
-and wait for exact-head green CI. The same canonical writer then creates only
-`benchmark/evidence/m5/runpod-environment-authorization.json`; it binds the
-prior authorization commit, tree, path, and digest plus the recovered 26-path
-effective source map and the new public-green source run. That authorization is
-preserved as public-green history. Its first live RunPod preflight passed the
-public-source, Pod-ID, CUDA, L40S, and runtime gates, then stopped before model
-loading or CUDA work because Python 3.11's ordinary left-to-right summation
-exceeded an audit-only `1e-8` mass tolerance by `1.252268450334668e-9`.
-The emitted source-balanced weights and their closed-form formula were correct.
-Publish the exact numeric-audit recovery child, which changes only the two
-verification accumulators to `math.fsum`, adds the matching Python 3.11 public
-CI proof, and extends the append-only checkers. Wait for exact-head green CI.
-From that clean, public, green numeric-audit recovery commit run:
+The append-only public history retains every failed launch boundary: the
+platform-specific CI assertion, incomplete Python lineage map, scrubbed
+`RUNPOD_POD_ID`, and Python 3.11 audit accumulation. Each failed packet stopped
+before training, selector scoring, terminal regression scoring, or any H3 read.
+The public A4 receipt at
+`f3d86077cf5e7a124d09b593d69e9a1769d7e295` preserves the completed fixes.
+
+The first A4 RunPod preflight then passed source, identity, CUDA, L40S, data,
+model-load, and runtime gates but stopped at the frozen `2e-4` initial-model
+parity gate. A score-blind diagnostic on the same 16 training images proved
+that ONNX Runtime CUDA's default TF32 policy caused the mismatch: the maximum
+PyTorch-CPU versus ORT-CUDA error was `0.028517723083496094`, while the same
+ORT session with `use_tf32=0` was `0.0000247955322265625`. CPU ONNX parity also
+passed. The tolerance is not relaxed.
+
+Publish the exact 17-path R5 source-recovery child of A4. R5 freezes the
+diagnostic bytes, requires ORT CUDA with TF32 disabled for every model score,
+checks real-image export parity, and ranks candidates from each exported ONNX
+model instead of a bfloat16 PyTorch proxy. It does not change the training
+data, optimizer, loss, candidate grid, selector gates, terminal regressions,
+or H3 boundary. Wait for exact-head green CI. From the clean public-green R5
+commit, run:
 
 ```bash
 /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/python3 -I -c '
@@ -45,8 +33,8 @@ if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec
 sys.argv = [str(p), *sys.argv[3:]]
 exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
 ' scripts/m5-preexec-bootstrap.py 54d94c8e696b9accb7bae4de6427922c1c72975b105b0a35ce0f74e741dead6d authorize
-git add benchmark/evidence/m5/numeric-audit-authorization.json
-git commit -m "Evidence: authorize exact M5 numeric audit recovery"
+git add benchmark/evidence/m5/parity-recovery-authorization.json
+git commit -m "Evidence: authorize exact M5 parity recovery"
 ```
 
 The inline system-Python loader verifies the stdlib-only pre-exec bootstrap before
@@ -55,17 +43,12 @@ then pins the operator Mac's absolute Node executable, version, and SHA-256 and
 starts it with a minimal environment. Do not use `npm`, an inherited `PATH`, or a
 different Node binary for this one-file writer.
 
-The schema-4 authorization binds the prior RunPod-environment authorization
-commit, tree, path, and digest; the numeric recovery commit, tree, 26-path
-effective source map, and public CI; the exact boundary
-`source-balanced-weights-unchanged-math-fsum-audit-only`; score blindness; and
-no H3 pixel read. The new authorization commit must add only that receipt. Push it and wait for
-its own exact-head green CI before retrying paid preflight. RunPod preflight and
-training run only from that clean authorization head; later selection, failure,
-100K, and final stages must retain the complete
-P2 → failed P3 → CI recovery → P4 → runtime recovery → authorization →
-RunPod-environment recovery → authorization → numeric-audit recovery →
-authorization chain.
+The schema-5 A5 authorization binds A4, the exact R5 commit/tree/17-path source
+map and public CI, the immutable diagnostic SHA-256, the packaged-M2 reference
+boundary, ONNX scoring, score blindness, and no H3 read. A5 must add only that
+receipt. Push it and wait for its own exact-head green CI before retrying paid
+preflight. Later selection, failure, 100K, and final stages must retain the
+complete public history through R5 and A5.
 
 ## Accepted brief
 
@@ -83,7 +66,7 @@ After training and terminal regressions, a separate public source lock freezes a
 
 ## Frozen model and data
 
-M5 starts from the official `buildborderless/CommunityForensics-DeepfakeDet-ViT` PyTorch checkpoint at revision `ac6ee457bea904a373065754107451793b56db00`, then replaces its classifier with the exact shipped M2 classifier before fine-tuning. A 16-image preflight must keep PyTorch versus packaged-M2 ONNX logits within `2e-4`.
+M5 starts from the official `buildborderless/CommunityForensics-DeepfakeDet-ViT` PyTorch checkpoint at revision `ac6ee457bea904a373065754107451793b56db00`, then replaces its classifier with the exact shipped M2 classifier before fine-tuning. A 16-image preflight must keep PyTorch versus packaged-M2 ONNX logits within `2e-4`, with ORT CUDA TF32 explicitly disabled. Each candidate is exported first, checked against a nonzero image, and scored for selection through that exact ONNX artifact and provider policy.
 
 Training uses the public M4 packet only:
 
@@ -116,7 +99,7 @@ Use one RunPod Secure Cloud L40S 48 GB Pod. The recommended image is:
 pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385
 ```
 
-The repository must be cloned at the exact public M5 numeric-audit authorization commit. The launcher derives and verifies the full append-only lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. The pre-exec bootstrap reads the bounded PID-1 environment only in `runpod` mode, validates exactly one `RUNPOD_POD_ID`, and forwards only that provider variable into the otherwise fixed child environment. It never forwards `RUNPOD_API_KEY` or any neighboring environment record. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
+The repository must be cloned at the exact public M5 A5 parity authorization commit. The launcher derives and verifies the full append-only lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. The pre-exec bootstrap reads the bounded PID-1 environment only in `runpod` mode, validates exactly one `RUNPOD_POD_ID`, and forwards only that provider variable into the otherwise fixed child environment. It never forwards `RUNPOD_API_KEY` or any neighboring environment record. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
 
 The pre-exec gate detects source drift present when a command starts. It is not
 a sandbox against a hostile same-user process changing files after verification;
@@ -210,6 +193,15 @@ m5_preexec runpod finalize --
 ```
 
 The finalizer independently recomputes both regression packets from their stored float32 logits and frozen manifests, validates the 100,000-image receipt, rechecks the selected ONNX bytes and browser fixtures, stages exactly the declared final paths, and writes the finalization receipt last. H3 remains untouched and is not claimed by this transaction.
+
+## Recovery and authorization lineage
+
+The public numeric receipt is A4. A source-only R5 recovery must be its exact
+single child with the frozen 17-row surface, and may not contain A5. Only the
+receipt-only `benchmark/evidence/m5/parity-recovery-authorization.json` A5
+child is an active authorization. The A5 receipt binds protocol P2, the exact
+R5 source map, successful public CI, the packaged-M2 parity boundary, and the
+initial diagnostic SHA; training remains score-blind and H3-free.
 
 ## Cost and cleanup
 

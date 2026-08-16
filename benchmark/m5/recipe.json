@@ -79,6 +79,10 @@
         "rapidata-stable-diffusion": 75
       }
     },
+    "initialParityDiagnostic": {
+      "path": "benchmark/evidence/m5/initial-parity-diagnostic.json",
+      "sha256": "c9c673efa0b1a6e4ea79b195ec16c71ae8ac91f962390a49c4e570b6d8de5c11"
+    },
     "selectionSummary": {
       "path": "benchmark/evidence/m4/selection-summary.json",
       "sha256": "5e4227ac2bf468b10e54a354bba09b1e869391bc4d38f99228d246433705ccba"
@@ -87,6 +91,7 @@
   },
   "training": {
     "provider": "RunPod Secure Cloud (operator-recorded control-plane receipt)",
+    "onnxRuntimeProviderPolicy": {"provider": "CUDAExecutionProvider", "useTf32": false},
     "providerIdentityEvidence": "operator-attested-control-plane-observation",
     "providerSignedAttestation": false,
     "runtimeConsistencyEvidence": "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt",
