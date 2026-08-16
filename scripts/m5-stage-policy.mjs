@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export const M5_BASE_SOURCE_COMMIT = "5ab375fad2a744620b6ec75f09e6153c8a409049";
 export const M5_BASE_SOURCE_TREE = "fc0afc8a746f3f41c29bbd8713f309856d2bdc53";
 export const M5_ORIGINAL_PROTOCOL_COMMIT = "89bd1c833abbaa23195d45cd9a82fc3e117bad88";
@@ -39,6 +41,9 @@ export const M5_A5_TREE = "951fd5145156ab3fe5df3f4e4db0f09a3b06888d";
 export const M5_A5_SHA256 = "6aa5e08d4b44b01e232c39084a8286704dc3c7d9491f9b02ca8b7b3f63dcaa4d";
 export const M5_A6_AUTHORIZATION_PATH = "benchmark/evidence/m5/cublas-recovery-authorization.json";
 export const M5_A6_STATUS = "m5-cublas-recovery-authorized";
+export const M5_A6_COMMIT = "22f61a520a51260f20e42983995d3e57c5b7696e";
+export const M5_A7_AUTHORIZATION_PATH = "benchmark/evidence/m5/failure-replay-recovery-authorization.json";
+export const M5_A7_STATUS = "m5-failure-replay-recovery-authorized";
 // R6 is the exact deterministic-runtime recovery child of A5.  Keep this
 // map append-only and score-blind; it binds only the trusted environment path.
 export const M5_R6_EXPECTED = new Map([
@@ -53,6 +58,14 @@ export const M5_R6_EXPECTED = new Map([
   ["scripts/m5-run-authorization.mjs", "M"], ["scripts/m5-training-contract.mjs", "M"],
   ["scripts/test-m5-stage-policy.mjs", "M"], ["scripts/test-m5-training-contract.mjs", "M"],
 ]);
+// R7 is a verifier-only recovery child of A6. It cannot alter the model,
+// training recipe, selector gates, or any post-selection evidence path.
+export const M5_R7_EXPECTED = new Map([
+  ["benchmark/m5/README.md", "M"], ["benchmark/m5/contracts.py", "M"],
+  ["benchmark/m5/test_contracts.py", "M"], ["scripts/check-m5-failure-stage.mjs", "M"],
+  ["scripts/check-m5-failure-verifier-chain.mjs", "A"], ["scripts/m5-stage-policy.mjs", "M"],
+  ["scripts/check-m5-run-authorization-stage.mjs", "M"], ["scripts/check-m5-source-recovery-stage.mjs", "M"], ["scripts/m5-run-authorization.mjs", "M"], ["scripts/run-static-verification.mjs", "M"], ["scripts/test-m5-stage-policy.mjs", "M"],
+]);
 export const M5_R5_EXPECTED = new Map([
   ["benchmark/m5/README.md", "M"], ["benchmark/m5/contracts.py", "M"],
   ["benchmark/m5/evaluate_large_synthetic.py", "M"], ["benchmark/m5/evaluate_locked.py", "M"],
@@ -66,12 +79,19 @@ export const M5_R5_EXPECTED = new Map([
 ]);
 export const M5_SELECTION_LOCK_PATH = "benchmark/evidence/m5/selection-lock.json";
 export const M5_FAILURE_PATH = "benchmark/evidence/m5/failed-training-attempt-1.json";
+export const M5_FAILURE_SHA256 = "c7577db83ecf7ba3e988a1923edb396d349bbb31d9d3e01746db07e4fa3fb0bf";
 export const M5_FINAL_RECEIPT_PATH = "benchmark/evidence/m5/finalization-receipt.json";
 export const M5_LARGE_MANIFEST_PATH = "benchmark/evidence/m5/large-synthetic/manifest.jsonl.gz";
 export const M5_LARGE_BATCHES_PATH = "benchmark/evidence/m5/large-synthetic/batches.json";
 export const M5_LARGE_SOURCE_LOCK_PATH = "benchmark/evidence/m5/large-synthetic/source-lock.json";
 export const M5_LARGE_ATTRIBUTION_PATH = "benchmark/evidence/m5/large-synthetic/attribution.json";
 export const M5_LARGE_EVALUATION_PATH = "benchmark/evidence/m5/large-synthetic-evaluation.json";
+
+export function requireM5FailureReceiptBytes(bytes, expectedSha256 = M5_FAILURE_SHA256) {
+  const actual = createHash("sha256").update(bytes).digest("hex");
+  if (actual !== expectedSha256) throw new Error("M5 canonical failure receipt SHA-256 changed");
+  return actual;
+}
 
 export const M5_PROTOCOL_EXPECTED = new Map([
   ["DESIGN.md", "M"],

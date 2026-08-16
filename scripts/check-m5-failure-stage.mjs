@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { validateM5AuthorizedChain } from "./check-m5-authorized-chain.mjs";
+import { existsSync, readFileSync } from "node:fs";
+import { validateM5FailureVerifierChain } from "./check-m5-failure-verifier-chain.mjs";
 import { assertM5WorktreeExact, m5Git } from "./m5-safe-git.mjs";
 import {
   M5_FAILURE_EXPECTED,
   M5_FAILURE_PATH,
+  requireM5FailureReceiptBytes,
   M5_FINAL_RECEIPT_PATH,
   M5_LARGE_EVALUATION_PATH,
   M5_LARGE_SOURCE_LOCK_PATH,
@@ -15,7 +16,7 @@ import {
 function git(arguments_) {
   return m5Git(arguments_);
 }
-const authorized = validateM5AuthorizedChain();
+const authorized = validateM5FailureVerifierChain();
 
 function rows(commit) {
   return git(["diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", commit])
@@ -31,9 +32,10 @@ const headParents = git(["rev-list", "--parents", "-n", "1", head]).split(" ").s
 if (headParents.length !== 1 || !matchesExpectedRows(rows(head), M5_FAILURE_EXPECTED)) {
   throw new Error("M5 failure must be the exact one-file terminal commit");
 }
-if (headParents[0] !== authorized.authorization) throw new Error("M5 failure must directly follow P4 authorization");
-const protocol = authorized.source;
+if (headParents[0] !== authorized.authorization) throw new Error("M5 failure must directly follow A7 failure-replay authorization");
+const protocol = authorized.trainingSource;
 assertM5WorktreeExact();
+requireM5FailureReceiptBytes(readFileSync(M5_FAILURE_PATH));
 for (const forbidden of [M5_SELECTION_LOCK_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_LARGE_EVALUATION_PATH, M5_FINAL_RECEIPT_PATH, "docs/COMPETITOR_AUDIT.md"]) {
   if (existsSync(forbidden)) throw new Error(`M5 failure stage contains forbidden output: ${forbidden}`);
 }
@@ -46,7 +48,7 @@ execFileSync("python3", ["-c", [
   "validate_failure_receipt(f,r,rows)",
   `assert f['protocolCommit']=='${protocol}'`,
   "env=f['trainingSummary']['environment']",
-  `assert env['sourceCommit']=='${authorized.source}' and env['sourceTree']=='${authorized.sourceTree}'`,
-  `assert env['authorizationCommit']=='${authorized.authorization}' and env['authorizationReceiptSha256']=='${authorized.authorizationReceiptSha256}'`,
+  `assert env['sourceCommit']=='${authorized.trainingSource}' and env['sourceTree']=='${authorized.receipt.trainingSourceTree}'`,
+  `assert env['authorizationCommit']=='${authorized.trainingAuthorization}' and env['authorizationReceiptSha256']=='${authorized.trainingAuthorizationReceiptSha256}'`,
 ].join(";")], { stdio: "inherit" });
 console.log(JSON.stringify({ head, protocol, authorization: authorized.authorization, status: "failed-m5-selector", policy: "pass" }));

@@ -1425,6 +1425,7 @@ def validate_failure_receipt(
         or receipt["acceptanceEligible"] is not False
         or receipt["h3PixelsRead"] is not False
         or receipt["terminalRegressionsRead"] is not False
+        or receipt["reason"] != "No predeclared candidate and exhaustive raw threshold passed every fresh-selector gate."
         or not HEX40.fullmatch(str(receipt["protocolCommit"]))
     ):
         raise ValueError("M5 failure boundary changed")
@@ -1469,8 +1470,9 @@ def validate_failure_receipt(
         raise ValueError("M5 failure candidate coverage changed")
     for candidate in candidates:
         _require_keys(candidate, {"candidateId", "checkpoint", "model", "selectorLogits", "accepted"}, "failed candidate")
-        if candidate["accepted"] is not False or tuple(candidate["selectorLogits"]) != VARIANTS:
+        if candidate["accepted"] is not False:
             raise ValueError("M5 failure contains an accepted or malformed candidate")
+        _require_keys(candidate["selectorLogits"], set(VARIANTS), "failed candidate selector logits")
         logits = {
             variant: unpack_float32(candidate["selectorLogits"][variant], expected_count=len(selector_rows))
             for variant in VARIANTS

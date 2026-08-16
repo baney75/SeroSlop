@@ -7,9 +7,11 @@ import { TextDecoder } from "node:util";
 import {
   M5_A5_AUTHORIZATION_PATH, M5_A5_COMMIT, M5_A5_SHA256, M5_A5_STATUS, M5_A5_TREE,
   M5_A6_AUTHORIZATION_PATH, M5_A6_STATUS, M5_P2_COMMIT, M5_P2_TREE, M5_R6_EXPECTED,
+  M5_A6_COMMIT, M5_A7_AUTHORIZATION_PATH, M5_A7_STATUS, M5_R7_EXPECTED,
   matchesExpectedRows,
 } from "./m5-stage-policy.mjs";
 import { assertM5WorktreeExact, m5Git, m5GitBytes } from "./m5-safe-git.mjs";
+import { validateM5CublasAuthorizedChain } from "./check-m5-cublas-authorized-chain.mjs";
 
 const WORKFLOW_PATH = ".github/workflows/quality.yml";
 const git = (arguments_) => m5Git(arguments_);
@@ -30,6 +32,32 @@ const getJson = (url) => new Promise((resolve, reject) => {
   }); request.setTimeout(30_000, () => request.destroy(new Error("Public M5 authorization verification timed out"))); request.on("error", reject);
 });
 
+const currentHead = git(["rev-parse", "HEAD"]);
+const failureReplayMode = process.argv.length === 2 && existsSync(M5_A6_AUTHORIZATION_PATH) &&
+  parents(currentHead).length === 1 && parents(currentHead)[0] === M5_A6_COMMIT && matchesExpectedRows(rows(currentHead), M5_R7_EXPECTED);
+if (failureReplayMode) {
+  assertM5WorktreeExact();
+  const inheritedA6 = validateM5CublasAuthorizedChain();
+  const head = currentHead;
+  if (parents(head).length !== 1 || parents(head)[0] !== M5_A6_COMMIT || !matchesExpectedRows(rows(head), M5_R7_EXPECTED)) throw new Error("M5 R7 failure-verifier lineage changed");
+  const publicReference = await getJson("https://api.github.com/repos/baney75/prooflens/git/ref/heads/main");
+  if (publicReference.object?.sha !== head) throw new Error("M5 R7 source must be public main before A7");
+  const payload = await getJson(`https://api.github.com/repos/baney75/prooflens/actions/runs?event=push&head_sha=${head}&per_page=100`);
+  const run = payload.workflow_runs?.find((candidate) => candidate.head_sha === head && candidate.event === "push" && candidate.status === "completed" && candidate.conclusion === "success" && candidate.path === WORKFLOW_PATH);
+  if (!run) throw new Error("M5 R7 requires exact-head successful public quality CI");
+  const sourceTree = git(["rev-parse", `${head}^{tree}`]);
+  const receipt = canonical({
+    schemaVersion: 7, status: M5_A7_STATUS, protocolCommit: M5_P2_COMMIT, protocolTree: M5_P2_TREE,
+    priorAuthorizationCommit: inheritedA6.authorization, priorAuthorizationTree: git(["rev-parse", `${inheritedA6.authorization}^{tree}`]), priorAuthorizationPath: M5_A6_AUTHORIZATION_PATH, priorAuthorizationSha256: inheritedA6.authorizationReceiptSha256,
+    trainingSourceCommit: inheritedA6.source, trainingSourceTree: inheritedA6.sourceTree, trainingAuthorizationCommit: inheritedA6.authorization, trainingAuthorizationReceiptSha256: inheritedA6.authorizationReceiptSha256,
+    sourceCommit: head, sourceTree, sourcePathMap: [...M5_R7_EXPECTED.keys()].sort().map((pathname) => ({ path: pathname, sha256: sha256(m5GitBytes(["show", `${head}:${pathname}`])) })),
+    boundary: "canonical-json-selector-logit-key-set-order-independent-verifier-only", postTrainingVerifierOnly: true, scoreBlind: true, h3PixelsRead: false, terminalRegressionsRead: false,
+    sourcePublicCi: { conclusion: run.conclusion, event: run.event, headSha: run.head_sha, runId: run.id, status: run.status, url: run.html_url, workflowPath: run.path }, authorizationPath: M5_A7_AUTHORIZATION_PATH,
+  });
+  mkdirSync(dirname(M5_A7_AUTHORIZATION_PATH), { recursive: true }); writeFileSync(M5_A7_AUTHORIZATION_PATH, `${JSON.stringify(receipt)}\n`, { flag: "wx" });
+  console.log(JSON.stringify({ sourceCommit: head, sourceTree, runId: run.id, path: M5_A7_AUTHORIZATION_PATH, policy: "written" }));
+  process.exit(0);
+}
 if (process.argv.length !== 2) throw new Error("M5 authorization accepts no arguments");
 if (!existsSync(M5_A5_AUTHORIZATION_PATH) || existsSync(M5_A6_AUTHORIZATION_PATH)) throw new Error("M5 R6 authorization requires inherited A5 and absent A6 receipts");
 assertM5WorktreeExact();

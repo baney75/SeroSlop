@@ -17,6 +17,7 @@ import {
   M5_PROTOCOL_RECOVERY_EXPECTED,
   M5_FAILED_SOURCE_COMMIT,
   M5_FAILED_SOURCE_TREE,
+  M5_FAILURE_SHA256,
   M5_CI_RECOVERY_COMMIT,
   M5_P4_COMMIT,
   M5_P4_TREE,
@@ -39,6 +40,7 @@ import {
   M5_A4_COMMIT,
   M5_A5_AUTHORIZATION_PATH,
   M5_A6_AUTHORIZATION_PATH,
+  M5_A7_AUTHORIZATION_PATH, M5_A7_STATUS, M5_R7_EXPECTED,
   M5_R6_EXPECTED,
   M5_RUN_AUTHORIZATION_PATH,
   classifyM5Stage,
@@ -47,6 +49,7 @@ import {
   matchesM5RuntimeRecoveryCommit,
   matchesM5RunpodEnvironmentRecoveryCommit,
   matchesM5AuthorizedChain,
+  requireM5FailureReceiptBytes,
 } from "./m5-stage-policy.mjs";
 
 const rows = [...M5_PROTOCOL_EXPECTED.entries()];
@@ -77,6 +80,20 @@ assert.equal(matchesExpectedRows([...M5_R5_EXPECTED].map(([path, status], index)
 assert.equal(M5_A4_COMMIT.length, 40);
 assert.equal(M5_A5_AUTHORIZATION_PATH, "benchmark/evidence/m5/parity-recovery-authorization.json");
 assert.equal(M5_A6_AUTHORIZATION_PATH, "benchmark/evidence/m5/cublas-recovery-authorization.json");
+assert.equal(M5_A7_AUTHORIZATION_PATH, "benchmark/evidence/m5/failure-replay-recovery-authorization.json");
+assert.equal(M5_A7_STATUS, "m5-failure-replay-recovery-authorized");
+assert.equal(M5_FAILURE_SHA256, "c7577db83ecf7ba3e988a1923edb396d349bbb31d9d3e01746db07e4fa3fb0bf");
+const canonicalReceiptProbe = Buffer.from('{"status":"failed-m5-selector"}\n', "utf8");
+const canonicalReceiptProbeSha256 = createHash("sha256").update(canonicalReceiptProbe).digest("hex");
+assert.equal(requireM5FailureReceiptBytes(canonicalReceiptProbe, canonicalReceiptProbeSha256), canonicalReceiptProbeSha256);
+assert.throws(() => requireM5FailureReceiptBytes(Buffer.from('{\n  "status": "failed-m5-selector"\n}\n', "utf8"), canonicalReceiptProbeSha256));
+assert.throws(() => requireM5FailureReceiptBytes(canonicalReceiptProbe, "0".repeat(64)));
+assert.notEqual(M5_A7_STATUS, "m5-cublas-recovery-authorized");
+assert.equal(M5_R7_EXPECTED.size, 11);
+assert.equal(M5_R7_EXPECTED.get("scripts/check-m5-failure-verifier-chain.mjs"), "A");
+assert.equal(matchesExpectedRows([...M5_R7_EXPECTED], M5_R7_EXPECTED), true);
+assert.equal(matchesExpectedRows([...M5_R7_EXPECTED].slice(1), M5_R7_EXPECTED), false);
+assert.equal(matchesExpectedRows([...M5_R7_EXPECTED, ["extra", "M"]], M5_R7_EXPECTED), false);
 assert.equal(M5_R6_EXPECTED.size, 17);
 assert.equal(M5_R6_EXPECTED.has("package.json"), false);
 assert.equal(M5_R6_EXPECTED.get("scripts/m5-run-authorization.mjs"), "M");
@@ -192,6 +209,9 @@ assert.ok(launcherSource.includes("process.env.PATH !== M5_TRUSTED_PATH"));
 assert.ok(launcherSource.includes('process.env.NODE_OPTIONS !== undefined'));
 assert.ok(!launcherSource.includes("ls-remote"));
 assert.ok(!readFileSync("scripts/m5-run-authorization.mjs", "utf8").includes("ls-remote"));
+assert.match(readFileSync("scripts/m5-run-authorization.mjs", "utf8"), /failureReplayMode/u);
+assert.match(readFileSync("scripts/check-m5-run-authorization-stage.mjs", "utf8"), /validateM5FailureVerifierChain/u);
+assert.match(readFileSync("scripts/run-static-verification.mjs", "utf8"), /A7 is failure-verifier-only/u);
 assert.ok(!readFileSync("scripts/check-m5-run-authorization-stage.mjs", "utf8").includes("ls-remote"));
 const safeGitSource = readFileSync("scripts/m5-safe-git.mjs", "utf8");
 for (const token of ["GIT_CONFIG_NOSYSTEM", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_NO_REPLACE_OBJECTS", "core.fsmonitor=false"]) {
@@ -211,7 +231,7 @@ const preexecBootstrap = readFileSync(preexecBootstrapPath);
 const preexecBootstrapSha256 = createHash("sha256").update(preexecBootstrap).digest("hex");
 assert.equal(preexecBootstrapSha256, "b2a187f1d7d81a4644c4667fae35f5826ff2ffb311d3cc499df59cfdb4b8ad3d");
 const readmeBootstrapDigests = [...readFileSync("benchmark/m5/README.md", "utf8").matchAll(/scripts\/m5-preexec-bootstrap\.py ([0-9a-f]{64})/gu)].map((match) => match[1]);
-assert.deepEqual(readmeBootstrapDigests, [preexecBootstrapSha256, preexecBootstrapSha256]);
+assert.deepEqual(readmeBootstrapDigests, [preexecBootstrapSha256, preexecBootstrapSha256, preexecBootstrapSha256]);
 const m5Readme = readFileSync("benchmark/m5/README.md", "utf8");
 assert.match(m5Readme, /From the\s+clean public-green R6 commit, run:/u);
 assert.ok(m5Readme.includes("git add benchmark/evidence/m5/cublas-recovery-authorization.json"));

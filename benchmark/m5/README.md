@@ -218,3 +218,37 @@ H3-free.
 The paid wall-clock stop is 24 L40S hours, with a five-minute trainer safety margin. Transfer, dependency, one-batch, and parity failures are fail-fast and do not authorize a different GPU or an altered training recipe. After candidate/evidence retrieval and local hash verification, terminate the Pod and delete the temporary network volume rather than leaving billable resources behind.
 
 The shipped extension remains local and offline regardless of the training host. RunPod is used only to fit the fixed model; it is never a runtime dependency.
+
+## Failure-verifier recovery
+
+The recovered selector-failure receipt remains bound to its original R6
+training source and A6 authorization. R7 is a verifier-only child of A6: it
+changes only canonical-JSON selector-logit key-set validation, pins the exact
+generated failure reason, and adds focused proofs. Its one-file A7 child is
+`benchmark/evidence/m5/failure-replay-recovery-authorization.json` with status
+`m5-failure-replay-recovery-authorized`, schema 7, `postTrainingVerifierOnly:
+true`, `scoreBlind: true`, `h3PixelsRead: false`, and
+`terminalRegressionsRead: false`. A7 cannot authorize a selection lock,
+regression, synthetic panel, or final publication; the failure receipt must be
+the direct child of A7 and must preserve the R6/A6 bindings byte-for-byte.
+
+From clean public-green R7, run the same system-Python pre-exec boundary; its
+no-argument `authorize` mode detects the exact A6 parent and R7 path map, then
+writes only A7:
+
+```bash
+/usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/python3 -I -c '
+import hashlib, pathlib, sys
+p = pathlib.Path(sys.argv[1]); raw = p.read_bytes()
+if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec bootstrap bytes changed")
+sys.argv = [str(p), *sys.argv[3:]]
+exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
+' scripts/m5-preexec-bootstrap.py b2a187f1d7d81a4644c4667fae35f5826ff2ffb311d3cc499df59cfdb4b8ad3d authorize
+git add benchmark/evidence/m5/failure-replay-recovery-authorization.json
+git commit -m "Evidence: authorize M5 failure replay verifier recovery"
+```
+
+Push that exact A7 commit and wait for its exact-head public quality run to
+pass. Then run `npm run check:m5-run-authorization-stage` at the A7 head. Only
+after that gate may the one-file failure receipt be committed as A7's direct
+child.

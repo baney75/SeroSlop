@@ -1186,9 +1186,26 @@ class M5ContractsTest(unittest.TestCase):
             "candidateGridSha256": grid_sha256,
             "h3PixelsRead": False,
             "terminalRegressionsRead": False,
-            "reason": "No frozen candidate passed.",
+            "reason": "No predeclared candidate and exhaustive raw threshold passed every fresh-selector gate.",
         }
-        validate_failure_receipt(receipt, self.recipe, rows)
+        # Failure receipts are published as canonical JSON, which sorts object
+        # keys.  Replay must follow the frozen VARIANTS tuple rather than the
+        # serialized mapping order (the old tuple(selectorLogits) check rejected
+        # this valid canonical round-trip).
+        canonical_receipt = parse_json_bytes(canonical_json(receipt), label="canonical failure receipt")
+        validate_failure_receipt(canonical_receipt, self.recipe, rows)
+        for mutation in ("missing", "extra"):
+            broken_keys = copy.deepcopy(canonical_receipt)
+            selector_logits = broken_keys["candidateGrid"]["candidates"][0]["selectorLogits"]
+            if mutation == "missing":
+                del selector_logits[VARIANTS[-1]]
+            else:
+                selector_logits["unexpected"] = selector_logits[VARIANTS[0]]
+            broken_keys["candidateGridSha256"] = sha256(canonical_json(broken_keys["candidateGrid"])).hexdigest()
+            broken_keys["trainingSummary"]["candidateGrid"]["sha256"] = broken_keys["candidateGridSha256"]
+            broken_keys["trainingSummarySha256"] = sha256(canonical_json(broken_keys["trainingSummary"])).hexdigest()
+            with self.subTest(selector_logit_keys=mutation), self.assertRaises(ValueError):
+                validate_failure_receipt(broken_keys, self.recipe, rows)
         broken = copy.deepcopy(receipt)
         broken["candidateGrid"]["candidates"][0]["accepted"] = True
         broken["candidateGridSha256"] = sha256(canonical_json(broken["candidateGrid"])).hexdigest()
@@ -1196,6 +1213,10 @@ class M5ContractsTest(unittest.TestCase):
         broken["trainingSummarySha256"] = sha256(canonical_json(broken["trainingSummary"])).hexdigest()
         with self.assertRaises(ValueError):
             validate_failure_receipt(broken, self.recipe, rows)
+        broken_reason = copy.deepcopy(canonical_receipt)
+        broken_reason["reason"] = "A different or contradictory failure claim."
+        with self.assertRaises(ValueError):
+            validate_failure_receipt(broken_reason, self.recipe, rows)
 
 
 if __name__ == "__main__":
