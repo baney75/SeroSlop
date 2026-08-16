@@ -11,9 +11,11 @@ import {
   M5_LARGE_SOURCE_EXPECTED,
   M5_LARGE_SOURCE_LOCK_PATH,
   M5_LOCK_EXPECTED,
+  M5_ORIGINAL_PROTOCOL_COMMIT,
+  M5_ORIGINAL_PROTOCOL_TREE,
   M5_SELECTION_LOCK_PATH,
   matchesExpectedRows,
-  matchesM5ProtocolCommit,
+  matchesM5ProtocolLineage,
 } from "./m5-stage-policy.mjs";
 
 const hex64 = /^[0-9a-f]{64}$/u;
@@ -52,10 +54,19 @@ const lockParents = git(["rev-list", "--parents", "-n", "1", lockCommit]).split(
 requireCondition(lockParents.length === 1 && matchesExpectedRows(rows(lockCommit), M5_LOCK_EXPECTED),
   "M5 final publication is not the direct child of the one-file lock");
 const protocol = lockParents[0];
-const protocolParents = git(["rev-list", "--parents", "-n", "1", protocol]).split(" ").slice(1);
+const recoveryParents = git(["rev-list", "--parents", "-n", "1", protocol]).split(" ").slice(1);
+const originalParents = git(["rev-list", "--parents", "-n", "1", M5_ORIGINAL_PROTOCOL_COMMIT]).split(" ").slice(1);
+const originalTree = git(["rev-parse", `${M5_ORIGINAL_PROTOCOL_COMMIT}^{tree}`]);
 const baseTree = git(["rev-parse", `${M5_BASE_SOURCE_COMMIT}^{tree}`]);
-requireCondition(matchesM5ProtocolCommit({ parents: protocolParents, rows: rows(protocol), parentTree: baseTree }) &&
-  baseTree === M5_BASE_SOURCE_TREE, "M5 final publication has the wrong protocol ancestry");
+requireCondition(matchesM5ProtocolLineage({
+  recoveryParents,
+  recoveryRows: rows(protocol),
+  originalTree,
+  originalParents,
+  originalRows: rows(M5_ORIGINAL_PROTOCOL_COMMIT),
+  baseTree,
+}) && originalTree === M5_ORIGINAL_PROTOCOL_TREE && baseTree === M5_BASE_SOURCE_TREE,
+"M5 final publication has the wrong protocol ancestry");
 requireCondition(!git(["status", "--porcelain=v1", "--untracked-files=all"]),
   "M5 final verification requires a completely clean repository");
 requireCondition(!existsSync(M5_FAILURE_PATH) && !existsSync("docs/COMPETITOR_AUDIT.md"),
@@ -103,6 +114,13 @@ requireCondition(largeEvaluation.status === "large-synthetic-pass" && largeEvalu
   largeEvaluation.sourceLockSha256 === fileDigest(M5_LARGE_SOURCE_LOCK_PATH) &&
   largeEvaluation.meanBatchRecall > 0.95 && largeEvaluation.medianBatchRecall > 0.95 &&
   largeEvaluation.items === 100000 && largeEvaluation.batches === 1000 && largeEvaluation.batchSize === 100 &&
+  equal(largeEvaluation.scoreBlindness, {
+    repositoryScoreArtifactsPresentAtSourceLock: false,
+    publicSourceLockPrecedesEvaluationReceipt: true,
+    firstInferenceAfterLock: "operator-attested",
+    privatePriorScoringAbsenceProven: false,
+    trainingExclusionClaim: "not-used-in-seroslop-m2-through-m5-gradients-or-selection",
+  }) &&
   largeEvaluation.selectionInfluence === false && largeEvaluation.h3PixelsRead === false,
   "M5 100K synthetic evaluation changed or failed");
 requireCondition(digest(training) === lock.trainingSummarySha256 &&
@@ -111,7 +129,14 @@ requireCondition(equal(calibration, lock.calibration), "M5 final calibration cha
 requireCondition(model.byteLength === lock.selectedModel.bytes && digest(model) === lock.selectedModel.sha256,
   "M5 shipped model is not the selected model");
 requireCondition(modelLock.artifact === "weights/prooflens-cf384.onnx" && modelLock.bytes === model.byteLength &&
-  modelLock.sha256 === lock.selectedModel.sha256 && equal(modelLock.calibration, calibration),
+  modelLock.sha256 === lock.selectedModel.sha256 && equal(modelLock.calibration, calibration) &&
+  modelLock.trainingEvidence?.architecture === "operator-attested RunPod-hosted Community Forensics ViT-S/16 fine-tuning with a 384-to-1 classifier" &&
+  equal(modelLock.trainingEvidence?.trainingHostEvidence, {
+    provider: "RunPod Secure Cloud",
+    identity: "operator-attested-control-plane-observation",
+    providerSignedAttestation: false,
+    runtimeConsistency: "Pod-ID hash and locally observed L40S/CUDA facts matched the operator-authored receipt",
+  }),
   "M5 model lock does not bind the selected model and calibration");
 const receiptKeys = [
   "acceptanceEligible", "calibrationSha256", "h3HoldoutScored", "modelComparisonSha256",

@@ -8,9 +8,12 @@ import {
   M5_FINAL_RECEIPT_PATH,
   M5_LARGE_EVALUATION_PATH,
   M5_LARGE_SOURCE_LOCK_PATH,
+  M5_ORIGINAL_PROTOCOL_COMMIT,
+  M5_ORIGINAL_PROTOCOL_TREE,
   M5_PROTOCOL_EXPECTED,
+  M5_PROTOCOL_RECOVERY_EXPECTED,
   M5_SELECTION_LOCK_PATH,
-  matchesM5ProtocolCommit,
+  matchesM5ProtocolLineage,
 } from "./m5-stage-policy.mjs";
 import { loadAndValidateM5Recipe } from "./m5-training-contract.mjs";
 
@@ -32,12 +35,21 @@ function rows(commit) {
 }
 
 const head = git(["rev-parse", "HEAD"]);
-const parents = git(["rev-list", "--parents", "-n", "1", head]).split(" ").slice(1);
-const parentTree = git(["rev-parse", `${M5_BASE_SOURCE_COMMIT}^{tree}`]);
-if (!matchesM5ProtocolCommit({ parents, rows: rows(head), parentTree })) {
-  throw new Error("M5 protocol commit is not the exact direct child of the fixed M4 source packet");
+const recoveryParents = git(["rev-list", "--parents", "-n", "1", head]).split(" ").slice(1);
+const originalParents = git(["rev-list", "--parents", "-n", "1", M5_ORIGINAL_PROTOCOL_COMMIT]).split(" ").slice(1);
+const originalTree = git(["rev-parse", `${M5_ORIGINAL_PROTOCOL_COMMIT}^{tree}`]);
+const baseTree = git(["rev-parse", `${M5_BASE_SOURCE_COMMIT}^{tree}`]);
+if (!matchesM5ProtocolLineage({
+  recoveryParents,
+  recoveryRows: rows(head),
+  originalTree,
+  originalParents,
+  originalRows: rows(M5_ORIGINAL_PROTOCOL_COMMIT),
+  baseTree,
+})) {
+  throw new Error("M5 protocol recovery is not the exact append-only child of the original protocol");
 }
-if (parentTree !== M5_BASE_SOURCE_TREE) throw new Error("M5 base source tree changed");
+if (originalTree !== M5_ORIGINAL_PROTOCOL_TREE || baseTree !== M5_BASE_SOURCE_TREE) throw new Error("M5 protocol lineage tree changed");
 if (git(["status", "--porcelain=v1", "--untracked-files=all"])) {
   throw new Error("M5 protocol verification requires a completely clean repository");
 }
@@ -56,5 +68,12 @@ const evidence = [
 for (const [pathname, expected] of evidence) {
   if (digest(pathname) !== expected) throw new Error(`M5 frozen input changed: ${pathname}`);
 }
-if (M5_PROTOCOL_EXPECTED.size !== 38) throw new Error("M5 protocol inventory changed");
-console.log(JSON.stringify({ head, parent: M5_BASE_SOURCE_COMMIT, paths: M5_PROTOCOL_EXPECTED.size, policy: "pass" }));
+if (M5_PROTOCOL_EXPECTED.size !== 38 || M5_PROTOCOL_RECOVERY_EXPECTED.size !== 19) throw new Error("M5 protocol inventory changed");
+console.log(JSON.stringify({
+  head,
+  originalProtocol: M5_ORIGINAL_PROTOCOL_COMMIT,
+  base: M5_BASE_SOURCE_COMMIT,
+  originalPaths: M5_PROTOCOL_EXPECTED.size,
+  recoveryPaths: M5_PROTOCOL_RECOVERY_EXPECTED.size,
+  policy: "pass",
+}));

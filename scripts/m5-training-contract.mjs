@@ -33,13 +33,16 @@ export function validateM5Recipe(recipe) {
     throw new Error("M5 score-blind source packet changed");
   }
   if (recipe.training.provider !== "RunPod Secure Cloud (operator-recorded control-plane receipt)" ||
+      recipe.training.providerIdentityEvidence !== "operator-attested-control-plane-observation" ||
+      recipe.training.providerSignedAttestation !== false ||
+      recipe.training.runtimeConsistencyEvidence !== "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt" ||
       recipe.training.requiredGpuProduct !== "NVIDIA L40S" ||
       recipe.training.containerImage !== "pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385" ||
       recipe.training.requirementsPath !== "benchmark/m5/runpod-requirements.txt" ||
       recipe.training.requirementsSha256 !== "ec87953539172609d20e1a969b8acdbf34e98a3cc8a71a6df08212c30cd41f11" ||
       requirementsSha256 !== recipe.training.requirementsSha256 ||
       recipe.training.provisioningReceiptPath !== "benchmark/candidates/prooflens-cf384-m5/runpod-provisioning-receipt.json" ||
-      recipe.training.maximumPaidWallClockSeconds !== 28_800 || recipe.training.deadlineSafetySeconds !== 300 ||
+      recipe.training.maximumPaidWallClockSeconds !== 86_400 || recipe.training.deadlineSafetySeconds !== 300 ||
       recipe.training.providerAutoStopAvailable !== false || recipe.training.providerAutoStopRequired !== false ||
       recipe.training.stopControl !== "trainer-deadline-plus-authenticated-operator-stop" ||
       recipe.training.cudaRequired !== true || recipe.training.mixedPrecision !== "bfloat16" ||
@@ -60,6 +63,16 @@ export function validateM5Recipe(recipe) {
       throw new Error("M5 zero-observed-false-positive gate changed");
     }
   }
+  if (JSON.stringify(recipe.selection.falsePositiveConfidence) !== JSON.stringify({
+    method: "Wilson score interval for false-positive proportions",
+    confidenceLevel: 0.95,
+    sampleUnit: "base-real-image",
+    trialsPerVariant: 300,
+    poolAcrossVariants: false,
+    sharedBaseImagesAcrossVariants: true,
+  })) {
+    throw new Error("M5 selector false-positive confidence contract changed");
+  }
   if (recipe.selection.gates.original.minimumBalancedAccuracy !== 0.97 ||
       recipe.selection.gates.original.minimumSyntheticRecall !== 0.94) {
     throw new Error("M5 original accuracy target changed");
@@ -78,6 +91,15 @@ export function validateM5Recipe(recipe) {
       largeEvaluation.trainingOverlapAllowed !== false || largeEvaluation.selectorOverlapAllowed !== false ||
       largeEvaluation.regressionOverlapAllowed !== false || largeEvaluation.selectionInfluence !== false) {
     throw new Error("M5 100,000-image evaluation boundary changed");
+  }
+  if (JSON.stringify(largeEvaluation.scoreBlindnessEvidence) !== JSON.stringify({
+    repositoryScoreArtifactsPresentAtSourceLock: false,
+    publicSourceLockPrecedesEvaluationReceipt: true,
+    firstInferenceAfterLock: "operator-attested",
+    privatePriorScoringAbsenceProven: false,
+    trainingExclusionClaim: "not-used-in-seroslop-m2-through-m5-gradients-or-selection",
+  })) {
+    throw new Error("M5 100,000-image score-blindness evidence boundary changed");
   }
   const source = largeEvaluation.source;
   if (source.repository !== "JamalLee/Omni-Fake-SET" ||

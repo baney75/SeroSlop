@@ -8,11 +8,11 @@
 - Non-goals: universal perfection, a calibrated probability claim, H3-guided selection, selector rows in gradients, or a larger teacher model in the extension.
 - Authority: one bounded paid RunPod L40S job is authorized. Training may write only ignored `benchmark/candidates/prooflens-cf384-m5`; publication is a separate fixed-head Git transaction.
 - Proofs: exact source/model hashes, RunPod L40S/CUDA receipt, complete candidate grid, embedded selector logits, exhaustive thresholds, zero observed selector false positives, public pre-regression lock, ordered terminal regressions, a separate 100,000-image synthetic-recall panel, ONNX parity, Chrome offline E2E, and four final critical reviews.
-- Stop conditions: no selector-feasible candidate; a terminal regression failure; any H3 read; a changed source/model/runtime; model size above 90 MB; non-L40S or non-RunPod training; or eight paid GPU hours without a completed train-select packet.
+- Stop conditions: no selector-feasible candidate; a terminal regression failure; any H3 read; a changed source/model/runtime; model size above 90 MB; non-L40S or non-RunPod training; or 24 paid GPU hours without a completed train-select packet.
 
-The zero-false-positive gate means exactly zero observed false positives among the 300 fresh British Library real images in each of the four declared views. It is intentionally strict, but it does not prove that errors are impossible on all future images. The final evidence must disclose the sample count and confidence bound.
+The zero-false-positive gate means exactly zero observed false positives among the same 300 fresh British Library base images in each of the four declared views. A two-sided 95% Wilson interval is reported separately for every view; at 0/300 its upper bound is 1.2643%. The four transformed views are correlated and are never pooled as 0/1,200. This is an observed-sample gate and binomial-model reference interval, not proof that errors are impossible on future images.
 
-After training and terminal regressions, a separate public source lock must freeze at least 100,000 never-trained and never-scored synthetic images before their first inference. Deterministic SHA-256 ordering divides the panel into 1,000 batches of 100. At the already locked model and raw threshold, both the mean and median per-batch synthetic recall must be strictly above 95/100. This panel cannot select a candidate, threshold, gate, or training change. If the model misses either aggregate, those 100,000 rows become consumed development evidence; any later revision needs new training data and a different never-scored 100,000-image panel.
+After training and terminal regressions, a separate public source lock freezes at least 100,000 synthetic images. The panel has no detected ID, SHA-256, or dHash-distance-at-most-8 overlap with the fixed SeroSlop training, selector, regression, H3-metadata, or historical exclusion packets, and its rows are prohibited from M2-M5 gradients and candidate selection. The public lock contains no model scores and precedes the repository evaluation receipt; the operator attests that first inference occurs after that lock, while Git history cannot prove the absence of private prior scoring or upstream training exposure. Deterministic SHA-256 ordering divides the panel into 1,000 batches of 100. At the already locked model and raw threshold, both the mean and median per-batch synthetic recall must be strictly above 95/100. If the model misses either aggregate, those rows become consumed development evidence and a later revision needs new training data and a different fixed panel.
 
 ## Frozen model and data
 
@@ -49,16 +49,15 @@ Use one RunPod Secure Cloud L40S 48 GB Pod. The recommended image is:
 pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385
 ```
 
-The repository must be cloned at the exact public M5 protocol commit. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a 250 GB one-shot Pod volume for the repository, both datasets, Hugging Face cache, checkpoints/models, and logs. A persistent network volume is unnecessary for this one job.
+The repository must be cloned at the exact public M5 protocol-recovery commit. The trainer derives and verifies the append-only protocol lineage from Git; no caller can nominate a protocol commit. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
 
-Before transfer, the authenticated local RunPod operator writes `benchmark/candidates/prooflens-cf384-m5/runpod-provisioning-receipt.json`. It records the control-plane-observed Pod ID hash, `SECURE` cloud type, exact L40S product, creation time, and the authorized eight-hour workload-stop time. RunPod Pods do not expose a provider-enforced TTL or auto-stop field. The executable controls are the trainer's absolute deadline plus an authenticated operator stop after evidence retrieval or at the deadline. The receipt is an operator-recorded control-plane observation, not cryptographic provider attestation. The Pod process must independently match its hashed `RUNPOD_POD_ID` and GPU to that receipt; a caller-set environment variable alone cannot satisfy the gate.
+Before transfer, the authenticated local RunPod operator writes `benchmark/candidates/prooflens-cf384-m5/runpod-provisioning-receipt.json`. It records the control-plane-observed Pod ID hash, `SECURE` cloud type, exact L40S product, creation time, and the authorized 24-hour workload-stop time. RunPod Pods do not expose a provider-enforced TTL or auto-stop field. The executable controls are the trainer's absolute deadline plus an authenticated operator stop after evidence retrieval or at the deadline. The authenticated operator attests that the job runs on a RunPod Secure Cloud L40S. The runtime Pod-ID hash and locally observed L40S/CUDA facts must match that operator-authored record. This is consistency evidence, not provider-signed proof of RunPod identity.
 
 Inside the Pod:
 
 ```bash
 cd /workspace/prooflens
 python -m pip install --disable-pip-version-check --require-hashes -r benchmark/m5/runpod-requirements.txt
-export M5_PROTOCOL_COMMIT="$(git rev-parse HEAD)"
 npm run benchmark:m5:preflight
 ```
 
@@ -72,7 +71,6 @@ The two package commands expand to the frozen arguments below; the full command 
 
 ```bash
 python benchmark/m5/train_gpu.py \
-  --protocol-commit "$M5_PROTOCOL_COMMIT" \
   --data-root benchmark/data/m4-head \
   --train-manifest benchmark/evidence/m4/train-manifest.jsonl.gz \
   --selector-manifest benchmark/evidence/m4/validation-manifest.jsonl \
@@ -129,6 +127,6 @@ The finalizer independently recomputes both regression packets from their stored
 
 ## Cost and cleanup
 
-The paid wall-clock stop is eight L40S hours. Transfer, dependency, one-batch, and parity failures are fail-fast and do not authorize a different GPU or an altered training recipe. After candidate/evidence retrieval and local hash verification, terminate the Pod rather than leaving it stopped with billable storage.
+The paid wall-clock stop is 24 L40S hours, with a five-minute trainer safety margin. Transfer, dependency, one-batch, and parity failures are fail-fast and do not authorize a different GPU or an altered training recipe. After candidate/evidence retrieval and local hash verification, terminate the Pod and delete the temporary network volume rather than leaving billable resources behind.
 
 The shipped extension remains local and offline regardless of the training host. RunPod is used only to fit the fixed model; it is never a runtime dependency.

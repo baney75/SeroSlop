@@ -1,5 +1,7 @@
 export const M5_BASE_SOURCE_COMMIT = "5ab375fad2a744620b6ec75f09e6153c8a409049";
 export const M5_BASE_SOURCE_TREE = "fc0afc8a746f3f41c29bbd8713f309856d2bdc53";
+export const M5_ORIGINAL_PROTOCOL_COMMIT = "89bd1c833abbaa23195d45cd9a82fc3e117bad88";
+export const M5_ORIGINAL_PROTOCOL_TREE = "d16f4d1033416a2935427dc6ced6ceb4ffea4674";
 export const M5_SELECTION_LOCK_PATH = "benchmark/evidence/m5/selection-lock.json";
 export const M5_FAILURE_PATH = "benchmark/evidence/m5/failed-training-attempt-1.json";
 export const M5_FINAL_RECEIPT_PATH = "benchmark/evidence/m5/finalization-receipt.json";
@@ -50,6 +52,28 @@ export const M5_PROTOCOL_EXPECTED = new Map([
   ["tests/model-spec.test.ts", "M"],
 ]);
 
+export const M5_PROTOCOL_RECOVERY_EXPECTED = new Map([
+  ["benchmark/m5/README.md", "M"],
+  ["benchmark/m5/contracts.py", "M"],
+  ["benchmark/m5/evaluate_locked.py", "M"],
+  ["benchmark/m5/evaluate_large_synthetic.py", "M"],
+  ["benchmark/m5/finalize.py", "M"],
+  ["benchmark/m5/large_synthetic.py", "M"],
+  ["benchmark/m5/recipe.json", "M"],
+  ["benchmark/m5/test_contracts.py", "M"],
+  ["benchmark/m5/train_gpu.py", "M"],
+  ["package.json", "M"],
+  ["scripts/check-m5-failure-stage.mjs", "M"],
+  ["scripts/check-m5-final-stage.mjs", "M"],
+  ["scripts/check-m5-large-source-stage.mjs", "M"],
+  ["scripts/check-m5-protocol-stage.mjs", "M"],
+  ["scripts/check-m5-selection-lock.mjs", "M"],
+  ["scripts/m5-stage-policy.mjs", "M"],
+  ["scripts/m5-training-contract.mjs", "M"],
+  ["scripts/test-m5-stage-policy.mjs", "M"],
+  ["scripts/test-m5-training-contract.mjs", "M"],
+]);
+
 export const M5_LOCK_EXPECTED = new Map([[M5_SELECTION_LOCK_PATH, "A"]]);
 export const M5_FAILURE_EXPECTED = new Map([[M5_FAILURE_PATH, "A"]]);
 export const M5_LARGE_SOURCE_EXPECTED = new Map([
@@ -85,11 +109,22 @@ export function matchesExpectedRows(rows, expected) {
   return seen.size === expected.size && [...expected.keys()].every((pathname) => seen.has(pathname));
 }
 
-export function matchesM5ProtocolCommit({ parents, rows, parentTree }) {
-  return parents.length === 1 &&
-    parents[0] === M5_BASE_SOURCE_COMMIT &&
-    parentTree === M5_BASE_SOURCE_TREE &&
-    matchesExpectedRows(rows, M5_PROTOCOL_EXPECTED);
+export function matchesM5ProtocolLineage({
+  recoveryParents,
+  recoveryRows,
+  originalTree,
+  originalParents,
+  originalRows,
+  baseTree,
+}) {
+  return recoveryParents.length === 1 &&
+    recoveryParents[0] === M5_ORIGINAL_PROTOCOL_COMMIT &&
+    matchesExpectedRows(recoveryRows, M5_PROTOCOL_RECOVERY_EXPECTED) &&
+    originalTree === M5_ORIGINAL_PROTOCOL_TREE &&
+    originalParents.length === 1 &&
+    originalParents[0] === M5_BASE_SOURCE_COMMIT &&
+    matchesExpectedRows(originalRows, M5_PROTOCOL_EXPECTED) &&
+    baseTree === M5_BASE_SOURCE_TREE;
 }
 
 export function classifyM5Stage({ protocolExists, lockExists, failureExists, largeSourceLockExists, finalExists }) {

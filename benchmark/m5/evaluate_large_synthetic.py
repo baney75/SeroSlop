@@ -138,7 +138,7 @@ def validate_evaluation_receipt(
         "model", "rawThreshold", "items", "batchSize", "batches", "correct", "overallRecall",
         "meanBatchRecall", "medianBatchRecall", "minimumBatchRecall", "wilson95", "batchResults",
         "generatorResults", "minimumGeneratorRecall", "logits", "selectionInfluence", "regressionStateSha256",
-        "h3PixelsRead",
+        "scoreBlindness", "h3PixelsRead",
     }
     if set(receipt) != required:
         raise ValueError("M5 large-synthetic evaluation receipt schema changed")
@@ -159,6 +159,7 @@ def validate_evaluation_receipt(
         receipt["model"] != selection_lock["selectedModel"] or receipt["rawThreshold"] != selection_lock["rawThreshold"] or
         receipt["items"] != 100_000 or receipt["batchSize"] != 100 or receipt["batches"] != 1_000 or
         receipt["selectionInfluence"] is not False or receipt["h3PixelsRead"] is not False or
+        receipt["scoreBlindness"] != large["scoreBlindnessEvidence"] or
         receipt["status"] != ("large-synthetic-pass" if passed else "large-synthetic-fail") or
         receipt["acceptanceEligible"] is not passed
     ):
@@ -303,6 +304,7 @@ def execute(args: argparse.Namespace) -> int:
         "minimumGeneratorRecall": min(value["recall"] for value in generator_results.values()),
         "logits": pack_float32(logits),
         "selectionInfluence": False,
+        "scoreBlindness": source_lock["scoreBlindness"],
         "regressionStateSha256": digest_file(regression_path),
         "h3PixelsRead": False,
     }

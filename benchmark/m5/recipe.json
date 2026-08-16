@@ -87,13 +87,16 @@
   },
   "training": {
     "provider": "RunPod Secure Cloud (operator-recorded control-plane receipt)",
+    "providerIdentityEvidence": "operator-attested-control-plane-observation",
+    "providerSignedAttestation": false,
+    "runtimeConsistencyEvidence": "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt",
     "requiredGpuProduct": "NVIDIA L40S",
     "containerImage": "pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385",
     "requirementsPath": "benchmark/m5/runpod-requirements.txt",
     "requirementsSha256": "ec87953539172609d20e1a969b8acdbf34e98a3cc8a71a6df08212c30cd41f11",
     "minimumGpuMemoryBytes": 45000000000,
     "provisioningReceiptPath": "benchmark/candidates/prooflens-cf384-m5/runpod-provisioning-receipt.json",
-    "maximumPaidWallClockSeconds": 28800,
+    "maximumPaidWallClockSeconds": 86400,
     "deadlineSafetySeconds": 300,
     "providerAutoStopAvailable": false,
     "providerAutoStopRequired": false,
@@ -168,6 +171,14 @@
         "minimumSyntheticRecallBySource": 0.85
       }
     },
+    "falsePositiveConfidence": {
+      "method": "Wilson score interval for false-positive proportions",
+      "confidenceLevel": 0.95,
+      "sampleUnit": "base-real-image",
+      "trialsPerVariant": 300,
+      "poolAcrossVariants": false,
+      "sharedBaseImagesAcrossVariants": true
+    },
     "falsePositiveRequirement": "Zero observed false positives among the 300 fresh real selector images in every declared variant. This is an observed-sample gate, not a claim of universal zero error.",
     "ranking": [
       "worstVariantBalancedAccuracy",
@@ -240,7 +251,14 @@
     "selectorOverlapAllowed": false,
     "regressionOverlapAllowed": false,
     "selectionInfluence": false,
-    "failure": "If either aggregate is not strictly above 0.95, the model is not accepted. Any retraining must use new training data and a newly fixed, never-scored 100,000-image evaluation panel; scored evaluation rows may never enter training or selection."
+    "scoreBlindnessEvidence": {
+      "repositoryScoreArtifactsPresentAtSourceLock": false,
+      "publicSourceLockPrecedesEvaluationReceipt": true,
+      "firstInferenceAfterLock": "operator-attested",
+      "privatePriorScoringAbsenceProven": false,
+      "trainingExclusionClaim": "not-used-in-seroslop-m2-through-m5-gradients-or-selection"
+    },
+    "failure": "If either aggregate is not strictly above 0.95, the model is not accepted. Any retraining must use new training data and a newly fixed 100,000-image panel. Scored evaluation rows may never enter training or selection. The public source lock precedes the repository evaluation receipt; absence of private prior scoring remains operator-attested, not cryptographically proven."
   },
   "h3Boundary": {
     "manifest": "benchmark/evidence/m3/h3-met-holdout-manifest.jsonl",

@@ -164,7 +164,8 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
         raise ValueError("M5 fresh selector binding changed")
     training = recipe["training"]
     _require_keys(training, {
-        "provider", "requiredGpuProduct", "containerImage", "requirementsPath", "requirementsSha256",
+        "provider", "providerIdentityEvidence", "providerSignedAttestation", "runtimeConsistencyEvidence",
+        "requiredGpuProduct", "containerImage", "requirementsPath", "requirementsSha256",
         "minimumGpuMemoryBytes", "provisioningReceiptPath", "maximumPaidWallClockSeconds",
         "deadlineSafetySeconds", "providerAutoStopAvailable", "providerAutoStopRequired", "stopControl",
         "cudaRequired", "mixedPrecision", "attentionImplementation", "epochs", "perGpuBatchSize",
@@ -174,13 +175,16 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
     }, "training")
     if (
         training["provider"] != "RunPod Secure Cloud (operator-recorded control-plane receipt)"
+        or training["providerIdentityEvidence"] != "operator-attested-control-plane-observation"
+        or training["providerSignedAttestation"] is not False
+        or training["runtimeConsistencyEvidence"] != "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt"
         or training["requiredGpuProduct"] != "NVIDIA L40S"
         or training["containerImage"] != "pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385"
         or training["requirementsPath"] != "benchmark/m5/runpod-requirements.txt"
         or training["requirementsSha256"] != "ec87953539172609d20e1a969b8acdbf34e98a3cc8a71a6df08212c30cd41f11"
         or digest_file(ROOT / training["requirementsPath"]) != training["requirementsSha256"]
         or training["provisioningReceiptPath"] != "benchmark/candidates/prooflens-cf384-m5/runpod-provisioning-receipt.json"
-        or training["maximumPaidWallClockSeconds"] != 28_800
+        or training["maximumPaidWallClockSeconds"] != 86_400
         or training["deadlineSafetySeconds"] != 300
         or training["providerAutoStopAvailable"] is not False
         or training["providerAutoStopRequired"] is not False
@@ -213,6 +217,15 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
             raise ValueError("M5 zero-observed-false-positive gate changed")
     if gates["original"]["minimumBalancedAccuracy"] != 0.97 or gates["original"]["minimumSyntheticRecall"] != 0.94:
         raise ValueError("M5 original accuracy target changed")
+    if selection["falsePositiveConfidence"] != {
+        "method": "Wilson score interval for false-positive proportions",
+        "confidenceLevel": 0.95,
+        "sampleUnit": "base-real-image",
+        "trialsPerVariant": 300,
+        "poolAcrossVariants": False,
+        "sharedBaseImagesAcrossVariants": True,
+    }:
+        raise ValueError("M5 selector false-positive confidence contract changed")
     regressions = recipe["terminalRegressions"]
     if [row["name"] for row in regressions] != ["m3-selector-regression", "m2-development-regression"]:
         raise ValueError("M5 terminal regression order changed")
@@ -247,7 +260,14 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
         "selectorOverlapAllowed": False,
         "regressionOverlapAllowed": False,
         "selectionInfluence": False,
-        "failure": "If either aggregate is not strictly above 0.95, the model is not accepted. Any retraining must use new training data and a newly fixed, never-scored 100,000-image evaluation panel; scored evaluation rows may never enter training or selection.",
+        "scoreBlindnessEvidence": {
+            "repositoryScoreArtifactsPresentAtSourceLock": False,
+            "publicSourceLockPrecedesEvaluationReceipt": True,
+            "firstInferenceAfterLock": "operator-attested",
+            "privatePriorScoringAbsenceProven": False,
+            "trainingExclusionClaim": "not-used-in-seroslop-m2-through-m5-gradients-or-selection",
+        },
+        "failure": "If either aggregate is not strictly above 0.95, the model is not accepted. Any retraining must use new training data and a newly fixed 100,000-image panel. Scored evaluation rows may never enter training or selection. The public source lock precedes the repository evaluation receipt; absence of private prior scoring remains operator-attested, not cryptographically proven.",
     }:
         raise ValueError("M5 100,000-image evaluation boundary changed")
     h3 = recipe["h3Boundary"]
@@ -375,6 +395,21 @@ def complete_thresholds(logits: Iterable[float]) -> list[float]:
     return sorted(set(thresholds))
 
 
+def wilson_interval(successes: int, total: int) -> tuple[float, float]:
+    if isinstance(successes, bool) or isinstance(total, bool) or not isinstance(successes, int) or not isinstance(total, int):
+        raise ValueError("M5 Wilson counts must be integers")
+    if total <= 0 or successes < 0 or successes > total:
+        raise ValueError("M5 Wilson counts are out of range")
+    z = 1.9599639845400534
+    probability = successes / total
+    denominator = 1.0 + z * z / total
+    center = (probability + z * z / (2.0 * total)) / denominator
+    spread = z * math.sqrt(
+        probability * (1.0 - probability) / total + z * z / (4.0 * total * total)
+    ) / denominator
+    return max(0.0, center - spread), min(1.0, center + spread)
+
+
 @dataclass(frozen=True)
 class VariantMetrics:
     balanced_accuracy: float
@@ -382,6 +417,9 @@ class VariantMetrics:
     synthetic_recall: float
     synthetic_recall_by_source: dict[str, float]
     false_positives: int
+    false_positive_trials: int
+    false_positive_rate: float
+    false_positive_wilson95: dict[str, float]
 
 
 def metrics_at_threshold(
@@ -412,12 +450,16 @@ def metrics_at_threshold(
         raise ValueError("M5 selector needs both classes")
     real = correct[0] / totals[0]
     synthetic = correct[1] / totals[1]
+    lower, upper = wilson_interval(false_positives, totals[0])
     return VariantMetrics(
         balanced_accuracy=(real + synthetic) / 2.0,
         real_recall=real,
         synthetic_recall=synthetic,
         synthetic_recall_by_source={source: source_correct[source] / total for source, total in sorted(source_total.items())},
         false_positives=false_positives,
+        false_positive_trials=totals[0],
+        false_positive_rate=false_positives / totals[0],
+        false_positive_wilson95={"lower": lower, "upper": upper},
     )
 
 
@@ -481,6 +523,7 @@ def validate_environment_receipt(receipt: Mapping[str, Any], recipe: Mapping[str
         "provider", "gpuProduct", "gpuMemoryBytes", "cudaAvailable", "cudaVersion", "driverVersion",
         "torchVersion", "transformersVersion", "pythonVersion", "runpodPodIdSha256",
         "provisioningReceiptSha256", "containerImage", "requirementsSha256", "providerEvidenceBoundary",
+        "providerIdentityEvidence", "providerSignedAttestation", "runtimeConsistencyEvidence",
     }
     _require_keys(receipt, required, "environment receipt")
     if receipt["provider"] != recipe["training"]["provider"]:
@@ -502,6 +545,12 @@ def validate_environment_receipt(receipt: Mapping[str, Any], recipe: Mapping[str
         raise ValueError("M5 provisioning receipt binding is invalid")
     if receipt["providerEvidenceBoundary"] != "operator-recorded-not-cryptographic-attestation":
         raise ValueError("M5 provider evidence boundary changed")
+    if (
+        receipt["providerIdentityEvidence"] != recipe["training"]["providerIdentityEvidence"]
+        or receipt["providerSignedAttestation"] is not False
+        or receipt["runtimeConsistencyEvidence"] != recipe["training"]["runtimeConsistencyEvidence"]
+    ):
+        raise ValueError("M5 provider identity claim exceeds its evidence")
 
 
 def validate_provisioning_receipt(receipt: Mapping[str, Any], recipe: Mapping[str, Any]) -> None:
@@ -722,9 +771,89 @@ def _metrics_dict(metrics: Mapping[str, VariantMetrics]) -> dict[str, Any]:
             "syntheticRecall": value.synthetic_recall,
             "syntheticRecallBySource": value.synthetic_recall_by_source,
             "falsePositives": value.false_positives,
+            "falsePositiveTrials": value.false_positive_trials,
+            "falsePositiveRate": value.false_positive_rate,
+            "falsePositiveWilson95": value.false_positive_wilson95,
         }
         for variant, value in metrics.items()
     }
+
+
+def validate_training_summary(
+    summary: Mapping[str, Any],
+    recipe: Mapping[str, Any],
+    *,
+    protocol_commit: str,
+    candidate_grid_sha256: str,
+) -> None:
+    _require_keys(
+        summary,
+        {
+            "schemaVersion", "status", "recipeSha256", "protocolCommit", "environment",
+            "upstreamSourceSha256", "initialPytorchOnnxParityMaximumAbsoluteError",
+            "trainingManifestSha256", "selectorManifestSha256", "trainingItems", "selectorItems",
+            "epochReceipts", "candidateGrid", "selectedCandidateId", "h3PixelsRead", "terminalRegressionsRead",
+        },
+        "training summary",
+    )
+    recipe_sha256 = digest_bytes((ROOT / "benchmark/m5/recipe.json").read_bytes())
+    expected_upstream = {
+        recipe["upstream"][key]["path"]: recipe["upstream"][key]["sha256"]
+        for key in ("config", "preprocessor", "pytorchWeights")
+    }
+    expected_grid_path = f"{recipe['output']['candidateRoot']}/candidate-grid.json"
+    if (
+        summary["schemaVersion"] != 1
+        or summary["status"] not in {"selector-pass", "selector-fail"}
+        or summary["recipeSha256"] != recipe_sha256
+        or summary["protocolCommit"] != protocol_commit
+        or summary["upstreamSourceSha256"] != expected_upstream
+        or not math.isfinite(float(summary["initialPytorchOnnxParityMaximumAbsoluteError"]))
+        or float(summary["initialPytorchOnnxParityMaximumAbsoluteError"]) < 0
+        or float(summary["initialPytorchOnnxParityMaximumAbsoluteError"]) > recipe["initialModel"]["maximumPytorchOnnxParityError"]
+        or summary["trainingManifestSha256"] != recipe["sourceEvidence"]["trainingManifest"]["compressedSha256"]
+        or summary["selectorManifestSha256"] != recipe["sourceEvidence"]["selectorManifest"]["sha256"]
+        or summary["trainingItems"] != recipe["sourceEvidence"]["trainingManifest"]["items"]
+        or summary["selectorItems"] != recipe["sourceEvidence"]["selectorManifest"]["items"]
+        or summary["candidateGrid"] != {"path": expected_grid_path, "sha256": candidate_grid_sha256}
+        or (summary["selectedCandidateId"] is None) is not (summary["status"] == "selector-fail")
+        or summary["h3PixelsRead"] is not False
+        or summary["terminalRegressionsRead"] is not False
+    ):
+        raise ValueError("M5 training summary binding changed")
+    validate_environment_receipt(summary["environment"], recipe)
+    receipts = summary["epochReceipts"]
+    expected_epochs = [
+        (branch["name"], epoch)
+        for branch in recipe["training"]["branches"]
+        for epoch in range(1, int(recipe["training"]["epochs"]) + 1)
+    ]
+    if not isinstance(receipts, list) or len(receipts) != len(expected_epochs):
+        raise ValueError("M5 training epoch receipt coverage changed")
+    last_step_by_branch: dict[str, int] = {}
+    for receipt, (branch, epoch) in zip(receipts, expected_epochs, strict=True):
+        _require_keys(
+            receipt,
+            {
+                "branch", "epoch", "globalStep", "seconds", "images", "meanWeightedBce",
+                "meanMaskedTeacherMse", "learningRates",
+            },
+            "training epoch receipt",
+        )
+        numeric = (receipt["seconds"], receipt["meanWeightedBce"], receipt["meanMaskedTeacherMse"])
+        if (
+            receipt["branch"] != branch
+            or receipt["epoch"] != epoch
+            or not isinstance(receipt["globalStep"], int)
+            or receipt["globalStep"] <= last_step_by_branch.get(branch, -1)
+            or receipt["images"] != recipe["sourceEvidence"]["trainingManifest"]["items"]
+            or any(not math.isfinite(float(value)) or float(value) < 0 for value in numeric)
+            or not isinstance(receipt["learningRates"], dict)
+            or not receipt["learningRates"]
+            or any(not math.isfinite(float(value)) or float(value) < 0 for value in receipt["learningRates"].values())
+        ):
+            raise ValueError("M5 training epoch receipt changed")
+        last_step_by_branch[branch] = receipt["globalStep"]
 
 
 def validate_selection_lock(
@@ -760,6 +889,12 @@ def validate_selection_lock(
     grid = lock["candidateGrid"]
     if lock["candidateGridSha256"] != digest_bytes(canonical_json(grid)):
         raise ValueError("M5 embedded candidate grid changed")
+    validate_training_summary(
+        lock["trainingSummary"],
+        recipe,
+        protocol_commit=str(lock["protocolCommit"]),
+        candidate_grid_sha256=str(lock["candidateGridSha256"]),
+    )
     _require_keys(
         grid,
         {"schemaVersion", "recipeSha256", "protocolCommit", "candidates", "selectorManifestSha256", "h3PixelsRead"},
@@ -818,6 +953,8 @@ def validate_selection_lock(
     selected = winner[1]
     if lock["selectedCandidateId"] != selected["candidateId"] or lock["selectedModel"] != selected["model"]:
         raise ValueError("M5 selected candidate changed")
+    if lock["trainingSummary"]["selectedCandidateId"] != selected["candidateId"]:
+        raise ValueError("M5 training summary selected candidate changed")
     if float(lock["rawThreshold"]) != float(selected["rawThreshold"]):
         raise ValueError("M5 locked threshold changed")
     if lock["selectorMetrics"] != selected["metrics"] or lock["selectionKey"] != selected["selectionKey"]:
@@ -860,6 +997,12 @@ def validate_failure_receipt(
         raise ValueError("M5 failure training summary changed")
     if receipt["candidateGridSha256"] != digest_bytes(canonical_json(receipt["candidateGrid"])):
         raise ValueError("M5 failure candidate grid changed")
+    validate_training_summary(
+        receipt["trainingSummary"],
+        recipe,
+        protocol_commit=str(receipt["protocolCommit"]),
+        candidate_grid_sha256=str(receipt["candidateGridSha256"]),
+    )
     summary = receipt["trainingSummary"]
     if (
         summary.get("status") != "selector-fail"

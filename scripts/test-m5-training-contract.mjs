@@ -15,7 +15,12 @@ const mutations = [
   (value) => { value.sourceEvidence.trainingManifest.items = 1; },
   (value) => { value.largeSyntheticEvaluation.minimumItems = 99_999; },
   (value) => { value.largeSyntheticEvaluation.source.revision = "0".repeat(40); },
-  (value) => { value.training.maximumPaidWallClockSeconds = 28_801; },
+  (value) => { value.training.maximumPaidWallClockSeconds = 86_401; },
+  (value) => { value.training.maximumPaidWallClockSeconds = 28_800; },
+  (value) => { value.training.providerSignedAttestation = true; },
+  (value) => { value.selection.falsePositiveConfidence.poolAcrossVariants = true; },
+  (value) => { value.selection.falsePositiveConfidence.trialsPerVariant = 1_200; },
+  (value) => { value.largeSyntheticEvaluation.scoreBlindnessEvidence.privatePriorScoringAbsenceProven = true; },
 ];
 
 for (const mutate of mutations) {

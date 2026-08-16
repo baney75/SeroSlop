@@ -9,8 +9,10 @@ import {
   M5_LARGE_SOURCE_EXPECTED,
   M5_LARGE_SOURCE_LOCK_PATH,
   M5_LOCK_EXPECTED,
+  M5_ORIGINAL_PROTOCOL_COMMIT,
+  M5_ORIGINAL_PROTOCOL_TREE,
   matchesExpectedRows,
-  matchesM5ProtocolCommit,
+  matchesM5ProtocolLineage,
 } from "./m5-stage-policy.mjs";
 
 function git(arguments_) {
@@ -41,9 +43,18 @@ if (lockParents.length !== 1 || !matchesExpectedRows(rows(lockCommit), M5_LOCK_E
   throw new Error("M5 100K source lock is not the direct child of the one-file selection lock");
 }
 const protocol = lockParents[0];
-const protocolParents = parents(protocol);
+const recoveryParents = parents(protocol);
+const originalParents = parents(M5_ORIGINAL_PROTOCOL_COMMIT);
+const originalTree = git(["rev-parse", `${M5_ORIGINAL_PROTOCOL_COMMIT}^{tree}`]);
 const baseTree = git(["rev-parse", `${M5_BASE_SOURCE_COMMIT}^{tree}`]);
-if (!matchesM5ProtocolCommit({ parents: protocolParents, rows: rows(protocol), parentTree: baseTree }) || baseTree !== M5_BASE_SOURCE_TREE) {
+if (!matchesM5ProtocolLineage({
+  recoveryParents,
+  recoveryRows: rows(protocol),
+  originalTree,
+  originalParents,
+  originalRows: rows(M5_ORIGINAL_PROTOCOL_COMMIT),
+  baseTree,
+}) || originalTree !== M5_ORIGINAL_PROTOCOL_TREE || baseTree !== M5_BASE_SOURCE_TREE) {
   throw new Error("M5 100K source lock has the wrong protocol ancestry");
 }
 if (git(["status", "--porcelain=v1", "--untracked-files=all"])) {
@@ -55,7 +66,13 @@ for (const forbidden of [M5_FAILURE_PATH, M5_FINAL_RECEIPT_PATH, M5_LARGE_EVALUA
 execFileSync("python3", ["benchmark/m5/large_synthetic.py", "--verify-public"], { stdio: "inherit" });
 const sourceLock = JSON.parse(readFileSync(M5_LARGE_SOURCE_LOCK_PATH, "utf8"));
 if (sourceLock.lockCommit !== lockCommit || sourceLock.protocolCommit !== protocol ||
-    sourceLock.modelScored !== false || sourceLock.selectionInfluence !== false || sourceLock.h3PixelsRead !== false) {
+    JSON.stringify(sourceLock.scoreBlindness) !== JSON.stringify({
+      repositoryScoreArtifactsPresentAtSourceLock: false,
+      publicSourceLockPrecedesEvaluationReceipt: true,
+      firstInferenceAfterLock: "operator-attested",
+      privatePriorScoringAbsenceProven: false,
+      trainingExclusionClaim: "not-used-in-seroslop-m2-through-m5-gradients-or-selection",
+    }) || sourceLock.selectionInfluence !== false || sourceLock.h3PixelsRead !== false) {
   throw new Error("M5 100K source-lock ancestry or score-blind boundary changed");
 }
 console.log(JSON.stringify({ head, lockCommit, protocol, paths: M5_LARGE_SOURCE_EXPECTED.size, policy: "pass" }));

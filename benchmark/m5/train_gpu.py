@@ -42,6 +42,7 @@ from benchmark.m5.contracts import (
     choose_selector_threshold,
     digest_file,
     load_recipe,
+    parse_json_bytes,
     read_jsonl,
     source_balanced_weights,
     validate_environment_receipt,
@@ -63,6 +64,31 @@ PROTECTED_NEW_SOURCES = {
     "rapidata-midjourney",
     "rapidata-stable-diffusion",
 }
+M5_ORIGINAL_PROTOCOL_COMMIT = "89bd1c833abbaa23195d45cd9a82fc3e117bad88"
+M5_ORIGINAL_PROTOCOL_TREE = "d16f4d1033416a2935427dc6ced6ceb4ffea4674"
+M5_BASE_SOURCE_COMMIT = "5ab375fad2a744620b6ec75f09e6153c8a409049"
+M5_BASE_SOURCE_TREE = "fc0afc8a746f3f41c29bbd8713f309856d2bdc53"
+M5_PROTOCOL_RECOVERY_PATHS = frozenset({
+    "benchmark/m5/README.md",
+    "benchmark/m5/contracts.py",
+    "benchmark/m5/evaluate_locked.py",
+    "benchmark/m5/evaluate_large_synthetic.py",
+    "benchmark/m5/finalize.py",
+    "benchmark/m5/large_synthetic.py",
+    "benchmark/m5/recipe.json",
+    "benchmark/m5/test_contracts.py",
+    "benchmark/m5/train_gpu.py",
+    "package.json",
+    "scripts/check-m5-failure-stage.mjs",
+    "scripts/check-m5-final-stage.mjs",
+    "scripts/check-m5-large-source-stage.mjs",
+    "scripts/check-m5-protocol-stage.mjs",
+    "scripts/check-m5-selection-lock.mjs",
+    "scripts/m5-stage-policy.mjs",
+    "scripts/m5-training-contract.mjs",
+    "scripts/test-m5-stage-policy.mjs",
+    "scripts/test-m5-training-contract.mjs",
+})
 
 
 @dataclass(frozen=True)
@@ -99,14 +125,27 @@ def run(command: Sequence[str], *, cwd: Path = ROOT) -> str:
     return completed.stdout.strip()
 
 
-def ensure_clean_protocol_head(protocol_commit: str) -> None:
-    if not protocol_commit or len(protocol_commit) != 40:
-        raise ValueError("M5 requires the exact public protocol commit")
+def resolve_authorized_protocol_commit() -> str:
     head = run(["git", "rev-parse", "HEAD"])
-    if head != protocol_commit:
-        raise ValueError(f"M5 training HEAD {head} is not the authorized protocol commit {protocol_commit}")
-    if run(["git", "status", "--porcelain=v1", "--untracked-files=no"]):
-        raise ValueError("M5 training requires a clean tracked worktree")
+    parents = run(["git", "rev-list", "--parents", "-n", "1", head]).split()[1:]
+    if parents != [M5_ORIGINAL_PROTOCOL_COMMIT]:
+        raise ValueError("M5 training requires the exact append-only protocol-recovery child")
+    if run(["git", "rev-parse", f"{M5_ORIGINAL_PROTOCOL_COMMIT}^{{tree}}"]) != M5_ORIGINAL_PROTOCOL_TREE:
+        raise ValueError("M5 original protocol tree changed")
+    original_parents = run(["git", "rev-list", "--parents", "-n", "1", M5_ORIGINAL_PROTOCOL_COMMIT]).split()[1:]
+    if original_parents != [M5_BASE_SOURCE_COMMIT] or run(["git", "rev-parse", f"{M5_BASE_SOURCE_COMMIT}^{{tree}}"]) != M5_BASE_SOURCE_TREE:
+        raise ValueError("M5 original protocol ancestry changed")
+    rows: dict[str, str] = {}
+    for line in run(["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", head]).splitlines():
+        status, pathname = line.split("\t", maxsplit=1)
+        if pathname in rows:
+            raise ValueError("M5 protocol recovery contains a duplicate path")
+        rows[pathname] = status
+    if set(rows) != M5_PROTOCOL_RECOVERY_PATHS or any(status != "M" for status in rows.values()):
+        raise ValueError("M5 protocol recovery changed outside its exact authorized surface")
+    if run(["git", "status", "--porcelain=v1", "--untracked-files=all"]):
+        raise ValueError("M5 training requires a completely clean worktree")
+    return head
 
 
 def require_canonical_path(requested: str, expected: str, *, label: str, must_exist: bool = True) -> Path:
@@ -290,12 +329,9 @@ def load_provisioning_receipt(path: Path, recipe: Mapping[str, Any]) -> tuple[di
     if not path.is_file() or path.is_symlink():
         raise ValueError("M5 requires the canonical operator-recorded RunPod provisioning receipt")
     raw = path.read_bytes()
-    try:
-        receipt = json.loads(raw.decode("utf-8", errors="strict"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ValueError("M5 RunPod provisioning receipt is not valid UTF-8 JSON") from error
-    if not isinstance(receipt, dict):
-        raise ValueError("M5 RunPod provisioning receipt must be an object")
+    receipt = parse_json_bytes(raw, label="RunPod provisioning receipt")
+    if raw != canonical_json(receipt):
+        raise ValueError("M5 RunPod provisioning receipt is not canonical JSON")
     validate_provisioning_receipt(receipt, recipe)
     return receipt, sha256(raw).hexdigest()
 
@@ -330,6 +366,9 @@ def environment_receipt(
         "containerImage": provisioning["containerImage"],
         "requirementsSha256": digest_file(ROOT / recipe["training"]["requirementsPath"]),
         "providerEvidenceBoundary": "operator-recorded-not-cryptographic-attestation",
+        "providerIdentityEvidence": recipe["training"]["providerIdentityEvidence"],
+        "providerSignedAttestation": False,
+        "runtimeConsistencyEvidence": recipe["training"]["runtimeConsistencyEvidence"],
     }
 
 
@@ -802,6 +841,9 @@ def serializable_metrics(metrics: Mapping[str, Any]) -> dict[str, Any]:
             "syntheticRecall": value.synthetic_recall,
             "syntheticRecallBySource": value.synthetic_recall_by_source,
             "falsePositives": value.false_positives,
+            "falsePositiveTrials": value.false_positive_trials,
+            "falsePositiveRate": value.false_positive_rate,
+            "falsePositiveWilson95": value.false_positive_wilson95,
         }
         for variant, value in metrics.items()
     }
@@ -1117,7 +1159,7 @@ def execute(args: argparse.Namespace) -> int:
     import transformers
 
     recipe = load_recipe(RECIPE_PATH)
-    ensure_clean_protocol_head(args.protocol_commit)
+    protocol_commit = resolve_authorized_protocol_commit()
     data_root = require_canonical_path(args.data_root, recipe["sourceEvidence"]["dataRoot"], label="data root")
     train_manifest = require_canonical_path(
         args.train_manifest, recipe["sourceEvidence"]["trainingManifest"]["trackedPath"], label="training manifest",
@@ -1155,9 +1197,9 @@ def execute(args: argparse.Namespace) -> int:
     weights = source_balanced_weights(rows)
     items = load_items(rows, data_root, weights)
     if args.preflight_only:
-        return run_preflight(items, recipe, output_dir, args.protocol_commit, environment, provisioning)
+        return run_preflight(items, recipe, output_dir, protocol_commit, environment, provisioning)
     ensure_run_marker(
-        output_dir, recipe, args.protocol_commit, environment, provisioning, provisioning_sha256,
+        output_dir, recipe, protocol_commit, environment, provisioning, provisioning_sha256,
     )
     budget = PaidTimeBudget(provisioning, recipe, output_dir / "paid-time.json")
     budget.check("selector-manifest-preflight")
@@ -1200,7 +1242,7 @@ def execute(args: argparse.Namespace) -> int:
     grid_packet = {
         "schemaVersion": 1,
         "recipeSha256": digest_file(RECIPE_PATH),
-        "protocolCommit": args.protocol_commit,
+        "protocolCommit": protocol_commit,
         "candidates": grid,
         "selectorManifestSha256": recipe["sourceEvidence"]["selectorManifest"]["sha256"],
         "h3PixelsRead": False,
@@ -1210,7 +1252,7 @@ def execute(args: argparse.Namespace) -> int:
         "schemaVersion": 1,
         "status": "selector-pass" if selected is not None else "selector-fail",
         "recipeSha256": digest_file(RECIPE_PATH),
-        "protocolCommit": args.protocol_commit,
+        "protocolCommit": protocol_commit,
         "environment": environment,
         "upstreamSourceSha256": upstream_hashes,
         "initialPytorchOnnxParityMaximumAbsoluteError": initial_parity,
@@ -1232,7 +1274,7 @@ def execute(args: argparse.Namespace) -> int:
             "status": "failed-m5-selector",
             "acceptanceEligible": False,
             "recipeSha256": digest_file(RECIPE_PATH),
-            "protocolCommit": args.protocol_commit,
+            "protocolCommit": protocol_commit,
             "trainingSummary": summary,
             "trainingSummarySha256": digest_file(summary_path),
             "candidateGrid": grid_packet,
@@ -1251,7 +1293,7 @@ def execute(args: argparse.Namespace) -> int:
         "status": "m5-selected-pre-regression",
         "acceptanceEligible": False,
         "recipeSha256": digest_file(RECIPE_PATH),
-        "protocolCommit": args.protocol_commit,
+        "protocolCommit": protocol_commit,
         "trainingSummary": summary,
         "trainingSummarySha256": digest_file(summary_path),
         "candidateGrid": grid_packet,
@@ -1279,7 +1321,6 @@ def execute(args: argparse.Namespace) -> int:
 
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description=__doc__)
-    value.add_argument("--protocol-commit", required=True)
     value.add_argument("--data-root", default="benchmark/data/m4-head")
     value.add_argument("--train-manifest", default="benchmark/evidence/m4/train-manifest.jsonl.gz")
     value.add_argument("--selector-manifest", default="benchmark/evidence/m4/validation-manifest.jsonl")

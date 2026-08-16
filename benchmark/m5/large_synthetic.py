@@ -353,7 +353,7 @@ def verify_public_packet(recipe: Mapping[str, Any], *, verify_pixels: bool = Fal
     if set(lock) != {
         "schemaVersion", "status", "lockCommit", "protocolCommit", "recipeSha256", "source", "sourceShards",
         "artifacts", "candidateCounts", "generatorCounts", "rejectionCounts", "exclusionEvidenceSha256ByPath",
-        "overlap", "selection", "regressionStateSha256", "modelScored", "selectionInfluence", "h3PixelsRead",
+        "overlap", "selection", "regressionStateSha256", "scoreBlindness", "selectionInfluence", "h3PixelsRead",
     }:
         raise ValueError("M5 large-synthetic source-lock schema changed")
     raw = gzip.decompress(manifest_path.read_bytes())
@@ -430,7 +430,8 @@ def verify_public_packet(recipe: Mapping[str, Any], *, verify_pixels: bool = Fal
         lock["overlap"] != {"id": 0, "byte": 0, "dhashAtOrBelow8": 0, "unreviewed": 0} or
         lock["selection"] != {"items": 100_000, "batches": 1_000, "batchSize": 100, "namespace": large["source"]["selectionNamespace"], "generatorStratified": True} or
         not HEX64.fullmatch(str(lock["regressionStateSha256"])) or
-        lock["modelScored"] is not False or lock["selectionInfluence"] is not False or lock["h3PixelsRead"] is not False
+        lock["scoreBlindness"] != large["scoreBlindnessEvidence"] or
+        lock["selectionInfluence"] is not False or lock["h3PixelsRead"] is not False
     ):
         raise ValueError("M5 large-synthetic source lock changed")
     shards = lock["sourceShards"]
@@ -508,7 +509,7 @@ def prepare(args: argparse.Namespace) -> int:
         "overlap": {"id": 0, "byte": 0, "dhashAtOrBelow8": 0, "unreviewed": 0},
         "selection": {"items": 100_000, "batches": 1_000, "batchSize": 100, "namespace": large["source"]["selectionNamespace"], "generatorStratified": True},
         "regressionStateSha256": regression_sha256,
-        "modelScored": False,
+        "scoreBlindness": large["scoreBlindnessEvidence"],
         "selectionInfluence": False,
         "h3PixelsRead": False,
     }

@@ -37,6 +37,11 @@ from benchmark.m5.contracts import (
     canonical_json,
 )
 from benchmark.m5.train_gpu import (
+    M5_BASE_SOURCE_COMMIT,
+    M5_BASE_SOURCE_TREE,
+    M5_ORIGINAL_PROTOCOL_COMMIT,
+    M5_ORIGINAL_PROTOCOL_TREE,
+    M5_PROTOCOL_RECOVERY_PATHS,
     PaidTimeBudget,
     accumulation_window_samples,
     atomic_torch_save,
@@ -45,6 +50,7 @@ from benchmark.m5.train_gpu import (
     load_or_recover_branch_history,
     pack_float32,
     parser as training_parser,
+    resolve_authorized_protocol_commit,
     write_json,
 )
 from benchmark.m5.large_synthetic import DhashIndex, canonical_gzip, generator_is_excluded
@@ -63,6 +69,76 @@ def selector_rows() -> list[dict[str, object]]:
     for index in range(300):
         rows.append({"id": f"synthetic-{index}", "label": 1, "source": sources[index % 4]})
     return rows
+
+
+def training_summary_fixture(
+    recipe: dict[str, object],
+    *,
+    candidate_grid_sha256: str,
+    status: str,
+    selected_candidate_id: str | None,
+) -> dict[str, object]:
+    training = recipe["training"]
+    source_evidence = recipe["sourceEvidence"]
+    upstream = recipe["upstream"]
+    environment = {
+        "provider": training["provider"],
+        "gpuProduct": "NVIDIA L40S",
+        "gpuMemoryBytes": 48_000_000_000,
+        "cudaAvailable": True,
+        "cudaVersion": "12.8",
+        "driverVersion": "570",
+        "torchVersion": "2.8.0+cu128",
+        "transformersVersion": "5.4.0",
+        "pythonVersion": "3.11.11",
+        "runpodPodIdSha256": "a" * 64,
+        "provisioningReceiptSha256": "b" * 64,
+        "containerImage": training["containerImage"],
+        "requirementsSha256": training["requirementsSha256"],
+        "providerEvidenceBoundary": "operator-recorded-not-cryptographic-attestation",
+        "providerIdentityEvidence": training["providerIdentityEvidence"],
+        "providerSignedAttestation": False,
+        "runtimeConsistencyEvidence": training["runtimeConsistencyEvidence"],
+    }
+    epoch_receipts = []
+    global_step = 0
+    for branch in training["branches"]:
+        for epoch in range(1, int(training["epochs"]) + 1):
+            global_step += 1
+            epoch_receipts.append({
+                "branch": branch["name"],
+                "epoch": epoch,
+                "globalStep": global_step,
+                "seconds": 1.0,
+                "images": source_evidence["trainingManifest"]["items"],
+                "meanWeightedBce": 0.1,
+                "meanMaskedTeacherMse": 0.1,
+                "learningRates": {"classifier": 0.0001},
+            })
+    return {
+        "schemaVersion": 1,
+        "status": status,
+        "recipeSha256": sha256((ROOT / "benchmark/m5/recipe.json").read_bytes()).hexdigest(),
+        "protocolCommit": "a" * 40,
+        "environment": environment,
+        "upstreamSourceSha256": {
+            upstream[key]["path"]: upstream[key]["sha256"]
+            for key in ("config", "preprocessor", "pytorchWeights")
+        },
+        "initialPytorchOnnxParityMaximumAbsoluteError": 0.0,
+        "trainingManifestSha256": source_evidence["trainingManifest"]["compressedSha256"],
+        "selectorManifestSha256": source_evidence["selectorManifest"]["sha256"],
+        "trainingItems": source_evidence["trainingManifest"]["items"],
+        "selectorItems": source_evidence["selectorManifest"]["items"],
+        "epochReceipts": epoch_receipts,
+        "candidateGrid": {
+            "path": f"{recipe['output']['candidateRoot']}/candidate-grid.json",
+            "sha256": candidate_grid_sha256,
+        },
+        "selectedCandidateId": selected_candidate_id,
+        "h3PixelsRead": False,
+        "terminalRegressionsRead": False,
+    }
 
 
 class M5ContractsTest(unittest.TestCase):
@@ -87,7 +163,12 @@ class M5ContractsTest(unittest.TestCase):
             lambda value: value["deliverable"].__setitem__("maximumBytes", 900_000_000),
             lambda value: value["sourceEvidence"]["trainingManifest"].__setitem__("items", 1),
             lambda value: value["largeSyntheticEvaluation"].__setitem__("minimumMeanBatchRecallExclusive", 0.95 + 1e-6),
-            lambda value: value["training"].__setitem__("maximumPaidWallClockSeconds", 28_801),
+            lambda value: value["training"].__setitem__("maximumPaidWallClockSeconds", 86_401),
+            lambda value: value["training"].__setitem__("maximumPaidWallClockSeconds", 28_800),
+            lambda value: value["training"].__setitem__("providerSignedAttestation", True),
+            lambda value: value["selection"]["falsePositiveConfidence"].__setitem__("poolAcrossVariants", True),
+            lambda value: value["selection"]["falsePositiveConfidence"].__setitem__("trialsPerVariant", 1_200),
+            lambda value: value["largeSyntheticEvaluation"]["scoreBlindnessEvidence"].__setitem__("privatePriorScoringAbsenceProven", True),
             lambda value: value["training"].__setitem__("providerAutoStopRequired", True),
         ):
             candidate = copy.deepcopy(self.recipe)
@@ -125,6 +206,9 @@ class M5ContractsTest(unittest.TestCase):
         threshold, metrics, _ = selected
         self.assertGreater(threshold, -4.0)
         self.assertTrue(all(value.false_positives == 0 for value in metrics.values()))
+        self.assertTrue(all(value.false_positive_trials == 300 for value in metrics.values()))
+        self.assertTrue(all(value.false_positive_rate == 0.0 for value in metrics.values()))
+        self.assertTrue(all(value.false_positive_wilson95 == {"lower": 0.0, "upper": 0.012642971224546027} for value in metrics.values()))
 
     def test_one_false_positive_fails_every_threshold_that_keeps_all_synthetic(self) -> None:
         rows = selector_rows()
@@ -160,6 +244,9 @@ class M5ContractsTest(unittest.TestCase):
             "containerImage": self.recipe["training"]["containerImage"],
             "requirementsSha256": self.recipe["training"]["requirementsSha256"],
             "providerEvidenceBoundary": "operator-recorded-not-cryptographic-attestation",
+            "providerIdentityEvidence": "operator-attested-control-plane-observation",
+            "providerSignedAttestation": False,
+            "runtimeConsistencyEvidence": "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt",
         }
         validate_environment_receipt(receipt, self.recipe)
         receipt["gpuProduct"] = "NVIDIA RTX 4090"
@@ -176,8 +263,8 @@ class M5ContractsTest(unittest.TestCase):
             "containerImage": self.recipe["training"]["containerImage"],
             "podIdSha256": "a" * 64,
             "createdAtUnix": 1_000_000,
-            "maximumRuntimeSeconds": 28_800,
-            "workloadStopAtUnix": 1_028_800,
+            "maximumRuntimeSeconds": 86_400,
+            "workloadStopAtUnix": 1_086_400,
             "providerAutoStopAvailable": False,
             "operatorStopRequired": True,
             "stopControl": "trainer-deadline-plus-authenticated-operator-stop",
@@ -195,11 +282,11 @@ class M5ContractsTest(unittest.TestCase):
             self.assertTrue(state.is_file())
             expired = PaidTimeBudget.__new__(PaidTimeBudget)
             expired.created = 1_000_000
-            expired.workload_stop = 1_028_800
-            expired.deadline = 1_028_500
-            expired.maximum = 28_800
+            expired.workload_stop = 1_086_400
+            expired.deadline = 1_086_100
+            expired.maximum = 86_400
             expired.state_path = state
-            expired.clock = lambda: 1_028_500.0
+            expired.clock = lambda: 1_086_100.0
             expired.last_persisted = 0.0
             with self.assertRaises(TimeoutError):
                 expired.check("after-deadline")
@@ -305,6 +392,9 @@ class M5ContractsTest(unittest.TestCase):
             "containerImage": self.recipe["training"]["containerImage"],
             "requirementsSha256": self.recipe["training"]["requirementsSha256"],
             "providerEvidenceBoundary": "operator-recorded-not-cryptographic-attestation",
+            "providerIdentityEvidence": "operator-attested-control-plane-observation",
+            "providerSignedAttestation": False,
+            "runtimeConsistencyEvidence": "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt",
         }
         with tempfile.TemporaryDirectory(dir=ROOT / "benchmark") as directory:
             output = Path(directory)
@@ -406,6 +496,7 @@ class M5ContractsTest(unittest.TestCase):
             "minimumGeneratorRecall": 1.0,
             "logits": packet,
             "selectionInfluence": False,
+            "scoreBlindness": self.recipe["largeSyntheticEvaluation"]["scoreBlindnessEvidence"],
             "regressionStateSha256": "2" * 64,
             "h3PixelsRead": False,
         }
@@ -423,9 +514,52 @@ class M5ContractsTest(unittest.TestCase):
             )
 
     def test_preflight_mode_is_explicit_and_selector_free_by_contract(self) -> None:
-        arguments = training_parser().parse_args(["--protocol-commit", "a" * 40, "--preflight-only"])
+        arguments = training_parser().parse_args(["--preflight-only"])
         self.assertTrue(arguments.preflight_only)
+        self.assertFalse(hasattr(arguments, "protocol_commit"))
         self.assertFalse(hasattr(arguments, "h3_manifest"))
+
+    def test_protocol_commit_is_git_derived_and_exact(self) -> None:
+        head = "c" * 40
+
+        def fake_run(command: list[str], *, cwd: Path = ROOT) -> str:
+            del cwd
+            if command == ["git", "rev-parse", "HEAD"]:
+                return head
+            if command == ["git", "rev-list", "--parents", "-n", "1", head]:
+                return f"{head} {M5_ORIGINAL_PROTOCOL_COMMIT}"
+            if command == ["git", "rev-parse", f"{M5_ORIGINAL_PROTOCOL_COMMIT}^{{tree}}"]:
+                return M5_ORIGINAL_PROTOCOL_TREE
+            if command == ["git", "rev-list", "--parents", "-n", "1", M5_ORIGINAL_PROTOCOL_COMMIT]:
+                return f"{M5_ORIGINAL_PROTOCOL_COMMIT} {M5_BASE_SOURCE_COMMIT}"
+            if command == ["git", "rev-parse", f"{M5_BASE_SOURCE_COMMIT}^{{tree}}"]:
+                return M5_BASE_SOURCE_TREE
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", head]:
+                return "\n".join(f"M\t{path}" for path in sorted(M5_PROTOCOL_RECOVERY_PATHS))
+            if command == ["git", "status", "--porcelain=v1", "--untracked-files=all"]:
+                return ""
+            raise AssertionError(command)
+
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=fake_run):
+            self.assertEqual(resolve_authorized_protocol_commit(), head)
+
+        def wrong_parent(command: list[str], *, cwd: Path = ROOT) -> str:
+            if command == ["git", "rev-list", "--parents", "-n", "1", head]:
+                return f"{head} {'0' * 40}"
+            return fake_run(command, cwd=cwd)
+
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=wrong_parent):
+            with self.assertRaisesRegex(ValueError, "append-only"):
+                resolve_authorized_protocol_commit()
+
+        def untracked_shadow(command: list[str], *, cwd: Path = ROOT) -> str:
+            if command == ["git", "status", "--porcelain=v1", "--untracked-files=all"]:
+                return "?? torch.py"
+            return fake_run(command, cwd=cwd)
+
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=untracked_shadow):
+            with self.assertRaisesRegex(ValueError, "completely clean"):
+                resolve_authorized_protocol_commit()
 
     def test_selection_lock_is_recomputed_from_embedded_logits(self) -> None:
         rows = selector_rows()
@@ -465,6 +599,9 @@ class M5ContractsTest(unittest.TestCase):
                         "syntheticRecall": value.synthetic_recall,
                         "syntheticRecallBySource": value.synthetic_recall_by_source,
                         "falsePositives": value.false_positives,
+                        "falsePositiveTrials": value.false_positive_trials,
+                        "falsePositiveRate": value.false_positive_rate,
+                        "falsePositiveWilson95": value.false_positive_wilson95,
                     }
                     for variant, value in metrics.items()
                 },
@@ -479,8 +616,14 @@ class M5ContractsTest(unittest.TestCase):
             "selectorManifestSha256": self.recipe["sourceEvidence"]["selectorManifest"]["sha256"],
             "h3PixelsRead": False,
         }
-        summary = {"status": "selector-pass"}
         winner = candidates[0]
+        grid_sha256 = sha256(canonical_json(grid)).hexdigest()
+        summary = training_summary_fixture(
+            self.recipe,
+            candidate_grid_sha256=grid_sha256,
+            status="selector-pass",
+            selected_candidate_id=winner["candidateId"],
+        )
         threshold = winner["rawThreshold"]
         lock = {
             "schemaVersion": 1,
@@ -491,7 +634,7 @@ class M5ContractsTest(unittest.TestCase):
             "trainingSummary": summary,
             "trainingSummarySha256": sha256(canonical_json(summary)).hexdigest(),
             "candidateGrid": grid,
-            "candidateGridSha256": sha256(canonical_json(grid)).hexdigest(),
+            "candidateGridSha256": grid_sha256,
             "selectedCandidateId": winner["candidateId"],
             "selectedModel": winner["model"],
             "rawThreshold": threshold,
@@ -503,9 +646,23 @@ class M5ContractsTest(unittest.TestCase):
             "h3PixelsRead": False,
         }
         validate_selection_lock(lock, self.recipe, rows)
+        for key, replacement in (
+            ("providerIdentityEvidence", "provider-signed"),
+            ("providerSignedAttestation", True),
+            ("runtimeConsistencyEvidence", "unbound"),
+        ):
+            broken_environment = copy.deepcopy(lock)
+            broken_environment["trainingSummary"]["environment"][key] = replacement
+            broken_environment["trainingSummarySha256"] = sha256(
+                canonical_json(broken_environment["trainingSummary"])
+            ).hexdigest()
+            with self.subTest(provider_field=key), self.assertRaises(ValueError):
+                validate_selection_lock(broken_environment, self.recipe, rows)
         broken = copy.deepcopy(lock)
         broken["candidateGrid"]["candidates"][0]["selectorLogits"]["original"]["base64"] = "AAAA"
         broken["candidateGridSha256"] = sha256(canonical_json(broken["candidateGrid"])).hexdigest()
+        broken["trainingSummary"]["candidateGrid"]["sha256"] = broken["candidateGridSha256"]
+        broken["trainingSummarySha256"] = sha256(canonical_json(broken["trainingSummary"])).hexdigest()
         with self.assertRaises(ValueError):
             validate_selection_lock(broken, self.recipe, rows)
 
@@ -541,10 +698,13 @@ class M5ContractsTest(unittest.TestCase):
             "selectorManifestSha256": self.recipe["sourceEvidence"]["selectorManifest"]["sha256"],
             "h3PixelsRead": False,
         }
-        summary = {
-            "status": "selector-fail", "protocolCommit": "a" * 40, "selectedCandidateId": None,
-            "h3PixelsRead": False, "terminalRegressionsRead": False,
-        }
+        grid_sha256 = sha256(canonical_json(grid)).hexdigest()
+        summary = training_summary_fixture(
+            self.recipe,
+            candidate_grid_sha256=grid_sha256,
+            status="selector-fail",
+            selected_candidate_id=None,
+        )
         receipt = {
             "schemaVersion": 1,
             "status": "failed-m5-selector",
@@ -554,7 +714,7 @@ class M5ContractsTest(unittest.TestCase):
             "trainingSummary": summary,
             "trainingSummarySha256": sha256(canonical_json(summary)).hexdigest(),
             "candidateGrid": grid,
-            "candidateGridSha256": sha256(canonical_json(grid)).hexdigest(),
+            "candidateGridSha256": grid_sha256,
             "h3PixelsRead": False,
             "terminalRegressionsRead": False,
             "reason": "No frozen candidate passed.",
@@ -563,6 +723,8 @@ class M5ContractsTest(unittest.TestCase):
         broken = copy.deepcopy(receipt)
         broken["candidateGrid"]["candidates"][0]["accepted"] = True
         broken["candidateGridSha256"] = sha256(canonical_json(broken["candidateGrid"])).hexdigest()
+        broken["trainingSummary"]["candidateGrid"]["sha256"] = broken["candidateGridSha256"]
+        broken["trainingSummarySha256"] = sha256(canonical_json(broken["trainingSummary"])).hexdigest()
         with self.assertRaises(ValueError):
             validate_failure_receipt(broken, self.recipe, rows)
 

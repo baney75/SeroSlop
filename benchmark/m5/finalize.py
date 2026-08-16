@@ -193,12 +193,28 @@ def replace_section(text: str, start: str, end: str, replacement: str) -> str:
 def render_documents(lock: Mapping[str, Any], regression: Mapping[str, Any], evaluation: Mapping[str, Any]) -> dict[str, str]:
     metrics = lock["selectorMetrics"]
     metric_text = ", ".join(f"{name} {value['balancedAccuracy'] * 100:.2f}%" for name, value in metrics.items())
+    if any(
+        value["falsePositives"] != 0
+        or value["falsePositiveTrials"] != 300
+        or value["falsePositiveRate"] != 0.0
+        or value["falsePositiveWilson95"]["lower"] != 0.0
+        for value in metrics.values()
+    ):
+        raise ValueError("M5 public selector false-positive evidence changed")
+    upper_values = {value["falsePositiveWilson95"]["upper"] for value in metrics.values()}
+    if len(upper_values) != 1:
+        raise ValueError("M5 public selector Wilson bounds changed across views")
+    upper = next(iter(upper_values))
     common = (
         f"The selected local model is `{lock['selectedModel']['sha256']}` "
         f"({lock['selectedModel']['bytes']:,} bytes). It was selected only on the frozen 600-image M4 selector. "
-        f"Selector balanced accuracy was {metric_text}, with zero observed false positives among 300 real selector images in every view. "
+        f"Selector balanced accuracy was {metric_text}. Each view observed 0 false positives among the same 300 base real images; "
+        f"the per-view two-sided 95% Wilson upper bound is {upper * 100:.4f}%. The four transformed views are correlated and are not pooled as 0/1,200. "
         f"Both frozen terminal regressions passed. On the separate 100,000-image synthetic panel, the mean batch recall was "
         f"{evaluation['meanBatchRecall'] * 100:.3f}% and the median was {evaluation['medianBatchRecall'] * 100:.3f}%. "
+        "The panel has no detected overlap with the bound SeroSlop training, selection, regression, H3-metadata, or historical packets. "
+        "Its public source lock precedes the repository evaluation receipt; absence of private prior scoring is operator-attested, not cryptographically proven. "
+        "The training host is likewise operator-attested RunPod Secure Cloud L40S evidence, not provider-signed proof. "
         "These are fixed development and synthetic-recall results, not a universal accuracy claim or the untouched H3 result."
     )
     replacements = {
@@ -259,7 +275,13 @@ def build_model_lock(
             "regressionSummarySha256": regression_sha256,
             "largeSyntheticEvaluationSha256": evaluation_sha256,
             "calibrationSha256": calibration_sha256,
-            "architecture": "RunPod-fine-tuned Community Forensics ViT-S/16 with a 384-to-1 classifier",
+            "trainingHostEvidence": {
+                "provider": "RunPod Secure Cloud",
+                "identity": "operator-attested-control-plane-observation",
+                "providerSignedAttestation": False,
+                "runtimeConsistency": "Pod-ID hash and locally observed L40S/CUDA facts matched the operator-authored receipt",
+            },
+            "architecture": "operator-attested RunPod-hosted Community Forensics ViT-S/16 fine-tuning with a 384-to-1 classifier",
         },
         "calibration": {
             "slope": calibration["slope"],

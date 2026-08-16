@@ -72,6 +72,9 @@ def selector_metrics_dict(logits: Mapping[str, Sequence[float]], rows: Sequence[
             "syntheticRecall": value.synthetic_recall,
             "syntheticRecallBySource": value.synthetic_recall_by_source,
             "falsePositives": value.false_positives,
+            "falsePositiveTrials": value.false_positive_trials,
+            "falsePositiveRate": value.false_positive_rate,
+            "falsePositiveWilson95": value.false_positive_wilson95,
         }
         for variant in VARIANTS
         for value in [metrics_at_threshold(logits[variant], rows, threshold)]
@@ -114,6 +117,9 @@ def replay_locked_selector(
             "syntheticRecall": value.synthetic_recall,
             "syntheticRecallBySource": value.synthetic_recall_by_source,
             "falsePositives": value.false_positives,
+            "falsePositiveTrials": value.false_positive_trials,
+            "falsePositiveRate": value.false_positive_rate,
+            "falsePositiveWilson95": value.false_positive_wilson95,
         }
         for variant, value in replay_metrics.items()
     }:

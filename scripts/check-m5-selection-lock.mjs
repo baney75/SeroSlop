@@ -8,10 +8,13 @@ import {
   M5_LARGE_EVALUATION_PATH,
   M5_LARGE_SOURCE_LOCK_PATH,
   M5_LOCK_EXPECTED,
+  M5_ORIGINAL_PROTOCOL_COMMIT,
+  M5_ORIGINAL_PROTOCOL_TREE,
   M5_PROTOCOL_EXPECTED,
+  M5_PROTOCOL_RECOVERY_EXPECTED,
   M5_SELECTION_LOCK_PATH,
   matchesExpectedRows,
-  matchesM5ProtocolCommit,
+  matchesM5ProtocolLineage,
 } from "./m5-stage-policy.mjs";
 
 function git(arguments_) {
@@ -33,9 +36,18 @@ if (headParents.length !== 1 || !matchesExpectedRows(rows(head), M5_LOCK_EXPECTE
   throw new Error("M5 selection lock must be the exact one-file direct child of the protocol commit");
 }
 const protocol = headParents[0];
-const protocolParents = git(["rev-list", "--parents", "-n", "1", protocol]).split(" ").slice(1);
+const recoveryParents = git(["rev-list", "--parents", "-n", "1", protocol]).split(" ").slice(1);
+const originalParents = git(["rev-list", "--parents", "-n", "1", M5_ORIGINAL_PROTOCOL_COMMIT]).split(" ").slice(1);
+const originalTree = git(["rev-parse", `${M5_ORIGINAL_PROTOCOL_COMMIT}^{tree}`]);
 const baseTree = git(["rev-parse", `${M5_BASE_SOURCE_COMMIT}^{tree}`]);
-if (!matchesM5ProtocolCommit({ parents: protocolParents, rows: rows(protocol), parentTree: baseTree }) || baseTree !== M5_BASE_SOURCE_TREE) {
+if (!matchesM5ProtocolLineage({
+  recoveryParents,
+  recoveryRows: rows(protocol),
+  originalTree,
+  originalParents,
+  originalRows: rows(M5_ORIGINAL_PROTOCOL_COMMIT),
+  baseTree,
+}) || originalTree !== M5_ORIGINAL_PROTOCOL_TREE || baseTree !== M5_BASE_SOURCE_TREE) {
   throw new Error("M5 selection lock has the wrong protocol ancestry");
 }
 if (git(["status", "--porcelain=v1", "--untracked-files=all"])) {
@@ -53,4 +65,4 @@ execFileSync("python3", ["-c", [
   "validate_selection_lock(l,r,rows)",
   `assert l['protocolCommit']=='${protocol}'`,
 ].join(";")], { stdio: "inherit" });
-console.log(JSON.stringify({ head, protocol, paths: M5_PROTOCOL_EXPECTED.size, policy: "pass" }));
+console.log(JSON.stringify({ head, protocol, originalProtocol: M5_ORIGINAL_PROTOCOL_COMMIT, paths: M5_PROTOCOL_EXPECTED.size + M5_PROTOCOL_RECOVERY_EXPECTED.size, policy: "pass" }));
