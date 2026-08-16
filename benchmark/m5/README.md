@@ -8,11 +8,18 @@ host-boundary test expected the macOS exit code on GitHub's Linux runner; no
 training or inference ran. Publish its sole exact nine-path CI-recovery child,
 run the source-recovery stage gate, and wait for exact-head green CI. Then create
 P4 as the direct one-file child containing only
-`benchmark/evidence/m5/run-authorization.json`. The canonical writer records
+`benchmark/evidence/m5/run-authorization.json`. P4 is preserved as public-green
+history, but its Python history map omitted the already-frozen
+`scripts/m5-preexec-bootstrap.py` row, so its RunPod preflight failed before
+CUDA or model loading. Publish the sole exact 11-path runtime-recovery child of
+P4 and wait for exact-head green CI. The canonical writer then creates the new
+one-file authorization
+`benchmark/evidence/m5/runtime-recovery-authorization.json`. It records
 P2, the failed P3, and the recovered source history plus hashes for every
-effective P3 source path. It refuses to write until anonymous public `main` and
-the exact-head `quality` push run both show the recovered source. From that
-clean, public, green recovery commit run:
+effective P3 source path, and binds the immutable P4 commit, tree, old receipt
+path, and old receipt digest. It refuses to write until anonymous public `main`
+and the exact-head `quality` push run both show the runtime recovery. From that
+clean, public, green runtime-recovery commit run:
 
 ```bash
 /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/python3 -I -c '
@@ -22,8 +29,8 @@ if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec
 sys.argv = [str(p), *sys.argv[3:]]
 exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
 ' scripts/m5-preexec-bootstrap.py 9f73cfac68387affb4fce9dbfc37b1e56883178203e6d6b2f871b3ae77bdf6b1 authorize
-git add benchmark/evidence/m5/run-authorization.json
-git commit -m "Evidence: authorize exact M5 source"
+git add benchmark/evidence/m5/runtime-recovery-authorization.json
+git commit -m "Evidence: authorize exact M5 runtime recovery"
 ```
 
 The inline system-Python loader verifies the stdlib-only pre-exec bootstrap before
@@ -32,10 +39,11 @@ then pins the operator Mac's absolute Node executable, version, and SHA-256 and
 starts it with a minimal environment. Do not use `npm`, an inherited `PATH`, or a
 different Node binary for this one-file writer.
 
-The P4 commit must add only that receipt. Push it and wait for its own exact-head
-green CI before creating any paid Pod. RunPod preflight and training run only
-from clean P4; later selection, failure, 100K, and final stages must retain the
-P2 → failed P3 → CI recovery → P4 chain.
+The new authorization commit must add only that receipt. Push it and wait for
+its own exact-head green CI before retrying paid preflight. RunPod preflight and
+training run only from that clean authorization head; later selection, failure,
+100K, and final stages must retain the complete
+P2 → failed P3 → CI recovery → P4 → runtime recovery → authorization chain.
 
 ## Accepted brief
 
@@ -86,7 +94,7 @@ Use one RunPod Secure Cloud L40S 48 GB Pod. The recommended image is:
 pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385
 ```
 
-The repository must be cloned at the exact public M5 P4 authorization commit. The launcher derives and verifies the append-only P2 → P3 → P4 lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
+The repository must be cloned at the exact public M5 runtime-recovery authorization commit. The launcher derives and verifies the full append-only lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
 
 The pre-exec gate detects source drift present when a command starts. It is not
 a sandbox against a hostile same-user process changing files after verification;

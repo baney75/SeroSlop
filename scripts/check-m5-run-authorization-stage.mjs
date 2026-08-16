@@ -23,18 +23,18 @@ const getJson = (url) => new Promise((resolve, reject) => {
 });
 const head = git(["rev-parse", "HEAD"]);
 const result = validateM5AuthorizedChain();
-if (head !== result.authorization) throw new Error("M5 authorized stage must be the exact P4 receipt commit");
+if (head !== result.authorization) throw new Error("M5 authorized stage must be the exact runtime-recovery receipt commit");
 assertM5WorktreeExact();
 for (const forbidden of [M5_SELECTION_LOCK_PATH, M5_FAILURE_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_FINAL_RECEIPT_PATH, "docs/COMPETITOR_AUDIT.md"]) {
-  if (existsSync(forbidden)) throw new Error(`M5 P4 contains forbidden later evidence: ${forbidden}`);
+  if (existsSync(forbidden)) throw new Error(`M5 runtime authorization contains forbidden later evidence: ${forbidden}`);
 }
 const publicReference = await getJson("https://api.github.com/repos/baney75/prooflens/git/ref/heads/main");
 const publicHead = publicReference.object?.sha;
-if (publicHead !== head) throw new Error("M5 P4 must be the anonymous public main head");
+if (publicHead !== head) throw new Error("M5 runtime authorization must be the anonymous public main head");
 const sourceRun = await getJson(`https://api.github.com/repos/baney75/prooflens/actions/runs/${result.receipt.sourcePublicCi.runId}`);
 if (sourceRun.head_sha !== result.source || sourceRun.event !== "push" || sourceRun.status !== "completed" ||
     sourceRun.conclusion !== "success" || sourceRun.path !== ".github/workflows/quality.yml" ||
     sourceRun.html_url !== result.receipt.sourcePublicCi.url) {
-  throw new Error("M5 P4 source CI proof does not match the public GitHub run");
+  throw new Error("M5 runtime source CI proof does not match the public GitHub run");
 }
 console.log(JSON.stringify({ head, source: result.source, authorizationReceiptSha256: result.authorizationReceiptSha256, policy: "pass" }));

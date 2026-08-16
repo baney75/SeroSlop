@@ -11,6 +11,7 @@ from pathlib import Path
 import pickle
 import runpy
 import struct
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -32,6 +33,7 @@ from benchmark.m5.contracts import (
     validate_environment_receipt,
     validate_provisioning_receipt,
     validate_run_authorization,
+    validate_runtime_recovery_authorization,
     validate_regression_state,
     validate_failure_receipt,
     validate_manifest_rows,
@@ -44,13 +46,18 @@ from benchmark.m5.train_gpu import (
     M5_BASE_SOURCE_TREE,
     M5_FAILED_SOURCE_COMMIT,
     M5_FAILED_SOURCE_TREE,
+    M5_CI_RECOVERY_COMMIT,
+    M5_CI_RECOVERY_TREE,
     M5_ORIGINAL_PROTOCOL_COMMIT,
     M5_ORIGINAL_PROTOCOL_TREE,
     M5_P2_COMMIT,
     M5_P2_TREE,
+    M5_P4_COMMIT,
+    M5_P4_TREE,
     M5_PROTOCOL_RECOVERY_PATHS,
     M5_SOURCE_CI_RECOVERY_ROWS,
     M5_SOURCE_RECOVERY_ROWS,
+    M5_RUNTIME_RECOVERY_ROWS,
     PaidTimeBudget,
     accumulation_window_samples,
     atomic_torch_save,
@@ -195,6 +202,38 @@ class M5ContractsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_run_authorization(broken, protocol_commit=receipt["protocolCommit"], protocol_tree=receipt["protocolTree"],
                                        source_commit=receipt["sourceCommit"], source_tree=receipt["sourceTree"], source_path_map=paths)
+
+    def test_runtime_recovery_authorization_binds_prior_p4_and_new_source(self) -> None:
+        paths = [{"path": "benchmark/m5/train_gpu.py", "sha256": "a" * 64}]
+        receipt = {
+            "schemaVersion": 2, "status": "m5-runtime-recovery-authorized",
+            "protocolCommit": M5_P2_COMMIT, "protocolTree": M5_P2_TREE,
+            "priorAuthorizationCommit": M5_P4_COMMIT, "priorAuthorizationTree": M5_P4_TREE,
+            "priorAuthorizationPath": "benchmark/evidence/m5/run-authorization.json",
+            "priorAuthorizationSha256": "d1fcdc2fab96873d3860abfeb71d1edd74b14bfb080b1feadd837ce8d4e011d3",
+            "sourceCommit": "c" * 40, "sourceTree": "d" * 40, "sourcePathMap": paths,
+            "sourcePublicCi": {
+                "conclusion": "success", "event": "push", "headSha": "c" * 40,
+                "runId": 456, "status": "completed",
+                "url": "https://github.com/baney75/prooflens/actions/runs/456",
+                "workflowPath": ".github/workflows/quality.yml",
+            },
+            "authorizationPath": "benchmark/evidence/m5/runtime-recovery-authorization.json",
+            "scoreBlind": True, "h3PixelsRead": False,
+        }
+        arguments = {
+            "protocol_commit": M5_P2_COMMIT, "protocol_tree": M5_P2_TREE,
+            "prior_authorization_commit": M5_P4_COMMIT, "prior_authorization_tree": M5_P4_TREE,
+            "prior_authorization_sha256": receipt["priorAuthorizationSha256"],
+            "source_commit": receipt["sourceCommit"], "source_tree": receipt["sourceTree"],
+            "source_path_map": paths,
+        }
+        validate_runtime_recovery_authorization(receipt, **arguments)
+        for key in ("priorAuthorizationCommit", "priorAuthorizationSha256", "sourceCommit", "authorizationPath"):
+            broken = copy.deepcopy(receipt)
+            broken[key] = "e" * (64 if key.endswith("Sha256") else 40)
+            with self.assertRaises(ValueError):
+                validate_runtime_recovery_authorization(broken, **arguments)
     def setUp(self) -> None:
         self.recipe = load_recipe(ROOT / "benchmark/m5/recipe.json")
 
@@ -664,8 +703,20 @@ class M5ContractsTest(unittest.TestCase):
         def fake_run(command: list[str], *, cwd: Path = ROOT) -> str:
             del cwd
             if command == ["git", "rev-list", "--parents", "-n", "1", source]:
-                return f"{source} {M5_FAILED_SOURCE_COMMIT}"
+                return f"{source} {M5_P4_COMMIT}"
             if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", source]:
+                return rows(M5_RUNTIME_RECOVERY_ROWS)
+            if command == ["git", "rev-parse", f"{M5_P4_COMMIT}^{{tree}}"]:
+                return M5_P4_TREE
+            if command == ["git", "rev-list", "--parents", "-n", "1", M5_P4_COMMIT]:
+                return f"{M5_P4_COMMIT} {M5_CI_RECOVERY_COMMIT}"
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_P4_COMMIT]:
+                return "A\tbenchmark/evidence/m5/run-authorization.json"
+            if command == ["git", "rev-parse", f"{M5_CI_RECOVERY_COMMIT}^{{tree}}"]:
+                return M5_CI_RECOVERY_TREE
+            if command == ["git", "rev-list", "--parents", "-n", "1", M5_CI_RECOVERY_COMMIT]:
+                return f"{M5_CI_RECOVERY_COMMIT} {M5_FAILED_SOURCE_COMMIT}"
+            if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M5_CI_RECOVERY_COMMIT]:
                 return rows(M5_SOURCE_CI_RECOVERY_ROWS)
             if command == ["git", "rev-parse", f"{M5_FAILED_SOURCE_COMMIT}^{{tree}}"]:
                 return M5_FAILED_SOURCE_TREE
@@ -680,13 +731,13 @@ class M5ContractsTest(unittest.TestCase):
         with mock.patch("benchmark.m5.train_gpu.run", side_effect=fake_run):
             validate_source_recovery_history(source)
 
-        def skipped_failed_source(command: list[str], *, cwd: Path = ROOT) -> str:
+        def skipped_prior_authorization(command: list[str], *, cwd: Path = ROOT) -> str:
             if command == ["git", "rev-list", "--parents", "-n", "1", source]:
                 return f"{source} {M5_P2_COMMIT}"
             return fake_run(command, cwd=cwd)
 
-        with mock.patch("benchmark.m5.train_gpu.run", side_effect=skipped_failed_source):
-            with self.assertRaisesRegex(ValueError, "failed P3"):
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=skipped_prior_authorization):
+            with self.assertRaisesRegex(ValueError, "runtime recovery"):
                 validate_source_recovery_history(source)
 
         def wrong_failed_tree(command: list[str], *, cwd: Path = ROOT) -> str:
@@ -695,8 +746,21 @@ class M5ContractsTest(unittest.TestCase):
             return fake_run(command, cwd=cwd)
 
         with mock.patch("benchmark.m5.train_gpu.run", side_effect=wrong_failed_tree):
-            with self.assertRaisesRegex(ValueError, "failed P3"):
+            with self.assertRaisesRegex(ValueError, "runtime recovery"):
                 validate_source_recovery_history(source)
+
+    def test_python_history_map_matches_literal_failed_p3_commit(self) -> None:
+        output = subprocess.check_output([
+            "/usr/bin/git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r",
+            M5_FAILED_SOURCE_COMMIT,
+        ], cwd=ROOT, text=True)
+        actual = {}
+        for line in output.splitlines():
+            status, path = line.split("\t", maxsplit=1)
+            actual[path] = status
+        self.assertEqual(len(actual), 26)
+        self.assertEqual(actual.get("scripts/m5-preexec-bootstrap.py"), "A")
+        self.assertEqual(actual, M5_SOURCE_RECOVERY_ROWS)
 
     def test_selection_lock_is_recomputed_from_embedded_logits(self) -> None:
         rows = selector_rows()

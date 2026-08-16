@@ -6,7 +6,13 @@ export const M5_P2_COMMIT = "1c4ac973785f937fa9023018863941e6d89d8693";
 export const M5_P2_TREE = "a56caae4291e275029076417fb2111be76b07a41";
 export const M5_FAILED_SOURCE_COMMIT = "fba4b51ef5073e0a189ab6baaaf155fccf785dc6";
 export const M5_FAILED_SOURCE_TREE = "9176b515dfe87a5d5136f0103ef2f8b81fab2938";
+export const M5_CI_RECOVERY_COMMIT = "8e06b822f9d9fb4a3dd8adb2e4bf6dc2f19c51bb";
+export const M5_CI_RECOVERY_TREE = "798e7c2ec55abd82de5bf0927f4c988f2e1c9a7c";
+export const M5_P4_COMMIT = "99505818a95e494b3ad8ed10fbb22bff0ce798da";
+export const M5_P4_TREE = "0ff0eff3b518397dc2c721099ed4597fc15eb17f";
+export const M5_P4_AUTHORIZATION_SHA256 = "d1fcdc2fab96873d3860abfeb71d1edd74b14bfb080b1feadd837ce8d4e011d3";
 export const M5_RUN_AUTHORIZATION_PATH = "benchmark/evidence/m5/run-authorization.json";
+export const M5_RUNTIME_AUTHORIZATION_PATH = "benchmark/evidence/m5/runtime-recovery-authorization.json";
 export const M5_SELECTION_LOCK_PATH = "benchmark/evidence/m5/selection-lock.json";
 export const M5_FAILURE_PATH = "benchmark/evidence/m5/failed-training-attempt-1.json";
 export const M5_FINAL_RECEIPT_PATH = "benchmark/evidence/m5/finalization-receipt.json";
@@ -126,6 +132,23 @@ export const M5_SOURCE_CI_RECOVERY_EXPECTED = new Map([
   ["scripts/test-m5-stage-policy.mjs", "M"],
 ]);
 
+// P4 was correctly authorized but its Python runtime history map omitted the
+// already-frozen pre-exec bootstrap row.  The only permitted runtime repair is
+// this exact append-only child; a second receipt must authorize these bytes.
+export const M5_RUNTIME_RECOVERY_EXPECTED = new Map([
+  ["benchmark/m5/README.md", "M"],
+  ["benchmark/m5/contracts.py", "M"],
+  ["benchmark/m5/test_contracts.py", "M"],
+  ["benchmark/m5/train_gpu.py", "M"],
+  ["scripts/check-m5-authorized-chain.mjs", "M"],
+  ["scripts/check-m5-run-authorization-stage.mjs", "M"],
+  ["scripts/check-m5-source-recovery-stage.mjs", "M"],
+  ["scripts/m5-run-authorization.mjs", "M"],
+  ["scripts/m5-stage-policy.mjs", "M"],
+  ["scripts/run-static-verification.mjs", "M"],
+  ["scripts/test-m5-stage-policy.mjs", "M"],
+]);
+
 export const M5_LOCK_EXPECTED = new Map([[M5_SELECTION_LOCK_PATH, "A"]]);
 export const M5_FAILURE_EXPECTED = new Map([[M5_FAILURE_PATH, "A"]]);
 export const M5_LARGE_SOURCE_EXPECTED = new Map([
@@ -187,16 +210,20 @@ export function matchesM5SourceRecoveryCommit({ sourceParents, sourceRows, faile
     matchesExpectedRows(failedSourceRows, M5_SOURCE_RECOVERY_EXPECTED);
 }
 
-export function matchesM5SourceRecoveryLineage({ sourceCommit = "SOURCE_COMMIT", sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows, authorizationParents, authorizationRows }) {
-  return matchesM5SourceRecoveryCommit({ sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) &&
-    authorizationParents.length === 1 && authorizationParents[0] === sourceCommit &&
-    matchesExpectedRows(authorizationRows, new Map([[M5_RUN_AUTHORIZATION_PATH, "A"]]));
+export function matchesM5RuntimeRecoveryCommit({ runtimeParents, runtimeRows, p4Tree, p4Parents, p4Rows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) {
+  return runtimeParents.length === 1 && runtimeParents[0] === M5_P4_COMMIT &&
+    matchesExpectedRows(runtimeRows, M5_RUNTIME_RECOVERY_EXPECTED) &&
+    p4Tree === M5_P4_TREE &&
+    p4Parents.length === 1 && p4Parents[0] === sourceCommit &&
+    matchesExpectedRows(p4Rows, new Map([[M5_RUN_AUTHORIZATION_PATH, "A"]])) &&
+    sourceCommit === M5_CI_RECOVERY_COMMIT &&
+    matchesM5SourceRecoveryCommit({ sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows });
 }
 
-export function matchesM5AuthorizedChain({ authorizationCommit, authorizationParents, authorizationRows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) {
-  return authorizationCommit && authorizationParents.length === 1 && authorizationParents[0] === sourceCommit &&
-    matchesExpectedRows(authorizationRows, new Map([[M5_RUN_AUTHORIZATION_PATH, "A"]])) &&
-    matchesM5SourceRecoveryLineage({ sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows, authorizationParents: [sourceCommit], authorizationRows });
+export function matchesM5AuthorizedChain({ authorizationCommit, authorizationParents, authorizationRows, runtimeCommit, runtimeParents, runtimeRows, p4Tree, p4Parents, p4Rows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows }) {
+  return authorizationCommit && authorizationParents.length === 1 && authorizationParents[0] === runtimeCommit &&
+    matchesExpectedRows(authorizationRows, new Map([[M5_RUNTIME_AUTHORIZATION_PATH, "A"]])) &&
+    matchesM5RuntimeRecoveryCommit({ runtimeParents, runtimeRows, p4Tree, p4Parents, p4Rows, sourceCommit, sourceParents, sourceRows, failedSourceTree, failedSourceParents, failedSourceRows });
 }
 
 export function classifyM5Stage({ protocolExists, lockExists, failureExists, largeSourceLockExists, finalExists, sourceRecoveryExists = false, authorizationExists = false }) {
@@ -216,7 +243,7 @@ export function classifyM5Stage({ protocolExists, lockExists, failureExists, lar
   if (finalExists) return "m5-final";
   if (largeSourceLockExists) return "m5-eval-locked";
   if (lockExists) return "m5-pinned";
-  if (authorizationExists) return "m5-authorized";
   if (sourceRecoveryExists) return "m5-source-recovery";
+  if (authorizationExists) return "m5-authorized";
   return "m5-protocol";
 }

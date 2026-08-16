@@ -17,14 +17,19 @@ import {
   M5_PROTOCOL_RECOVERY_EXPECTED,
   M5_FAILED_SOURCE_COMMIT,
   M5_FAILED_SOURCE_TREE,
+  M5_CI_RECOVERY_COMMIT,
+  M5_P4_COMMIT,
+  M5_P4_TREE,
   M5_P2_COMMIT,
+  M5_RUNTIME_AUTHORIZATION_PATH,
+  M5_RUNTIME_RECOVERY_EXPECTED,
   M5_SOURCE_CI_RECOVERY_EXPECTED,
   M5_SOURCE_RECOVERY_EXPECTED,
   M5_RUN_AUTHORIZATION_PATH,
   classifyM5Stage,
   matchesExpectedRows,
   matchesM5ProtocolLineage,
-  matchesM5SourceRecoveryLineage,
+  matchesM5RuntimeRecoveryCommit,
   matchesM5AuthorizedChain,
 } from "./m5-stage-policy.mjs";
 
@@ -44,52 +49,33 @@ assert.equal(matchesM5ProtocolLineage({
 }), false);
 const sourceRows = [...M5_SOURCE_RECOVERY_EXPECTED.entries()];
 const ciRecoveryRows = [...M5_SOURCE_CI_RECOVERY_EXPECTED.entries()];
-assert.equal(matchesM5SourceRecoveryLineage({
-  sourceCommit: "b".repeat(40), sourceParents: [M5_FAILED_SOURCE_COMMIT], sourceRows: ciRecoveryRows,
+const runtimeRows = [...M5_RUNTIME_RECOVERY_EXPECTED.entries()];
+const runtimeCommit = "c".repeat(40);
+const runtimeFixture = {
+  runtimeParents: [M5_P4_COMMIT], runtimeRows,
+  p4Tree: M5_P4_TREE, p4Parents: [M5_CI_RECOVERY_COMMIT], p4Rows: [[M5_RUN_AUTHORIZATION_PATH, "A"]],
+  sourceCommit: M5_CI_RECOVERY_COMMIT, sourceParents: [M5_FAILED_SOURCE_COMMIT], sourceRows: ciRecoveryRows,
   failedSourceTree: M5_FAILED_SOURCE_TREE, failedSourceParents: [M5_P2_COMMIT], failedSourceRows: sourceRows,
-  authorizationParents: ["b".repeat(40)], authorizationRows: [[M5_RUN_AUTHORIZATION_PATH, "A"]],
-}), true);
-assert.equal(matchesM5SourceRecoveryLineage({
-  sourceCommit: "b".repeat(40), sourceParents: [M5_FAILED_SOURCE_COMMIT], sourceRows: [...ciRecoveryRows, ["torch.py", "A"]],
-  failedSourceTree: M5_FAILED_SOURCE_TREE, failedSourceParents: [M5_P2_COMMIT], failedSourceRows: sourceRows,
-  authorizationParents: ["b".repeat(40)], authorizationRows: [[M5_RUN_AUTHORIZATION_PATH, "A"]],
-}), false);
+};
+assert.equal(matchesM5RuntimeRecoveryCommit(runtimeFixture), true);
+assert.equal(matchesM5RuntimeRecoveryCommit({ ...runtimeFixture, runtimeRows: [...runtimeRows, ["torch.py", "A"]] }), false);
+assert.equal(matchesM5RuntimeRecoveryCommit({ ...runtimeFixture, runtimeParents: [M5_CI_RECOVERY_COMMIT] }), false);
+assert.equal(matchesM5RuntimeRecoveryCommit({ ...runtimeFixture, p4Tree: "0".repeat(40) }), false);
 assert.equal(matchesM5AuthorizedChain({
-  authorizationCommit: "d".repeat(40), authorizationParents: ["b".repeat(40)],
-  authorizationRows: [[M5_RUN_AUTHORIZATION_PATH, "A"]], sourceCommit: "b".repeat(40),
-  sourceParents: [M5_FAILED_SOURCE_COMMIT], sourceRows: ciRecoveryRows,
-  failedSourceTree: M5_FAILED_SOURCE_TREE, failedSourceParents: [M5_P2_COMMIT], failedSourceRows: sourceRows,
+  authorizationCommit: "d".repeat(40), authorizationParents: [runtimeCommit],
+  authorizationRows: [[M5_RUNTIME_AUTHORIZATION_PATH, "A"]], runtimeCommit, ...runtimeFixture,
 }), true);
 assert.equal(matchesM5AuthorizedChain({
-  authorizationCommit: "d".repeat(40), authorizationParents: ["b".repeat(40)],
-  authorizationRows: [[M5_RUN_AUTHORIZATION_PATH, "A"], ["extra", "A"]], sourceCommit: "b".repeat(40),
-  sourceParents: [M5_FAILED_SOURCE_COMMIT], sourceRows: ciRecoveryRows,
-  failedSourceTree: M5_FAILED_SOURCE_TREE, failedSourceParents: [M5_P2_COMMIT], failedSourceRows: sourceRows,
+  authorizationCommit: "d".repeat(40), authorizationParents: [runtimeCommit],
+  authorizationRows: [[M5_RUNTIME_AUTHORIZATION_PATH, "A"], ["extra", "A"]], runtimeCommit, ...runtimeFixture,
 }), false);
 assert.deepEqual(parseCanonicalM5Authorization(Buffer.from('{"a":1}\n')), { a: 1 });
 assert.throws(() => parseCanonicalM5Authorization(Buffer.from('{"a":1,"a":2}\n')));
 assert.throws(() => parseCanonicalM5Authorization(Buffer.from([0xff])));
 assert.throws(() => requireM5AuthorizationSchema({ acceptanceEligible: true }));
-assert.equal(matchesM5SourceRecoveryLineage({
-  sourceCommit: "b".repeat(40), sourceParents: ["0".repeat(40)], sourceRows: ciRecoveryRows,
-  failedSourceTree: M5_FAILED_SOURCE_TREE, failedSourceParents: [M5_P2_COMMIT], failedSourceRows: sourceRows,
-  authorizationParents: ["b".repeat(40)], authorizationRows: [[M5_RUN_AUTHORIZATION_PATH, "A"]],
-}), false);
-assert.equal(matchesM5SourceRecoveryLineage({
-  sourceCommit: "b".repeat(40), sourceParents: [M5_FAILED_SOURCE_COMMIT], sourceRows: ciRecoveryRows,
-  failedSourceTree: M5_FAILED_SOURCE_TREE, failedSourceParents: [M5_P2_COMMIT], failedSourceRows: sourceRows,
-  authorizationParents: ["c".repeat(40)], authorizationRows: [[M5_RUN_AUTHORIZATION_PATH, "A"]],
-}), false);
-assert.equal(matchesM5SourceRecoveryLineage({
-  sourceCommit: "b".repeat(40), sourceParents: [M5_FAILED_SOURCE_COMMIT], sourceRows: ciRecoveryRows,
-  failedSourceTree: "0".repeat(40), failedSourceParents: [M5_P2_COMMIT], failedSourceRows: sourceRows,
-  authorizationParents: ["b".repeat(40)], authorizationRows: [[M5_RUN_AUTHORIZATION_PATH, "A"]],
-}), false);
-assert.equal(matchesM5SourceRecoveryLineage({
-  sourceCommit: "b".repeat(40), sourceParents: [M5_FAILED_SOURCE_COMMIT], sourceRows: ciRecoveryRows,
-  failedSourceTree: M5_FAILED_SOURCE_TREE, failedSourceParents: [M5_P2_COMMIT], failedSourceRows: sourceRows.slice(1),
-  authorizationParents: ["b".repeat(40)], authorizationRows: [[M5_RUN_AUTHORIZATION_PATH, "A"]],
-}), false);
+assert.equal(matchesM5RuntimeRecoveryCommit({ ...runtimeFixture, sourceParents: ["0".repeat(40)] }), false);
+assert.equal(matchesM5RuntimeRecoveryCommit({ ...runtimeFixture, failedSourceTree: "0".repeat(40) }), false);
+assert.equal(matchesM5RuntimeRecoveryCommit({ ...runtimeFixture, failedSourceRows: sourceRows.slice(1) }), false);
 assert.equal(matchesM5ProtocolLineage({
   recoveryParents: [M5_ORIGINAL_PROTOCOL_COMMIT], recoveryRows: recoveryRows.slice(1),
   originalTree: M5_ORIGINAL_PROTOCOL_TREE,
@@ -108,7 +94,7 @@ assert.equal(matchesM5ProtocolLineage({
 assert.equal(classifyM5Stage({ protocolExists: false, lockExists: false, failureExists: false, largeSourceLockExists: false, finalExists: false }), null);
 assert.equal(classifyM5Stage({ protocolExists: true, lockExists: false, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-protocol");
 assert.equal(classifyM5Stage({ protocolExists: true, sourceRecoveryExists: true, lockExists: false, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-source-recovery");
-assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, sourceRecoveryExists: true, lockExists: false, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-authorized");
+assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, sourceRecoveryExists: true, lockExists: false, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-source-recovery");
 assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, lockExists: true, failureExists: false, largeSourceLockExists: false, finalExists: false }), "m5-pinned");
 assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, lockExists: true, failureExists: false, largeSourceLockExists: true, finalExists: false }), "m5-eval-locked");
 assert.equal(classifyM5Stage({ protocolExists: true, authorizationExists: true, lockExists: false, failureExists: true, largeSourceLockExists: false, finalExists: false }), "m5-failed");
