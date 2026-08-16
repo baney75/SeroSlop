@@ -2,6 +2,9 @@ export const M5_BASE_SOURCE_COMMIT = "5ab375fad2a744620b6ec75f09e6153c8a409049";
 export const M5_BASE_SOURCE_TREE = "fc0afc8a746f3f41c29bbd8713f309856d2bdc53";
 export const M5_ORIGINAL_PROTOCOL_COMMIT = "89bd1c833abbaa23195d45cd9a82fc3e117bad88";
 export const M5_ORIGINAL_PROTOCOL_TREE = "d16f4d1033416a2935427dc6ced6ceb4ffea4674";
+export const M5_P2_COMMIT = "1c4ac973785f937fa9023018863941e6d89d8693";
+export const M5_P2_TREE = "a56caae4291e275029076417fb2111be76b07a41";
+export const M5_RUN_AUTHORIZATION_PATH = "benchmark/evidence/m5/run-authorization.json";
 export const M5_SELECTION_LOCK_PATH = "benchmark/evidence/m5/selection-lock.json";
 export const M5_FAILURE_PATH = "benchmark/evidence/m5/failed-training-attempt-1.json";
 export const M5_FINAL_RECEIPT_PATH = "benchmark/evidence/m5/finalization-receipt.json";
@@ -74,6 +77,38 @@ export const M5_PROTOCOL_RECOVERY_EXPECTED = new Map([
   ["scripts/test-m5-training-contract.mjs", "M"],
 ]);
 
+// P3 is the source-recovery commit.  Its exact surface is intentionally
+// pinned here; the receipt-only P4 child is the only later authorization
+// surface permitted before runtime.
+export const M5_SOURCE_RECOVERY_EXPECTED = new Map([
+  ["benchmark/m5/README.md", "M"],
+  ["benchmark/m5/contracts.py", "M"],
+  ["benchmark/m5/evaluate_locked.py", "M"],
+  ["benchmark/m5/evaluate_large_synthetic.py", "M"],
+  ["benchmark/m5/finalize.py", "M"],
+  ["benchmark/m5/large_synthetic.py", "M"],
+  ["benchmark/m5/test_contracts.py", "M"],
+  ["benchmark/m5/train_gpu.py", "M"],
+  ["package.json", "M"],
+  ["scripts/check-m5-failure-stage.mjs", "M"],
+  ["scripts/check-m5-final-stage.mjs", "M"],
+  ["scripts/check-m5-large-source-stage.mjs", "M"],
+  ["scripts/check-m5-protocol-stage.mjs", "M"],
+  ["scripts/check-m5-selection-lock.mjs", "M"],
+  ["scripts/m5-stage-policy.mjs", "M"],
+  ["scripts/test-m5-stage-policy.mjs", "M"],
+  ["scripts/m5-run-authorization.mjs", "A"],
+  ["scripts/m5-preexec-bootstrap.py", "A"],
+  ["scripts/m5-python-launch.mjs", "A"],
+  ["scripts/m5-runpod-launch.sh", "A"],
+  ["scripts/m5-safe-git.mjs", "A"],
+  ["scripts/m5_node_bootstrap.py", "A"],
+  ["scripts/check-m5-run-authorization-stage.mjs", "A"],
+  ["scripts/check-m5-authorized-chain.mjs", "A"],
+  ["scripts/check-m5-source-recovery-stage.mjs", "A"],
+  ["scripts/run-static-verification.mjs", "M"],
+]);
+
 export const M5_LOCK_EXPECTED = new Map([[M5_SELECTION_LOCK_PATH, "A"]]);
 export const M5_FAILURE_EXPECTED = new Map([[M5_FAILURE_PATH, "A"]]);
 export const M5_LARGE_SOURCE_EXPECTED = new Map([
@@ -127,7 +162,20 @@ export function matchesM5ProtocolLineage({
     baseTree === M5_BASE_SOURCE_TREE;
 }
 
-export function classifyM5Stage({ protocolExists, lockExists, failureExists, largeSourceLockExists, finalExists }) {
+export function matchesM5SourceRecoveryLineage({ sourceCommit = "SOURCE_COMMIT", sourceParents, sourceRows, authorizationParents, authorizationRows }) {
+  return sourceParents.length === 1 && sourceParents[0] === M5_P2_COMMIT &&
+    matchesExpectedRows(sourceRows, M5_SOURCE_RECOVERY_EXPECTED) &&
+    authorizationParents.length === 1 && authorizationParents[0] === sourceCommit &&
+    matchesExpectedRows(authorizationRows, new Map([[M5_RUN_AUTHORIZATION_PATH, "A"]]));
+}
+
+export function matchesM5AuthorizedChain({ authorizationCommit, authorizationParents, authorizationRows, sourceCommit, sourceParents, sourceRows }) {
+  return authorizationCommit && authorizationParents.length === 1 && authorizationParents[0] === sourceCommit &&
+    matchesExpectedRows(authorizationRows, new Map([[M5_RUN_AUTHORIZATION_PATH, "A"]])) &&
+    matchesM5SourceRecoveryLineage({ sourceCommit, sourceParents, sourceRows, authorizationParents: [sourceCommit], authorizationRows });
+}
+
+export function classifyM5Stage({ protocolExists, lockExists, failureExists, largeSourceLockExists, finalExists, sourceRecoveryExists = false, authorizationExists = false }) {
   if (!protocolExists && (lockExists || failureExists || largeSourceLockExists || finalExists)) {
     throw new Error("M5 evidence cannot exist without the M5 protocol");
   }
@@ -137,9 +185,14 @@ export function classifyM5Stage({ protocolExists, lockExists, failureExists, lar
   }
   if (largeSourceLockExists && !lockExists) throw new Error("M5 100K source lock requires the public selection lock");
   if (finalExists && !largeSourceLockExists) throw new Error("M5 final evidence requires the public 100K source lock");
+  if ((lockExists || failureExists || largeSourceLockExists || finalExists) && !authorizationExists) {
+    throw new Error("M5 result evidence requires the public run authorization");
+  }
   if (failureExists) return "m5-failed";
   if (finalExists) return "m5-final";
   if (largeSourceLockExists) return "m5-eval-locked";
   if (lockExists) return "m5-pinned";
+  if (authorizationExists) return "m5-authorized";
+  if (sourceRecoveryExists) return "m5-source-recovery";
   return "m5-protocol";
 }

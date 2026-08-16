@@ -15,7 +15,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from dataclasses import dataclass
-from hashlib import sha256
+from hashlib import sha1, sha256
 from io import BytesIO
 import json
 import math
@@ -27,6 +27,38 @@ import subprocess
 import sys
 import time
 from typing import Any, Iterable, Mapping, Sequence
+from urllib.request import ProxyHandler, Request, build_opener
+
+
+def _require_runpod_launcher() -> None:
+    if __name__ != "__main__":
+        return
+    expected = Path("/workspace/.seroslop/runtime/node-v24.18.1-linux-x64/bin/node")
+    parent = Path(f"/proc/{os.getppid()}/exe")
+    try:
+        actual = parent.resolve(strict=True)
+        digest = sha256()
+        with actual.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        launcher = Path(__file__).resolve().parents[2] / "scripts/m5-python-launch.mjs"
+        launcher_digest = sha256(launcher.read_bytes()).hexdigest()
+        command = Path(f"/proc/{os.getppid()}/cmdline").read_bytes().split(b"\0")
+    except OSError as error:
+        raise RuntimeError("M5 production Python could not verify its pinned Node parent") from error
+    if (
+        sys.platform != "linux" or actual != expected or not expected.is_file() or expected.is_symlink()
+        or digest.hexdigest() != "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a"
+        or launcher_digest != "e8b3b37a79d9a71be1f2e4ff9b584d52da164eed8937a5608872895ab867834a"
+        or len(command) < 4 or command[0] != str(expected).encode("utf-8")
+        or command[1] != b"scripts/m5-python-launch.mjs" or command[2] not in {b"preflight", b"train"} or command[3] != b"--"
+        or os.environ.get("SEROSLOP_M5_LAUNCH_NODE_VERSION") != "v24.18.1"
+        or os.environ.get("SEROSLOP_M5_LAUNCH_NODE_SHA256") != "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a"
+    ):
+        raise RuntimeError("M5 production Python must start through the pinned RunPod launcher")
+
+
+_require_runpod_launcher()
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
@@ -48,10 +80,13 @@ from benchmark.m5.contracts import (
     validate_environment_receipt,
     validate_manifest_rows,
     validate_provisioning_receipt,
+    validate_run_authorization,
 )
 
 
 ROOT = REPOSITORY_ROOT
+GIT = "/usr/bin/git"
+GIT_FIXED_ARGUMENTS = ("-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "core.pager=cat")
 RECIPE_PATH = ROOT / "benchmark/m5/recipe.json"
 MEAN = np.asarray((0.48145466, 0.4578275, 0.40821073), dtype=np.float32)
 STD = np.asarray((0.26862954, 0.26130258, 0.27577711), dtype=np.float32)
@@ -89,6 +124,37 @@ M5_PROTOCOL_RECOVERY_PATHS = frozenset({
     "scripts/test-m5-stage-policy.mjs",
     "scripts/test-m5-training-contract.mjs",
 })
+M5_P2_COMMIT = "1c4ac973785f937fa9023018863941e6d89d8693"
+M5_P2_TREE = "a56caae4291e275029076417fb2111be76b07a41"
+M5_RUN_AUTHORIZATION_PATH = "benchmark/evidence/m5/run-authorization.json"
+M5_SOURCE_RECOVERY_ROWS = {
+    "benchmark/m5/README.md": "M",
+    "benchmark/m5/contracts.py": "M",
+    "benchmark/m5/evaluate_locked.py": "M",
+    "benchmark/m5/evaluate_large_synthetic.py": "M",
+    "benchmark/m5/finalize.py": "M",
+    "benchmark/m5/large_synthetic.py": "M",
+    "benchmark/m5/test_contracts.py": "M",
+    "benchmark/m5/train_gpu.py": "M",
+    "package.json": "M",
+    "scripts/check-m5-failure-stage.mjs": "M",
+    "scripts/check-m5-final-stage.mjs": "M",
+    "scripts/check-m5-large-source-stage.mjs": "M",
+    "scripts/check-m5-protocol-stage.mjs": "M",
+    "scripts/check-m5-selection-lock.mjs": "M",
+    "scripts/m5-stage-policy.mjs": "M",
+    "scripts/test-m5-stage-policy.mjs": "M",
+    "scripts/m5-run-authorization.mjs": "A",
+    "scripts/m5-python-launch.mjs": "A",
+    "scripts/m5-runpod-launch.sh": "A",
+    "scripts/m5-safe-git.mjs": "A",
+    "scripts/m5_node_bootstrap.py": "A",
+    "scripts/check-m5-run-authorization-stage.mjs": "A",
+    "scripts/check-m5-authorized-chain.mjs": "A",
+    "scripts/check-m5-source-recovery-stage.mjs": "A",
+    "scripts/run-static-verification.mjs": "M",
+}
+M5_SOURCE_RECOVERY_PATHS = frozenset(M5_SOURCE_RECOVERY_ROWS)
 
 
 @dataclass(frozen=True)
@@ -120,7 +186,86 @@ class ModelLogits:
         self.module = Wrapper(module)
 
 
+def git_environment() -> dict[str, str]:
+    environment = {name: value for name, value in os.environ.items() if not name.startswith("GIT_")}
+    environment.update({
+        "PATH": "/opt/conda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "HOME": "/nonexistent/seroslop-m5-git",
+        "XDG_CONFIG_HOME": "/nonexistent/seroslop-m5-git/xdg",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_SYSTEM": "/dev/null",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_ASKPASS": "/bin/false",
+        "GIT_SSH_COMMAND": "/bin/false",
+        "GIT_PAGER": "cat",
+    })
+    return environment
+
+
+def git_bytes(arguments: Sequence[str], *, cwd: Path = ROOT) -> bytes:
+    return subprocess.check_output([GIT, *GIT_FIXED_ARGUMENTS, *arguments], cwd=cwd, env=git_environment())
+
+
+def git_text(arguments: Sequence[str], *, cwd: Path = ROOT) -> str:
+    return git_bytes(arguments, cwd=cwd).decode("utf-8", errors="strict").strip()
+
+
+def _nul_records(payload: bytes) -> list[str]:
+    return [record.decode("utf-8", errors="strict") for record in payload.split(b"\0") if record]
+
+
+def assert_worktree_exact(*, allowed_untracked: Sequence[str] = (), cwd: Path = ROOT) -> None:
+    if git_text(["rev-parse", "--show-object-format"], cwd=cwd) != "sha1":
+        raise ValueError("M5 exact-worktree verification requires the frozen SHA-1 Git object format")
+    abnormal = [record for record in _nul_records(git_bytes(["ls-files", "-v", "-z"], cwd=cwd)) if not record.startswith("H ")]
+    if abnormal:
+        raise ValueError(f"M5 exact-worktree verification rejects non-normal index flags: {abnormal}")
+    index: dict[str, tuple[str, str]] = {}
+    for record in _nul_records(git_bytes(["ls-files", "--stage", "-z"], cwd=cwd)):
+        metadata, pathname = record.split("\t", maxsplit=1)
+        mode, oid, stage = metadata.split(" ")
+        if mode not in {"100644", "100755"} or stage != "0" or pathname in index:
+            raise ValueError(f"M5 exact-worktree index row changed: {record}")
+        index[pathname] = (mode, oid)
+    committed: dict[str, tuple[str, str]] = {}
+    for record in _nul_records(git_bytes(["ls-tree", "-r", "-z", "--full-tree", "HEAD"], cwd=cwd)):
+        metadata, pathname = record.split("\t", maxsplit=1)
+        mode, object_type, oid = metadata.split(" ")
+        if mode not in {"100644", "100755"} or object_type != "blob" or pathname in committed:
+            raise ValueError(f"M5 exact-worktree committed row changed: {record}")
+        committed[pathname] = (mode, oid)
+    if index != committed:
+        raise ValueError("M5 exact-worktree index differs from the committed HEAD tree")
+    root = cwd.resolve(strict=True)
+    for pathname, (mode, oid) in index.items():
+        path = root / pathname
+        for parent in path.parents:
+            if parent == root:
+                break
+            if parent.is_symlink():
+                raise ValueError(f"M5 tracked file traverses a symlink: {pathname}")
+        if path.is_symlink() or not path.is_file() or root not in path.resolve(strict=True).parents:
+            raise ValueError(f"M5 tracked file is missing, non-regular, symlinked, or escaped: {pathname}")
+        if bool(path.stat().st_mode & 0o111) != (mode == "100755"):
+            raise ValueError(f"M5 tracked file mode changed: {pathname}")
+        payload = path.read_bytes()
+        blob_oid = sha1(f"blob {len(payload)}\0".encode("ascii") + payload).hexdigest()
+        if blob_oid != oid:
+            raise ValueError(f"M5 tracked file bytes changed: {pathname}")
+    allowed = set(allowed_untracked)
+    untracked = _nul_records(git_bytes(["ls-files", "--others", "--exclude-standard", "-z"], cwd=cwd))
+    unexpected = [pathname for pathname in untracked if pathname not in allowed]
+    observed = set(untracked)
+    if unexpected or allowed - observed:
+        raise ValueError(f"M5 exact-worktree untracked surface changed: {unexpected + sorted(allowed - observed)}")
+
+
 def run(command: Sequence[str], *, cwd: Path = ROOT) -> str:
+    if command and command[0] in {"git", GIT}:
+        return git_text(command[1:], cwd=cwd)
     completed = subprocess.run(command, cwd=cwd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     return completed.stdout.strip()
 
@@ -143,9 +288,100 @@ def resolve_authorized_protocol_commit() -> str:
         rows[pathname] = status
     if set(rows) != M5_PROTOCOL_RECOVERY_PATHS or any(status != "M" for status in rows.values()):
         raise ValueError("M5 protocol recovery changed outside its exact authorized surface")
-    if run(["git", "status", "--porcelain=v1", "--untracked-files=all"]):
-        raise ValueError("M5 training requires a completely clean worktree")
+    assert_worktree_exact()
     return head
+
+
+def require_public_authorization_commit(authorization_commit: str) -> dict[str, Any]:
+    """Require anonymous public main and exact-head green quality for P4."""
+    opener = build_opener(ProxyHandler({}))
+    reference_request = Request(
+        "https://api.github.com/repos/baney75/prooflens/git/ref/heads/main",
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "seroslop-m5-runtime"},
+    )
+    with opener.open(reference_request, timeout=30) as response:
+        reference = json.loads(response.read().decode("utf-8", errors="strict"))
+    if reference.get("object", {}).get("sha") != authorization_commit:
+        raise ValueError("M5 runtime requires the exact public P4 main head")
+    request = Request(
+        f"https://api.github.com/repos/baney75/prooflens/actions/runs?event=push&head_sha={authorization_commit}&per_page=100",
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "seroslop-m5-runtime"},
+    )
+    with opener.open(request, timeout=30) as response:
+        payload = json.loads(response.read().decode("utf-8", errors="strict"))
+    run_row = next((row for row in payload.get("workflow_runs", []) if (
+        row.get("head_sha") == authorization_commit
+        and row.get("event") == "push"
+        and row.get("status") == "completed"
+        and row.get("conclusion") == "success"
+        and row.get("path") == ".github/workflows/quality.yml"
+    )), None)
+    if run_row is None:
+        raise ValueError("M5 runtime requires exact-head successful public P4 quality CI")
+    return {
+        "conclusion": "success",
+        "event": "push",
+        "headSha": authorization_commit,
+        "runId": int(run_row["id"]),
+        "status": "completed",
+        "url": str(run_row["html_url"]),
+        "workflowPath": ".github/workflows/quality.yml",
+    }
+
+
+def resolve_authorized_run() -> tuple[str, str, str, dict[str, Any]]:
+    """Require clean public P4 and return source plus authorization proof."""
+    head = run(["git", "rev-parse", "HEAD"])
+    parents = run(["git", "rev-list", "--parents", "-n", "1", head]).split()[1:]
+    if len(parents) != 1:
+        raise ValueError("M5 runtime requires the receipt-only P4 child")
+    source = parents[0]
+    validated_source, source_tree, _receipt_sha256 = validate_authorization_commit(head)
+    if validated_source != source:
+        raise ValueError("M5 P4 authorization source changed")
+    assert_worktree_exact()
+    return source, source_tree, head, require_public_authorization_commit(head)
+
+
+def validate_authorization_commit(authorization_commit: str) -> tuple[str, str, str]:
+    """Validate an inherited P4 receipt and return (P3 source, tree, receipt SHA-256)."""
+    authorization_parents = run(["git", "rev-list", "--parents", "-n", "1", authorization_commit]).split()[1:]
+    if len(authorization_parents) != 1:
+        raise ValueError("M5 authorization must have one source parent")
+    source = authorization_parents[0]
+    authorization_rows: dict[str, str] = {}
+    for line in run(["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", authorization_commit]).splitlines():
+        status, pathname = line.split("\t", maxsplit=1)
+        if pathname in authorization_rows:
+            raise ValueError("M5 P4 authorization contains a duplicate path")
+        authorization_rows[pathname] = status
+    if authorization_rows != {M5_RUN_AUTHORIZATION_PATH: "A"}:
+        raise ValueError("M5 authorization must be an exact receipt-only commit")
+    source_parents = run(["git", "rev-list", "--parents", "-n", "1", source]).split()[1:]
+    if source_parents != [M5_P2_COMMIT] or run(["git", "rev-parse", f"{M5_P2_COMMIT}^{{tree}}"]) != M5_P2_TREE:
+        raise ValueError("M5 runtime requires the exact P3 source-recovery child of P2")
+    rows = {}
+    for line in run(["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", source]).splitlines():
+        status, pathname = line.split("\t", maxsplit=1)
+        rows[pathname] = status
+    if rows != M5_SOURCE_RECOVERY_ROWS:
+        raise ValueError("M5 P3 source changed outside its exact authorized surface")
+    auth_path = ROOT / M5_RUN_AUTHORIZATION_PATH
+    raw = auth_path.read_bytes() if auth_path.is_file() and not auth_path.is_symlink() else b""
+    if not raw or raw != canonical_json(parse_json_bytes(raw, label="M5 run authorization")):
+        raise ValueError("M5 runtime requires canonical P4 run authorization")
+    receipt = parse_json_bytes(raw, label="M5 run authorization")
+    committed_raw = git_bytes(["show", f"{authorization_commit}:{M5_RUN_AUTHORIZATION_PATH}"])
+    if committed_raw != raw:
+        raise ValueError("M5 inherited authorization bytes changed")
+    source_tree = run(["git", "rev-parse", f"{source}^{{tree}}"])
+    expected_map = [
+        {"path": path, "sha256": sha256(git_bytes(["show", f"{source}:{path}"])).hexdigest()}
+        for path in sorted(M5_SOURCE_RECOVERY_PATHS)
+    ]
+    validate_run_authorization(receipt, protocol_commit=M5_P2_COMMIT, protocol_tree=M5_P2_TREE,
+                                source_commit=source, source_tree=source_tree, source_path_map=expected_map)
+    return source, source_tree, sha256(raw).hexdigest()
 
 
 def require_canonical_path(requested: str, expected: str, *, label: str, must_exist: bool = True) -> Path:
@@ -361,6 +597,8 @@ def environment_receipt(
         "torchVersion": torch.__version__,
         "transformersVersion": transformers.__version__,
         "pythonVersion": platform.python_version(),
+        "launchNodeVersion": os.environ.get("SEROSLOP_M5_LAUNCH_NODE_VERSION", ""),
+        "launchNodeSha256": os.environ.get("SEROSLOP_M5_LAUNCH_NODE_SHA256", ""),
         "runpodPodIdSha256": sha256(pod_id.encode()).hexdigest(),
         "provisioningReceiptSha256": provisioning_sha256,
         "containerImage": provisioning["containerImage"],
@@ -1155,11 +1393,11 @@ def run_preflight(
 
 
 def execute(args: argparse.Namespace) -> int:
+    recipe = load_recipe(RECIPE_PATH)
+    protocol_commit, source_tree, authorization_commit, authorization_public_ci = resolve_authorized_run()
     import torch
     import transformers
 
-    recipe = load_recipe(RECIPE_PATH)
-    protocol_commit = resolve_authorized_protocol_commit()
     data_root = require_canonical_path(args.data_root, recipe["sourceEvidence"]["dataRoot"], label="data root")
     train_manifest = require_canonical_path(
         args.train_manifest, recipe["sourceEvidence"]["trainingManifest"]["trackedPath"], label="training manifest",
@@ -1183,6 +1421,11 @@ def execute(args: argparse.Namespace) -> int:
         expected_class_counts=recipe["sourceEvidence"]["trainingManifest"]["classCounts"],
     )
     environment = environment_receipt(provisioning, provisioning_sha256, recipe)
+    environment["sourceCommit"] = protocol_commit
+    environment["sourceTree"] = source_tree
+    environment["authorizationCommit"] = authorization_commit
+    environment["authorizationReceiptSha256"] = digest_file(ROOT / M5_RUN_AUTHORIZATION_PATH)
+    environment["authorizationPublicCi"] = authorization_public_ci
     validate_environment_receipt(environment, recipe)
     validate_environment_matches_provisioning(environment, provisioning)
     print(json.dumps({"event": "environment", **environment}, sort_keys=True), flush=True)

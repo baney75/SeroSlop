@@ -4,12 +4,42 @@
 from __future__ import annotations
 
 import argparse
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
-import subprocess
 import sys
 from typing import Any, Mapping, Sequence
+
+
+def _require_runpod_launcher() -> None:
+    if __name__ != "__main__":
+        return
+    expected = Path("/workspace/.seroslop/runtime/node-v24.18.1-linux-x64/bin/node")
+    parent = Path(f"/proc/{os.getppid()}/exe")
+    try:
+        actual = parent.resolve(strict=True)
+        digest = sha256()
+        with actual.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        launcher = Path(__file__).resolve().parents[2] / "scripts/m5-python-launch.mjs"
+        launcher_digest = sha256(launcher.read_bytes()).hexdigest()
+        command = Path(f"/proc/{os.getppid()}/cmdline").read_bytes().split(b"\0")
+    except OSError as error:
+        raise RuntimeError("M5 production Python could not verify its pinned Node parent") from error
+    if (
+        sys.platform != "linux" or actual != expected or not expected.is_file() or expected.is_symlink()
+        or digest.hexdigest() != "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a"
+        or launcher_digest != "e8b3b37a79d9a71be1f2e4ff9b584d52da164eed8937a5608872895ab867834a"
+        or len(command) < 4 or command[:4] != [str(expected).encode("utf-8"), b"scripts/m5-python-launch.mjs", b"regress", b"--"]
+        or os.environ.get("SEROSLOP_M5_LAUNCH_NODE_VERSION") != "v24.18.1"
+        or os.environ.get("SEROSLOP_M5_LAUNCH_NODE_SHA256") != "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a"
+    ):
+        raise RuntimeError("M5 production Python must start through the pinned RunPod launcher")
+
+
+_require_runpod_launcher()
 
 import numpy as np
 
@@ -36,23 +66,25 @@ from benchmark.m5.train_gpu import (
     Item,
     ImageDataset,
     ROOT,
+    assert_worktree_exact,
     collate,
     load_items,
     pack_float32,
+    git_text,
     require_canonical_path,
+    validate_authorization_commit,
     verify_all_items,
 )
 
 
 def git(*args: str) -> str:
-    return subprocess.run(["git", *args], cwd=ROOT, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout.strip()
+    return git_text(args)
 
 
 def require_lock_head(lock_commit: str, expected_lock_path: str) -> str:
     if len(lock_commit) != 40 or git("rev-parse", "HEAD") != lock_commit:
         raise ValueError("M5 terminal regression requires the exact public selection-lock commit")
-    if git("status", "--porcelain=v1", "--untracked-files=no"):
-        raise ValueError("M5 terminal regression requires a clean tracked worktree")
+    assert_worktree_exact()
     parents = git("rev-list", "--parents", "-n", "1", lock_commit).split()[1:]
     if len(parents) != 1:
         raise ValueError("M5 selection lock must have exactly one protocol parent")
@@ -61,7 +93,8 @@ def require_lock_head(lock_commit: str, expected_lock_path: str) -> str:
     ).splitlines() if line]
     if rows != [f"A\t{expected_lock_path}"]:
         raise ValueError("M5 selection-lock commit changed more than the canonical lock")
-    return parents[0]
+    source, _tree, _receipt_sha256 = validate_authorization_commit(parents[0])
+    return source
 
 
 def selector_metrics_dict(logits: Mapping[str, Sequence[float]], rows: Sequence[dict[str, Any]], threshold: float) -> dict[str, Any]:
@@ -187,11 +220,11 @@ def run_regression(
 
 
 def execute(args: argparse.Namespace) -> int:
-    import onnxruntime as ort
-
     recipe = load_recipe(ROOT / "benchmark/m5/recipe.json")
     lock_path = require_canonical_path(args.selection_lock, recipe["output"]["selectionLock"], label="selection lock")
     protocol_commit = require_lock_head(args.lock_commit, recipe["output"]["selectionLock"])
+    import onnxruntime as ort
+
     lock = parse_json_bytes(lock_path.read_bytes(), label="selection lock")
     if lock.get("protocolCommit") != protocol_commit:
         raise ValueError("M5 selection lock is not bound to its exact protocol parent")

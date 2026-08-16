@@ -1,23 +1,21 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { validateM5AuthorizedChain } from "./check-m5-authorized-chain.mjs";
+import { assertM5WorktreeExact, m5Git } from "./m5-safe-git.mjs";
 import {
-  M5_BASE_SOURCE_COMMIT,
-  M5_BASE_SOURCE_TREE,
   M5_FAILURE_EXPECTED,
   M5_FAILURE_PATH,
   M5_FINAL_RECEIPT_PATH,
   M5_LARGE_EVALUATION_PATH,
   M5_LARGE_SOURCE_LOCK_PATH,
-  M5_ORIGINAL_PROTOCOL_COMMIT,
-  M5_ORIGINAL_PROTOCOL_TREE,
   M5_SELECTION_LOCK_PATH,
   matchesExpectedRows,
-  matchesM5ProtocolLineage,
 } from "./m5-stage-policy.mjs";
 
 function git(arguments_) {
-  return execFileSync("git", arguments_, { encoding: "utf8", maxBuffer: 128 * 1024 * 1024 }).trim();
+  return m5Git(arguments_);
 }
+const authorized = validateM5AuthorizedChain();
 
 function rows(commit) {
   return git(["diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", commit])
@@ -31,26 +29,11 @@ function rows(commit) {
 const head = git(["rev-parse", "HEAD"]);
 const headParents = git(["rev-list", "--parents", "-n", "1", head]).split(" ").slice(1);
 if (headParents.length !== 1 || !matchesExpectedRows(rows(head), M5_FAILURE_EXPECTED)) {
-  throw new Error("M5 failure must be the exact one-file direct child of the protocol commit");
+  throw new Error("M5 failure must be the exact one-file terminal commit");
 }
-const protocol = headParents[0];
-const recoveryParents = git(["rev-list", "--parents", "-n", "1", protocol]).split(" ").slice(1);
-const originalParents = git(["rev-list", "--parents", "-n", "1", M5_ORIGINAL_PROTOCOL_COMMIT]).split(" ").slice(1);
-const originalTree = git(["rev-parse", `${M5_ORIGINAL_PROTOCOL_COMMIT}^{tree}`]);
-const baseTree = git(["rev-parse", `${M5_BASE_SOURCE_COMMIT}^{tree}`]);
-if (!matchesM5ProtocolLineage({
-  recoveryParents,
-  recoveryRows: rows(protocol),
-  originalTree,
-  originalParents,
-  originalRows: rows(M5_ORIGINAL_PROTOCOL_COMMIT),
-  baseTree,
-}) || originalTree !== M5_ORIGINAL_PROTOCOL_TREE || baseTree !== M5_BASE_SOURCE_TREE) {
-  throw new Error("M5 failure has the wrong protocol ancestry");
-}
-if (git(["status", "--porcelain=v1", "--untracked-files=all"])) {
-  throw new Error("M5 failure verification requires a completely clean repository");
-}
+if (headParents[0] !== authorized.authorization) throw new Error("M5 failure must directly follow P4 authorization");
+const protocol = authorized.source;
+assertM5WorktreeExact();
 for (const forbidden of [M5_SELECTION_LOCK_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_LARGE_EVALUATION_PATH, M5_FINAL_RECEIPT_PATH, "docs/COMPETITOR_AUDIT.md"]) {
   if (existsSync(forbidden)) throw new Error(`M5 failure stage contains forbidden output: ${forbidden}`);
 }
@@ -62,5 +45,8 @@ execFileSync("python3", ["-c", [
   "rows=read_jsonl(Path(r['sourceEvidence']['selectorManifest']['path']))",
   "validate_failure_receipt(f,r,rows)",
   `assert f['protocolCommit']=='${protocol}'`,
+  "env=f['trainingSummary']['environment']",
+  `assert env['sourceCommit']=='${authorized.source}' and env['sourceTree']=='${authorized.sourceTree}'`,
+  `assert env['authorizationCommit']=='${authorized.authorization}' and env['authorizationReceiptSha256']=='${authorized.authorizationReceiptSha256}'`,
 ].join(";")], { stdio: "inherit" });
-console.log(JSON.stringify({ head, protocol, status: "failed-m5-selector", policy: "pass" }));
+console.log(JSON.stringify({ head, protocol, authorization: authorized.authorization, status: "failed-m5-selector", policy: "pass" }));

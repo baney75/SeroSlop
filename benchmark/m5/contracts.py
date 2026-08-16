@@ -522,8 +522,10 @@ def validate_environment_receipt(receipt: Mapping[str, Any], recipe: Mapping[str
     required = {
         "provider", "gpuProduct", "gpuMemoryBytes", "cudaAvailable", "cudaVersion", "driverVersion",
         "torchVersion", "transformersVersion", "pythonVersion", "runpodPodIdSha256",
+        "launchNodeVersion", "launchNodeSha256",
         "provisioningReceiptSha256", "containerImage", "requirementsSha256", "providerEvidenceBoundary",
         "providerIdentityEvidence", "providerSignedAttestation", "runtimeConsistencyEvidence",
+        "sourceCommit", "sourceTree", "authorizationCommit", "authorizationReceiptSha256", "authorizationPublicCi",
     }
     _require_keys(receipt, required, "environment receipt")
     if receipt["provider"] != recipe["training"]["provider"]:
@@ -539,10 +541,33 @@ def validate_environment_receipt(receipt: Mapping[str, Any], recipe: Mapping[str
         raise ValueError("M5 CUDA capacity is insufficient")
     if receipt["transformersVersion"] != "5.4.0" or receipt["torchVersion"].split("+")[0] != "2.8.0":
         raise ValueError("M5 training runtime changed")
+    if (
+        receipt["launchNodeVersion"] != "v24.18.1"
+        or receipt["launchNodeSha256"] != "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a"
+    ):
+        raise ValueError("M5 pre-import Node runtime changed")
     if not HEX64.fullmatch(str(receipt["runpodPodIdSha256"])):
         raise ValueError("M5 RunPod identity receipt is invalid")
     if not HEX64.fullmatch(str(receipt["provisioningReceiptSha256"])):
         raise ValueError("M5 provisioning receipt binding is invalid")
+    if not HEX40.fullmatch(str(receipt["sourceCommit"])) or not HEX40.fullmatch(str(receipt["sourceTree"])):
+        raise ValueError("M5 source authorization binding is invalid")
+    if not HEX40.fullmatch(str(receipt["authorizationCommit"])) or not HEX64.fullmatch(str(receipt["authorizationReceiptSha256"])):
+        raise ValueError("M5 authorization receipt binding is invalid")
+    authorization_ci = receipt["authorizationPublicCi"]
+    _require_keys(authorization_ci, {"conclusion", "event", "headSha", "runId", "status", "url", "workflowPath"}, "M5 authorization public CI")
+    if (
+        authorization_ci["conclusion"] != "success"
+        or authorization_ci["event"] != "push"
+        or authorization_ci["headSha"] != receipt["authorizationCommit"]
+        or isinstance(authorization_ci["runId"], bool)
+        or not isinstance(authorization_ci["runId"], int)
+        or authorization_ci["runId"] <= 0
+        or authorization_ci["status"] != "completed"
+        or authorization_ci["url"] != f"https://github.com/baney75/prooflens/actions/runs/{authorization_ci['runId']}"
+        or authorization_ci["workflowPath"] != ".github/workflows/quality.yml"
+    ):
+        raise ValueError("M5 authorization public CI binding changed")
     if receipt["providerEvidenceBoundary"] != "operator-recorded-not-cryptographic-attestation":
         raise ValueError("M5 provider evidence boundary changed")
     if (
@@ -551,6 +576,55 @@ def validate_environment_receipt(receipt: Mapping[str, Any], recipe: Mapping[str
         or receipt["runtimeConsistencyEvidence"] != recipe["training"]["runtimeConsistencyEvidence"]
     ):
         raise ValueError("M5 provider identity claim exceeds its evidence")
+
+
+def validate_run_authorization(
+    receipt: Mapping[str, Any],
+    *,
+    protocol_commit: str,
+    protocol_tree: str,
+    source_commit: str,
+    source_tree: str,
+    source_path_map: Sequence[Mapping[str, Any]],
+) -> None:
+    """Validate the canonical P4 receipt binding the exact P3 source bytes."""
+    _require_keys(receipt, {
+        "schemaVersion", "status", "protocolCommit", "protocolTree", "sourceCommit", "sourceTree",
+        "sourcePathMap", "sourcePublicCi", "authorizationPath", "scoreBlind", "h3PixelsRead",
+    }, "M5 run authorization")
+    if (
+        receipt["schemaVersion"] != 1
+        or receipt["status"] != "m5-source-recovery-authorized"
+        or receipt["protocolCommit"] != protocol_commit
+        or receipt["protocolTree"] != protocol_tree
+        or receipt["sourceCommit"] != source_commit
+        or receipt["sourceTree"] != source_tree
+        or receipt["authorizationPath"] != "benchmark/evidence/m5/run-authorization.json"
+        or receipt["scoreBlind"] is not True
+        or receipt["h3PixelsRead"] is not False
+        or list(receipt["sourcePathMap"]) != list(source_path_map)
+    ):
+        raise ValueError("M5 run authorization binding changed")
+    if not HEX40.fullmatch(str(source_commit)) or not HEX40.fullmatch(str(source_tree)):
+        raise ValueError("M5 run authorization source digest is invalid")
+    for row in receipt["sourcePathMap"]:
+        _require_keys(row, {"path", "sha256"}, "M5 run authorization source path")
+        if not isinstance(row["path"], str) or not HEX64.fullmatch(str(row["sha256"])):
+            raise ValueError("M5 run authorization source path digest is invalid")
+    source_ci = receipt["sourcePublicCi"]
+    _require_keys(source_ci, {"conclusion", "event", "headSha", "runId", "status", "url", "workflowPath"}, "M5 source public CI")
+    if (
+        source_ci["conclusion"] != "success"
+        or source_ci["event"] != "push"
+        or source_ci["headSha"] != source_commit
+        or isinstance(source_ci["runId"], bool)
+        or not isinstance(source_ci["runId"], int)
+        or source_ci["runId"] <= 0
+        or source_ci["status"] != "completed"
+        or source_ci["url"] != f"https://github.com/baney75/prooflens/actions/runs/{source_ci['runId']}"
+        or source_ci["workflowPath"] != ".github/workflows/quality.yml"
+    ):
+        raise ValueError("M5 source public CI binding changed")
 
 
 def validate_provisioning_receipt(receipt: Mapping[str, Any], recipe: Mapping[str, Any]) -> None:
@@ -822,6 +896,9 @@ def validate_training_summary(
     ):
         raise ValueError("M5 training summary binding changed")
     validate_environment_receipt(summary["environment"], recipe)
+    environment = summary["environment"]
+    if environment["sourceCommit"] != protocol_commit:
+        raise ValueError("M5 training summary authorization binding changed")
     receipts = summary["epochReceipts"]
     expected_epochs = [
         (branch["name"], epoch)

@@ -14,9 +14,38 @@ import math
 import os
 from pathlib import Path
 import statistics
-import subprocess
 import sys
 from typing import Any, Mapping, Sequence
+
+
+def _require_runpod_launcher() -> None:
+    if __name__ != "__main__":
+        return
+    expected = Path("/workspace/.seroslop/runtime/node-v24.18.1-linux-x64/bin/node")
+    parent = Path(f"/proc/{os.getppid()}/exe")
+    try:
+        actual = parent.resolve(strict=True)
+        digest = sha256()
+        with actual.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        launcher = Path(__file__).resolve().parents[2] / "scripts/m5-python-launch.mjs"
+        launcher_digest = sha256(launcher.read_bytes()).hexdigest()
+        command = Path(f"/proc/{os.getppid()}/cmdline").read_bytes().split(b"\0")
+    except OSError as error:
+        raise RuntimeError("M5 production Python could not verify its pinned Node parent") from error
+    if (
+        sys.platform != "linux" or actual != expected or not expected.is_file() or expected.is_symlink()
+        or digest.hexdigest() != "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a"
+        or launcher_digest != "e8b3b37a79d9a71be1f2e4ff9b584d52da164eed8937a5608872895ab867834a"
+        or len(command) < 4 or command[:4] != [str(expected).encode("utf-8"), b"scripts/m5-python-launch.mjs", b"evaluate-large-synthetic", b"--"]
+        or os.environ.get("SEROSLOP_M5_LAUNCH_NODE_VERSION") != "v24.18.1"
+        or os.environ.get("SEROSLOP_M5_LAUNCH_NODE_SHA256") != "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a"
+    ):
+        raise RuntimeError("M5 production Python must start through the pinned RunPod launcher")
+
+
+_require_runpod_launcher()
 
 import numpy as np
 from PIL import Image, ImageOps
@@ -35,7 +64,7 @@ from benchmark.m5.contracts import (
     validate_selection_lock,
 )
 from benchmark.m5.large_synthetic import DATA_ROOT, verify_public_packet
-from benchmark.m5.train_gpu import Item, preprocess_image
+from benchmark.m5.train_gpu import Item, assert_worktree_exact, git_text, preprocess_image, validate_authorization_commit
 
 
 ROOT = REPOSITORY_ROOT
@@ -43,7 +72,9 @@ RECIPE_PATH = ROOT / "benchmark/m5/recipe.json"
 
 
 def run(command: Sequence[str]) -> str:
-    return subprocess.run(command, cwd=ROOT, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
+    if not command or command[0] != "git":
+        raise ValueError("M5 large-synthetic evaluator run helper only accepts Git commands")
+    return git_text(command[1:])
 
 
 def commit_rows(commit: str) -> list[tuple[str, str]]:
@@ -57,8 +88,9 @@ def commit_rows(commit: str) -> list[tuple[str, str]]:
 
 def require_source_lock_head(recipe: Mapping[str, Any], requested: str) -> tuple[str, str]:
     head = run(["git", "rev-parse", "HEAD"])
-    if head != requested or run(["git", "status", "--porcelain=v1", "--untracked-files=no"]):
+    if head != requested:
         raise ValueError("M5 large-synthetic evaluation requires the exact clean public source-lock commit")
+    assert_worktree_exact()
     parents = run(["git", "rev-list", "--parents", "-n", "1", head]).split()[1:]
     expected = sorted((path, "A") for path in (
         recipe["largeSyntheticEvaluation"]["manifest"],
@@ -72,7 +104,8 @@ def require_source_lock_head(recipe: Mapping[str, Any], requested: str) -> tuple
     lock_parents = run(["git", "rev-list", "--parents", "-n", "1", lock_commit]).split()[1:]
     if len(lock_parents) != 1 or commit_rows(lock_commit) != [(recipe["output"]["selectionLock"], "A")]:
         raise ValueError("M5 large-synthetic source lock is not the direct child of the one-file selection lock")
-    return lock_commit, lock_parents[0]
+    source, _tree, _receipt_sha256 = validate_authorization_commit(lock_parents[0])
+    return lock_commit, source
 
 
 def pack_float32(values: Sequence[float]) -> dict[str, Any]:
@@ -219,10 +252,10 @@ def validate_evaluation_receipt(
 
 
 def execute(args: argparse.Namespace) -> int:
-    import onnxruntime as ort
-
     recipe = load_recipe(RECIPE_PATH)
     lock_commit, protocol_commit = require_source_lock_head(recipe, args.source_lock_commit)
+    import onnxruntime as ort
+
     public = verify_public_packet(recipe, verify_pixels=True)
     selection_path = ROOT / recipe["output"]["selectionLock"]
     selection = parse_json_bytes(selection_path.read_bytes(), label="selection lock")

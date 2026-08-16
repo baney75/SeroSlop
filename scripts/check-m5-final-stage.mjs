@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { validateM5AuthorizedChain } from "./check-m5-authorized-chain.mjs";
+import { assertM5WorktreeExact, m5Git } from "./m5-safe-git.mjs";
 import {
-  M5_BASE_SOURCE_COMMIT,
-  M5_BASE_SOURCE_TREE,
   M5_FAILURE_PATH,
   M5_FINAL_EXPECTED,
   M5_FINAL_RECEIPT_PATH,
@@ -11,11 +11,8 @@ import {
   M5_LARGE_SOURCE_EXPECTED,
   M5_LARGE_SOURCE_LOCK_PATH,
   M5_LOCK_EXPECTED,
-  M5_ORIGINAL_PROTOCOL_COMMIT,
-  M5_ORIGINAL_PROTOCOL_TREE,
   M5_SELECTION_LOCK_PATH,
   matchesExpectedRows,
-  matchesM5ProtocolLineage,
 } from "./m5-stage-policy.mjs";
 
 const hex64 = /^[0-9a-f]{64}$/u;
@@ -25,8 +22,9 @@ const json = (pathname) => JSON.parse(readFileSync(pathname, "utf8"));
 const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 
 function git(arguments_) {
-  return execFileSync("git", arguments_, { encoding: "utf8", maxBuffer: 128 * 1024 * 1024 }).trim();
+  return m5Git(arguments_);
 }
+const authorized = validateM5AuthorizedChain();
 
 function rows(commit) {
   return git(["diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", commit])
@@ -53,22 +51,9 @@ const lockCommit = sourceLockParents[0];
 const lockParents = git(["rev-list", "--parents", "-n", "1", lockCommit]).split(" ").slice(1);
 requireCondition(lockParents.length === 1 && matchesExpectedRows(rows(lockCommit), M5_LOCK_EXPECTED),
   "M5 final publication is not the direct child of the one-file lock");
-const protocol = lockParents[0];
-const recoveryParents = git(["rev-list", "--parents", "-n", "1", protocol]).split(" ").slice(1);
-const originalParents = git(["rev-list", "--parents", "-n", "1", M5_ORIGINAL_PROTOCOL_COMMIT]).split(" ").slice(1);
-const originalTree = git(["rev-parse", `${M5_ORIGINAL_PROTOCOL_COMMIT}^{tree}`]);
-const baseTree = git(["rev-parse", `${M5_BASE_SOURCE_COMMIT}^{tree}`]);
-requireCondition(matchesM5ProtocolLineage({
-  recoveryParents,
-  recoveryRows: rows(protocol),
-  originalTree,
-  originalParents,
-  originalRows: rows(M5_ORIGINAL_PROTOCOL_COMMIT),
-  baseTree,
-}) && originalTree === M5_ORIGINAL_PROTOCOL_TREE && baseTree === M5_BASE_SOURCE_TREE,
-"M5 final publication has the wrong protocol ancestry");
-requireCondition(!git(["status", "--porcelain=v1", "--untracked-files=all"]),
-  "M5 final verification requires a completely clean repository");
+requireCondition(lockParents[0] === authorized.authorization, "M5 final publication skipped P4 authorization");
+const protocol = authorized.source;
+assertM5WorktreeExact();
 requireCondition(!existsSync(M5_FAILURE_PATH) && !existsSync("docs/COMPETITOR_AUDIT.md"),
   "M5 final publication contains a forbidden failure or competitor audit");
 
@@ -94,6 +79,7 @@ execFileSync("python3", ["-c", [
 ].join(";")], { stdio: "inherit" });
 
 const lock = json(M5_SELECTION_LOCK_PATH);
+const lockEnvironment = lock.trainingSummary?.environment;
 const regression = json("benchmark/evidence/m5/regression-summary.json");
 const largeEvaluation = json(M5_LARGE_EVALUATION_PATH);
 const training = readFileSync("benchmark/evidence/m5/training-summary.json");
@@ -109,6 +95,10 @@ requireCondition(regression.schemaVersion === 1 && regression.status === "regres
   regression.h3PixelsRead === false && regression.selectorOnnxReplay?.passed === true &&
   Array.isArray(regression.results) && regression.results.length === 2 && regression.results.every((row) => row.passed === true),
   "M5 terminal regression evidence changed or failed");
+requireCondition(lock.protocolCommit === protocol && lockEnvironment?.sourceCommit === authorized.source &&
+  lockEnvironment?.sourceTree === authorized.sourceTree && lockEnvironment?.authorizationCommit === authorized.authorization &&
+  lockEnvironment?.authorizationReceiptSha256 === authorized.authorizationReceiptSha256,
+  "M5 final training summary authorization binding changed");
 requireCondition(largeEvaluation.status === "large-synthetic-pass" && largeEvaluation.acceptanceEligible === true &&
   largeEvaluation.sourceLockCommit === sourceLockCommit && largeEvaluation.selectionLockCommit === lockCommit &&
   largeEvaluation.sourceLockSha256 === fileDigest(M5_LARGE_SOURCE_LOCK_PATH) &&
@@ -163,4 +153,4 @@ const expectedPublished = [...M5_FINAL_EXPECTED.keys()].filter((pathname) => pat
 requireCondition(equal(Object.keys(receipt.publishedSha256).sort(), expectedPublished) &&
   expectedPublished.every((pathname) => hex64.test(receipt.publishedSha256[pathname]) &&
     receipt.publishedSha256[pathname] === fileDigest(pathname)), "M5 final published-byte map changed");
-console.log(JSON.stringify({ head, protocol, lockCommit, modelSha256: digest(model), policy: "pass" }));
+console.log(JSON.stringify({ head, protocol, authorization: authorized.authorization, lockCommit, modelSha256: digest(model), policy: "pass" }));

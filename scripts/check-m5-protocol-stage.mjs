@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import {
@@ -16,9 +15,10 @@ import {
   matchesM5ProtocolLineage,
 } from "./m5-stage-policy.mjs";
 import { loadAndValidateM5Recipe } from "./m5-training-contract.mjs";
+import { assertM5WorktreeExact, m5Git } from "./m5-safe-git.mjs";
 
 function git(arguments_) {
-  return execFileSync("git", arguments_, { encoding: "utf8", maxBuffer: 128 * 1024 * 1024 }).trim();
+  return m5Git(arguments_);
 }
 
 function digest(pathname) {
@@ -50,9 +50,7 @@ if (!matchesM5ProtocolLineage({
   throw new Error("M5 protocol recovery is not the exact append-only child of the original protocol");
 }
 if (originalTree !== M5_ORIGINAL_PROTOCOL_TREE || baseTree !== M5_BASE_SOURCE_TREE) throw new Error("M5 protocol lineage tree changed");
-if (git(["status", "--porcelain=v1", "--untracked-files=all"])) {
-  throw new Error("M5 protocol verification requires a completely clean repository");
-}
+assertM5WorktreeExact();
 for (const forbidden of [M5_SELECTION_LOCK_PATH, M5_FAILURE_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_LARGE_EVALUATION_PATH, M5_FINAL_RECEIPT_PATH, "docs/COMPETITOR_AUDIT.md"]) {
   if (existsSync(forbidden)) throw new Error(`M5 protocol stage contains forbidden output: ${forbidden}`);
 }

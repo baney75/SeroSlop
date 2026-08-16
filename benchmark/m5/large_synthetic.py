@@ -13,9 +13,38 @@ import json
 import os
 from pathlib import Path
 import re
-import subprocess
 import sys
 from typing import Any, Iterable, Mapping, Sequence
+
+
+def _require_runpod_launcher() -> None:
+    if __name__ != "__main__" or "--verify-public" in sys.argv:
+        return
+    expected = Path("/workspace/.seroslop/runtime/node-v24.18.1-linux-x64/bin/node")
+    parent = Path(f"/proc/{os.getppid()}/exe")
+    try:
+        actual = parent.resolve(strict=True)
+        digest = sha256()
+        with actual.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        launcher = Path(__file__).resolve().parents[2] / "scripts/m5-python-launch.mjs"
+        launcher_digest = sha256(launcher.read_bytes()).hexdigest()
+        command = Path(f"/proc/{os.getppid()}/cmdline").read_bytes().split(b"\0")
+    except OSError as error:
+        raise RuntimeError("M5 production Python could not verify its pinned Node parent") from error
+    if (
+        sys.platform != "linux" or actual != expected or not expected.is_file() or expected.is_symlink()
+        or digest.hexdigest() != "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a"
+        or launcher_digest != "e8b3b37a79d9a71be1f2e4ff9b584d52da164eed8937a5608872895ab867834a"
+        or len(command) < 4 or command[:4] != [str(expected).encode("utf-8"), b"scripts/m5-python-launch.mjs", b"lock-large-synthetic", b"--"]
+        or os.environ.get("SEROSLOP_M5_LAUNCH_NODE_VERSION") != "v24.18.1"
+        or os.environ.get("SEROSLOP_M5_LAUNCH_NODE_SHA256") != "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a"
+    ):
+        raise RuntimeError("M5 production Python must start through the pinned RunPod launcher")
+
+
+_require_runpod_launcher()
 
 from PIL import Image, ImageOps
 
@@ -32,6 +61,7 @@ from benchmark.m5.contracts import (
     validate_regression_state,
     validate_selection_lock,
 )
+from benchmark.m5.train_gpu import assert_worktree_exact, git_text, validate_authorization_commit
 
 
 ROOT = REPOSITORY_ROOT
@@ -49,7 +79,9 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def run(command: Sequence[str]) -> str:
-    return subprocess.run(command, cwd=ROOT, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
+    if not command or command[0] != "git":
+        raise ValueError("M5 large-synthetic materializer run helper only accepts Git commands")
+    return git_text(command[1:])
 
 
 def canonical_gzip(payload: bytes) -> bytes:
@@ -447,13 +479,15 @@ def verify_public_packet(recipe: Mapping[str, Any], *, verify_pixels: bool = Fal
 def prepare(args: argparse.Namespace) -> int:
     recipe = load_recipe(RECIPE_PATH)
     head = run(["git", "rev-parse", "HEAD"])
-    if head != args.lock_commit or run(["git", "status", "--porcelain=v1", "--untracked-files=no"]):
+    if head != args.lock_commit:
         raise ValueError("M5 large-synthetic materialization requires the exact clean public selection-lock commit")
+    assert_worktree_exact()
     lock_path = ROOT / recipe["output"]["selectionLock"]
     selection_lock = parse_json_bytes(lock_path.read_bytes(), label="selection lock")
     selector_rows = read_jsonl(ROOT / recipe["sourceEvidence"]["selectorManifest"]["path"])
     validate_selection_lock(selection_lock, recipe, selector_rows)
-    protocol_commit = run(["git", "rev-parse", f"{args.lock_commit}^"])
+    authorization_commit = run(["git", "rev-parse", f"{args.lock_commit}^"])
+    protocol_commit, _source_tree, _authorization_sha256 = validate_authorization_commit(authorization_commit)
     if selection_lock["protocolCommit"] != protocol_commit:
         raise ValueError("M5 large-synthetic selection lock ancestry changed")
     regression_path = ROOT / recipe["output"]["candidateRoot"] / "regression-state.json"

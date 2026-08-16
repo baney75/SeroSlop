@@ -9,8 +9,10 @@ import json
 import math
 from pathlib import Path
 import pickle
+import runpy
 import struct
 import sys
+import tarfile
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -29,6 +31,7 @@ from benchmark.m5.contracts import (
     source_balanced_weights,
     validate_environment_receipt,
     validate_provisioning_receipt,
+    validate_run_authorization,
     validate_regression_state,
     validate_failure_receipt,
     validate_manifest_rows,
@@ -91,6 +94,8 @@ def training_summary_fixture(
         "torchVersion": "2.8.0+cu128",
         "transformersVersion": "5.4.0",
         "pythonVersion": "3.11.11",
+        "launchNodeVersion": "v24.18.1",
+        "launchNodeSha256": "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a",
         "runpodPodIdSha256": "a" * 64,
         "provisioningReceiptSha256": "b" * 64,
         "containerImage": training["containerImage"],
@@ -99,6 +104,15 @@ def training_summary_fixture(
         "providerIdentityEvidence": training["providerIdentityEvidence"],
         "providerSignedAttestation": False,
         "runtimeConsistencyEvidence": training["runtimeConsistencyEvidence"],
+        "sourceCommit": "a" * 40,
+        "sourceTree": "c" * 40,
+        "authorizationCommit": "d" * 40,
+        "authorizationReceiptSha256": "e" * 64,
+        "authorizationPublicCi": {
+            "conclusion": "success", "event": "push", "headSha": "d" * 40, "runId": 456,
+            "status": "completed", "url": "https://github.com/baney75/prooflens/actions/runs/456",
+            "workflowPath": ".github/workflows/quality.yml",
+        },
     }
     epoch_receipts = []
     global_step = 0
@@ -142,8 +156,58 @@ def training_summary_fixture(
 
 
 class M5ContractsTest(unittest.TestCase):
+
+    def test_run_authorization_binds_exact_p3_source(self) -> None:
+        paths = [
+            {"path": "benchmark/m5/contracts.py", "sha256": "a" * 64},
+            {"path": "scripts/m5-run-authorization.mjs", "sha256": "b" * 64},
+        ]
+        receipt = {
+            "schemaVersion": 1, "status": "m5-source-recovery-authorized",
+            "protocolCommit": "1c4ac973785f937fa9023018863941e6d89d8693",
+            "protocolTree": "a56caae4291e275029076417fb2111be76b07a41",
+            "sourceCommit": "c" * 40, "sourceTree": "d" * 40,
+            "sourcePathMap": paths, "authorizationPath": "benchmark/evidence/m5/run-authorization.json",
+            "sourcePublicCi": {
+                "conclusion": "success", "event": "push", "headSha": "c" * 40,
+                "runId": 123, "status": "completed",
+                "url": "https://github.com/baney75/prooflens/actions/runs/123",
+                "workflowPath": ".github/workflows/quality.yml",
+            },
+            "scoreBlind": True, "h3PixelsRead": False,
+        }
+        validate_run_authorization(receipt, protocol_commit=receipt["protocolCommit"], protocol_tree=receipt["protocolTree"],
+                                    source_commit=receipt["sourceCommit"], source_tree=receipt["sourceTree"], source_path_map=paths)
+        for key, value in (("sourceCommit", "e" * 40), ("sourceTree", "e" * 40)):
+            broken = dict(receipt); broken[key] = value
+            with self.assertRaises(ValueError):
+                validate_run_authorization(broken, protocol_commit=receipt["protocolCommit"], protocol_tree=receipt["protocolTree"],
+                                            source_commit=receipt["sourceCommit"], source_tree=receipt["sourceTree"], source_path_map=paths)
+        broken = copy.deepcopy(receipt)
+        broken["sourcePublicCi"]["conclusion"] = "failure"
+        with self.assertRaises(ValueError):
+            validate_run_authorization(broken, protocol_commit=receipt["protocolCommit"], protocol_tree=receipt["protocolTree"],
+                                       source_commit=receipt["sourceCommit"], source_tree=receipt["sourceTree"], source_path_map=paths)
     def setUp(self) -> None:
         self.recipe = load_recipe(ROOT / "benchmark/m5/recipe.json")
+
+    def test_runpod_node_runtime_lock_and_archive_paths(self) -> None:
+        bootstrap = runpy.run_path(ROOT / "scripts/m5_node_bootstrap.py")
+        lock = bootstrap["runtime_lock"]()
+        self.assertEqual(lock["version"], "v24.18.1")
+        self.assertEqual(lock["npmVersion"], "11.16.0")
+        self.assertEqual(lock["archive"]["bytes"], 31_525_884)
+        self.assertEqual(lock["archive"]["sha256"], "d6c664df3f3f61458e8c277585571328522d705166723a7c7823a9253a4d15a0")
+        self.assertEqual(lock["nodeSha256"], "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a")
+        safe = tarfile.TarInfo("node-v24.18.1-linux-x64/bin/npm")
+        safe.type = tarfile.SYMTYPE
+        safe.linkname = "../lib/node_modules/npm/bin/npm-cli.js"
+        bootstrap["validate_member"](safe)
+        unsafe = tarfile.TarInfo("node-v24.18.1-linux-x64/bin/escape")
+        unsafe.type = tarfile.SYMTYPE
+        unsafe.linkname = "../../outside"
+        with self.assertRaises(ValueError):
+            bootstrap["validate_member"](unsafe)
 
     def test_recipe_and_candidate_grid(self) -> None:
         self.assertEqual(
@@ -239,6 +303,8 @@ class M5ContractsTest(unittest.TestCase):
             "torchVersion": "2.8.0+cu128",
             "transformersVersion": "5.4.0",
             "pythonVersion": "3.11.11",
+            "launchNodeVersion": "v24.18.1",
+            "launchNodeSha256": "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a",
             "runpodPodIdSha256": "a" * 64,
             "provisioningReceiptSha256": "b" * 64,
             "containerImage": self.recipe["training"]["containerImage"],
@@ -247,8 +313,22 @@ class M5ContractsTest(unittest.TestCase):
             "providerIdentityEvidence": "operator-attested-control-plane-observation",
             "providerSignedAttestation": False,
             "runtimeConsistencyEvidence": "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt",
+            "sourceCommit": "a" * 40,
+            "sourceTree": "c" * 40,
+            "authorizationCommit": "d" * 40,
+            "authorizationReceiptSha256": "e" * 64,
+            "authorizationPublicCi": {
+                "conclusion": "success", "event": "push", "headSha": "d" * 40, "runId": 456,
+                "status": "completed", "url": "https://github.com/baney75/prooflens/actions/runs/456",
+                "workflowPath": ".github/workflows/quality.yml",
+            },
         }
         validate_environment_receipt(receipt, self.recipe)
+        for key, value in (("launchNodeVersion", "v24.18.0"), ("launchNodeSha256", "0" * 64)):
+            broken = dict(receipt)
+            broken[key] = value
+            with self.assertRaises(ValueError):
+                validate_environment_receipt(broken, self.recipe)
         receipt["gpuProduct"] = "NVIDIA RTX 4090"
         with self.assertRaises(ValueError):
             validate_environment_receipt(receipt, self.recipe)
@@ -387,6 +467,8 @@ class M5ContractsTest(unittest.TestCase):
             "torchVersion": "2.8.0+cu128",
             "transformersVersion": "5.4.0",
             "pythonVersion": "3.11.11",
+            "launchNodeVersion": "v24.18.1",
+            "launchNodeSha256": "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a",
             "runpodPodIdSha256": "a" * 64,
             "provisioningReceiptSha256": "b" * 64,
             "containerImage": self.recipe["training"]["containerImage"],
@@ -395,6 +477,15 @@ class M5ContractsTest(unittest.TestCase):
             "providerIdentityEvidence": "operator-attested-control-plane-observation",
             "providerSignedAttestation": False,
             "runtimeConsistencyEvidence": "RUNPOD_POD_ID hash and locally observed GPU match the operator-authored receipt",
+            "sourceCommit": "a" * 40,
+            "sourceTree": "c" * 40,
+            "authorizationCommit": "d" * 40,
+            "authorizationReceiptSha256": "e" * 64,
+            "authorizationPublicCi": {
+                "conclusion": "success", "event": "push", "headSha": "d" * 40, "runId": 456,
+                "status": "completed", "url": "https://github.com/baney75/prooflens/actions/runs/456",
+                "workflowPath": ".github/workflows/quality.yml",
+            },
         }
         with tempfile.TemporaryDirectory(dir=ROOT / "benchmark") as directory:
             output = Path(directory)
@@ -536,11 +627,10 @@ class M5ContractsTest(unittest.TestCase):
                 return M5_BASE_SOURCE_TREE
             if command == ["git", "diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", head]:
                 return "\n".join(f"M\t{path}" for path in sorted(M5_PROTOCOL_RECOVERY_PATHS))
-            if command == ["git", "status", "--porcelain=v1", "--untracked-files=all"]:
-                return ""
             raise AssertionError(command)
 
-        with mock.patch("benchmark.m5.train_gpu.run", side_effect=fake_run):
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=fake_run), \
+             mock.patch("benchmark.m5.train_gpu.assert_worktree_exact"):
             self.assertEqual(resolve_authorized_protocol_commit(), head)
 
         def wrong_parent(command: list[str], *, cwd: Path = ROOT) -> str:
@@ -548,17 +638,14 @@ class M5ContractsTest(unittest.TestCase):
                 return f"{head} {'0' * 40}"
             return fake_run(command, cwd=cwd)
 
-        with mock.patch("benchmark.m5.train_gpu.run", side_effect=wrong_parent):
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=wrong_parent), \
+             mock.patch("benchmark.m5.train_gpu.assert_worktree_exact"):
             with self.assertRaisesRegex(ValueError, "append-only"):
                 resolve_authorized_protocol_commit()
 
-        def untracked_shadow(command: list[str], *, cwd: Path = ROOT) -> str:
-            if command == ["git", "status", "--porcelain=v1", "--untracked-files=all"]:
-                return "?? torch.py"
-            return fake_run(command, cwd=cwd)
-
-        with mock.patch("benchmark.m5.train_gpu.run", side_effect=untracked_shadow):
-            with self.assertRaisesRegex(ValueError, "completely clean"):
+        with mock.patch("benchmark.m5.train_gpu.run", side_effect=fake_run), \
+             mock.patch("benchmark.m5.train_gpu.assert_worktree_exact", side_effect=ValueError("exact-worktree untracked surface")):
+            with self.assertRaisesRegex(ValueError, "untracked surface"):
                 resolve_authorized_protocol_commit()
 
     def test_selection_lock_is_recomputed_from_embedded_logits(self) -> None:

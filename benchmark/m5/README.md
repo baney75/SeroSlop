@@ -1,5 +1,37 @@
 # M5 RunPod GPU fine-tuning
 
+## Source-recovery and authorization sequence
+
+Publish P3 as the exact direct child of public P2, run the source-recovery
+stage gate, and wait for exact-head green CI. Then create P4 as the direct
+one-file child containing only `benchmark/evidence/m5/run-authorization.json`.
+The canonical writer records P2/P3 commits and trees plus hashes for every P3
+source path and refuses to write until anonymous public `main` and the exact-head
+`quality` push run both show P3. From the clean, public, green P3 commit run:
+
+```bash
+/usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/python3 -I -c '
+import hashlib, pathlib, sys
+p = pathlib.Path(sys.argv[1]); raw = p.read_bytes()
+if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec bootstrap bytes changed")
+sys.argv = [str(p), *sys.argv[3:]]
+exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
+' scripts/m5-preexec-bootstrap.py 9f73cfac68387affb4fce9dbfc37b1e56883178203e6d6b2f871b3ae77bdf6b1 authorize
+git add benchmark/evidence/m5/run-authorization.json
+git commit -m "Evidence: authorize exact M5 source"
+```
+
+The inline system-Python loader verifies the stdlib-only pre-exec bootstrap before
+any repository source runs. That bootstrap verifies the complete HEAD/index/worktree,
+then pins the operator Mac's absolute Node executable, version, and SHA-256 and
+starts it with a minimal environment. Do not use `npm`, an inherited `PATH`, or a
+different Node binary for this one-file writer.
+
+The P4 commit must add only that receipt. Push it and wait for its own exact-head
+green CI before creating any paid Pod. RunPod preflight and training run only
+from clean P4; later
+selection, failure, 100K, and final stages must retain the P2 → P3 → P4 chain.
+
 ## Accepted brief
 
 - Outcome: produce one fully local FP32 ViT-S/384 ONNX detector that is no larger than 90,000,000 bytes and runs through the extension's existing WASM and WebGPU paths.
@@ -49,28 +81,48 @@ Use one RunPod Secure Cloud L40S 48 GB Pod. The recommended image is:
 pytorch/pytorch@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385
 ```
 
-The repository must be cloned at the exact public M5 protocol-recovery commit. The trainer derives and verifies the append-only protocol lineage from Git; no caller can nominate a protocol commit. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
+The repository must be cloned at the exact public M5 P4 authorization commit. The launcher derives and verifies the append-only P2 → P3 → P4 lineage, rejects unexpected tracked, untracked, or ignored executable surfaces before Python starts, requires public-green exact-head CI, and starts Python in isolated mode; no caller can nominate a protocol commit or Python entry point. Transfer only `benchmark/data/m4-head` for train-select. Do not transfer any H3 root. The training root is about 51 GB. The later fixed Omni-Fake source contains 49.75 GB of Parquet shards and also needs room for 100,000 extracted source images. Use a temporary 300 GB network volume for the repository, datasets, Hugging Face cache, checkpoints/models, and logs; delete it after all evidence is retrieved and verified.
+
+The pre-exec gate detects source drift present when a command starts. It is not
+a sandbox against a hostile same-user process changing files after verification;
+the dedicated operator-controlled Pod must have no concurrent repository writer.
 
 Before transfer, the authenticated local RunPod operator writes `benchmark/candidates/prooflens-cf384-m5/runpod-provisioning-receipt.json`. It records the control-plane-observed Pod ID hash, `SECURE` cloud type, exact L40S product, creation time, and the authorized 24-hour workload-stop time. RunPod Pods do not expose a provider-enforced TTL or auto-stop field. The executable controls are the trainer's absolute deadline plus an authenticated operator stop after evidence retrieval or at the deadline. The authenticated operator attests that the job runs on a RunPod Secure Cloud L40S. The runtime Pod-ID hash and locally observed L40S/CUDA facts must match that operator-authored record. This is consistency evidence, not provider-signed proof of RunPod identity.
 
-Inside the Pod:
+Inside the Pod, use the fixed Conda interpreter from the pinned image. The first
+RunPod launch downloads Node.js `v24.18.1` only from the official Node release
+URL, requires the 31,525,884-byte archive SHA-256
+`d6c664df3f3f61458e8c277585571328522d705166723a7c7823a9253a4d15a0`,
+verifies the extracted Node executable SHA-256
+`f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a`,
+and then uses that exact binary for every M5 command. The outer command clears
+shell and Node preload variables before Node starts; the inner launcher also
+requires `/opt/conda/bin/python` and starts it with `-I`.
 
 ```bash
 cd /workspace/prooflens
-python -m pip install --disable-pip-version-check --require-hashes -r benchmark/m5/runpod-requirements.txt
-npm run benchmark:m5:preflight
+m5_preexec() {
+  /opt/conda/bin/python -I -c '
+import hashlib, pathlib, sys
+p = pathlib.Path(sys.argv[1]); raw = p.read_bytes()
+if hashlib.sha256(raw).hexdigest() != sys.argv[2]: raise SystemExit("M5 pre-exec bootstrap bytes changed")
+sys.argv = [str(p), *sys.argv[3:]]
+exec(compile(raw, str(p), "exec"), {"__name__": "__main__", "__file__": str(p)})
+' scripts/m5-preexec-bootstrap.py 9f73cfac68387affb4fce9dbfc37b1e56883178203e6d6b2f871b3ae77bdf6b1 "$@"
+}
+m5_preexec runpod-install
+m5_preexec runpod preflight -- \
+  --data-root benchmark/data/m4-head \
+  --train-manifest benchmark/evidence/m4/train-manifest.jsonl.gz \
+  --selector-manifest benchmark/evidence/m4/validation-manifest.jsonl \
+  --output-dir benchmark/candidates/prooflens-cf384-m5 \
+  --preflight-only
 ```
 
 The preflight verifies one complete 64-image training batch, runs CUDA/bfloat16 forward and backward passes, clips gradients, performs one optimizer step, exports an FP32 ONNX model, and checks PyTorch/ONNX parity. It does not open the selector, either regression split, or H3. Only after its canonical receipt says `preflight-pass`, run:
 
 ```bash
-npm run benchmark:m5:train
-```
-
-The two package commands expand to the frozen arguments below; the full command is:
-
-```bash
-python benchmark/m5/train_gpu.py \
+m5_preexec runpod train -- \
   --data-root benchmark/data/m4-head \
   --train-manifest benchmark/evidence/m4/train-manifest.jsonl.gz \
   --selector-manifest benchmark/evidence/m4/validation-manifest.jsonl \
@@ -86,9 +138,8 @@ Retrieve the complete candidate directory after train-select. If no candidate pa
 Terminal regressions run in order and cannot select another candidate or threshold:
 
 ```bash
-export M5_LOCK_COMMIT="$(git rev-parse HEAD)"
-python benchmark/m5/evaluate_locked.py \
-  --lock-commit "$M5_LOCK_COMMIT" \
+m5_preexec runpod regress -- \
+  --lock-commit @HEAD \
   --selection-lock benchmark/evidence/m5/selection-lock.json \
   --m3-data-root benchmark/data/m3-head \
   --m3-manifest benchmark/evidence/m3/validation-manifest.jsonl \
@@ -102,8 +153,8 @@ The evaluator writes terminal state after M3 before it opens M2. A failure stops
 After both regressions pass, materialize the fixed Omni-Fake source without opening the selected model:
 
 ```bash
-export M5_LOCK_COMMIT="$(git rev-parse HEAD)"
-npm run benchmark:m5:lock-large-synthetic
+m5_preexec runpod lock-large-synthetic -- \
+  --lock-commit @HEAD --allow-download
 ```
 
 This verifies the pinned `JamalLee/Omni-Fake-SET` revision, all 71 Image-config Parquet LFS hashes (49,751,776,056 bytes), keeps only `full_synthetic`, excludes generator families already represented directly in M4 when named, and rejects historical/training/selector/regression/H3-metadata overlap by ID, encoded-byte SHA-256, and dHash distance at most 8. It deterministically chooses exactly 100,000 generator-stratified rows and publishes only the compressed pixel-free manifest, 1,000×100 batch assignment, attribution, and source lock. Source pixels remain ignored under `benchmark/data/m5-large-synthetic`.
@@ -111,8 +162,8 @@ This verifies the pinned `JamalLee/Omni-Fake-SET` revision, all 71 Image-config 
 Commit and push that exact four-file packet as the direct child of the selection lock. Wait for its exact-head public gate, then score it once:
 
 ```bash
-export M5_LARGE_SOURCE_LOCK_COMMIT="$(git rev-parse HEAD)"
-npm run benchmark:m5:evaluate-large-synthetic
+m5_preexec runpod evaluate-large-synthetic -- \
+  --source-lock-commit @HEAD
 ```
 
 The evaluator uses the already locked ONNX bytes and raw threshold, recomputes each batch decision from the stored float32 logits, reports all 1,000 batch recalls plus overall/Wilson/per-generator results, and passes only when both the unrounded mean and median batch recall are strictly greater than `0.95`. A failed panel is consumed and cannot be moved into training or selection.
@@ -120,7 +171,7 @@ The evaluator uses the already locked ONNX bytes and raw threshold, recomputes e
 If and only if the selector, both terminal regressions, and the 100,000-image panel pass, publish the exact local model and evidence transaction:
 
 ```bash
-npm run benchmark:m5:finalize
+m5_preexec runpod finalize --
 ```
 
 The finalizer independently recomputes both regression packets from their stored float32 logits and frozen manifests, validates the 100,000-image receipt, rechecks the selected ONNX bytes and browser fixtures, stages exactly the declared final paths, and writes the finalization receipt last. H3 remains untouched and is not claimed by this transaction.

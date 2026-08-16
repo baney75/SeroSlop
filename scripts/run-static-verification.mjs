@@ -1,13 +1,14 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { classifyReleaseStage, FREEZE_PATH, LEGACY_FREEZE_PATH } from "./release-stage-policy.mjs";
 import { classifyM2Stage } from "./m2-stage-policy.mjs";
 import { classifyM4Stage, M4_FAILURE_PATH, M4_PUBLICATION_LOCK_PATH } from "./m4-stage-policy.mjs";
 import { classifyM3Stage, M3_FAILURE_PATH, M3_PUBLICATION_LOCK_PATH } from "./m3-stage-policy.mjs";
-import { classifyM5Stage, M5_FAILURE_PATH, M5_FINAL_RECEIPT_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_SELECTION_LOCK_PATH } from "./m5-stage-policy.mjs";
+import { classifyM5Stage, M5_FAILURE_PATH, M5_FINAL_RECEIPT_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_SELECTION_LOCK_PATH, M5_RUN_AUTHORIZATION_PATH, M5_P2_COMMIT, M5_SOURCE_RECOVERY_EXPECTED, matchesExpectedRows } from "./m5-stage-policy.mjs";
+import { m5Git } from "./m5-safe-git.mjs";
 
 function git(arguments_) {
-  return execFileSync("git", arguments_, { encoding: "utf8" }).trim();
+  return m5Git(arguments_);
 }
 
 const freezeExists = existsSync(FREEZE_PATH);
@@ -24,11 +25,15 @@ const m4FailureExists = existsSync(M4_FAILURE_PATH);
 const m4LockExists = existsSync(M4_PUBLICATION_LOCK_PATH);
 const m4TrainingExists = existsSync("benchmark/evidence/m4/training-summary.json");
 const m5ProtocolExists = existsSync("benchmark/m5/recipe.json");
+const head = git(["rev-parse", "HEAD"]);
 const m5LockExists = existsSync(M5_SELECTION_LOCK_PATH);
 const m5FailureExists = existsSync(M5_FAILURE_PATH);
 const m5LargeSourceLockExists = existsSync(M5_LARGE_SOURCE_LOCK_PATH);
 const m5FinalExists = existsSync(M5_FINAL_RECEIPT_PATH);
-const head = git(["rev-parse", "HEAD"]);
+const m5AuthorizationExists = existsSync(M5_RUN_AUTHORIZATION_PATH);
+const m5HeadRows = git(["diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", head]).split("\n").filter(Boolean).map((line) => { const [status, path] = line.split("\t"); return [path, status]; });
+const m5HeadParent = git(["rev-list", "--parents", "-n", "1", head]).split(" ")[1];
+const m5SourceRecoveryExists = m5HeadParent === M5_P2_COMMIT && matchesExpectedRows(m5HeadRows, M5_SOURCE_RECOVERY_EXPECTED);
 const additions = git(["log", "--no-renames", "--diff-filter=A", "--format=%H", "--", FREEZE_PATH])
   .split("\n").filter(Boolean);
 if (additions.length > 1 || (freezeExists && additions.length !== 1)) {
@@ -52,6 +57,8 @@ const m5Stage = classifyM5Stage({
   failureExists: m5FailureExists,
   largeSourceLockExists: m5LargeSourceLockExists,
   finalExists: m5FinalExists,
+  sourceRecoveryExists: m5SourceRecoveryExists,
+  authorizationExists: m5AuthorizationExists,
 });
 const effectiveStage = m5Stage ?? m4Stage ?? classifyM3Stage({
   selectionExists: m3SelectionExists,
@@ -61,6 +68,8 @@ const effectiveStage = m5Stage ?? m4Stage ?? classifyM3Stage({
 }) ?? m2Stage ?? stage;
 const scripts = new Map([
   ["m5-protocol", "verify:m5-protocol"],
+  ["m5-source-recovery", "verify:m5-source-recovery"],
+  ["m5-authorized", "verify:m5-authorized"],
   ["m5-pinned", "verify:m5-pinned"],
   ["m5-eval-locked", "verify:m5-eval-locked"],
   ["m5-failed", "verify:m5-failed"],
