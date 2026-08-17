@@ -113,8 +113,15 @@ The complete machine-readable contract is [model-lock.json](model-lock.json). Tr
 - [PRIVACY.md](PRIVACY.md): data flow and permission rationale
 - [SECURITY.md](SECURITY.md): threat model and fail-closed controls
 - [DESIGN.md](DESIGN.md): visible states, controls, accessibility, and responsive contract
-- [contributor/README.md](contributor/README.md): separate developer-only false-positive/false-negative review tool
 - [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md): bounty criteria mapped to executable proof
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): bundled runtime/model notices and training-data provenance
+
+## Planned, not part of this submission
+
+- [ ] False-positive and false-negative review workflow with user-provided evidence.
+- [ ] Rights-reviewed, privacy-safe contributor intake after a separate product and legal decision.
+- [ ] Review and deletion rules for any future training-data admission.
+
+The contributor directory is retained as an internal development artifact. This submission does not upload images or admit contributor data into training.
 
 SeroSlop is MIT licensed. Dataset pixels are not included in this repository.

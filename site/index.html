@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="SeroSlop is a browser-local Chrome extension for inspecting AI-image scores.">
+    <title>SeroSlop | Browser-local image checks</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="SeroSlop home"><img src="./assets/seroslop.svg" alt="" width="32" height="32"><span>SeroSlop</span></a>
+      <nav aria-label="Primary"><a href="https://github.com/baney75/prooflens">Source</a><a href="#install">Install</a><a href="#docs">Docs</a></nav>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="eyebrow">Open source · MIT · Chrome MV3</div>
+        <h1 id="page-title">A local image check<br>for the pages you browse.</h1>
+        <p class="lede">SeroSlop runs one packaged model in your browser and places a score beside supported images. It does not send images to a server or call a detector API.</p>
+        <div class="actions"><a class="button primary" href="#install">Install from source</a><a class="button secondary" href="https://github.com/baney75/prooflens">View source</a></div>
+        <p class="limitation">A score is not proof of origin.</p>
+      </section>
+      <section class="modes" aria-labelledby="modes-title">
+        <div><p class="eyebrow">Choose your scope</p><h2 id="modes-title">Choose how much of the page to scan.</h2></div>
+        <div class="mode-grid">
+          <article><span class="mode-number">01</span><h3>Choose an image</h3><p>Press the extension button, select one visible target, and inspect only that image.</p></article>
+          <article><span class="mode-number">02</span><h3>Main images</h3><p>Scan supported images in the page's main content, excluding navigation and sidebars.</p></article>
+          <article><span class="mode-number">03</span><h3>Every image</h3><p>Scan every supported visible image target in the current document.</p></article>
+        </div>
+      </section>
+      <section class="install" id="install" aria-labelledby="install-title">
+        <div><p class="eyebrow">Source install</p><h2 id="install-title">Build and load the extension.</h2><p>Requires Node.js 20.9 or newer and Chrome 121 or newer. Build the extension locally, then load the generated directory as an unpacked extension.</p></div>
+        <ol class="steps"><li><code>git clone https://github.com/baney75/prooflens.git</code><code>cd prooflens && npm ci && npm run build</code></li><li>Open <code>chrome://extensions</code> and enable Developer mode.</li><li>Choose <strong>Load unpacked</strong>, then select <code>dist/</code>.</li><li>Keep setup open until it says <strong>Offline ready</strong>, then choose a mode.</li></ol>
+      </section>
+      <section class="docs" id="docs" aria-labelledby="docs-title">
+        <div><p class="eyebrow">Read the contract</p><h2 id="docs-title">Model and privacy documentation.</h2></div>
+        <div class="doc-links"><a href="https://github.com/baney75/prooflens/blob/main/MODEL_CARD.md">Model card <span>↗</span></a><a href="https://github.com/baney75/prooflens/blob/main/PRIVACY.md">Privacy <span>↗</span></a><a href="https://github.com/baney75/prooflens/blob/main/SECURITY.md">Security <span>↗</span></a><a href="https://github.com/baney75/prooflens/blob/main/BENCHMARK.md">Benchmark <span>↗</span></a><a href="https://github.com/baney75/prooflens/blob/main/docs/ACCEPTANCE.md">Acceptance <span>↗</span></a></div>
+      </section>
+    </main>
+    <footer><span>SeroSlop · MIT licensed</span><span>Inference stays in Chrome</span></footer>
+  </body>
+</html>

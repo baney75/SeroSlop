@@ -99,6 +99,7 @@
     "verify:m5-final": "npm run verify:common && npm run check:m4-selection-evidence && npm run check:m4-stage-policy && npm run check:m4-training-contract && npm run check:m5-pipeline && npm run check:m5-stage-policy && npm run check:m5-training-contract && npm run check:m5-final-stage",
     "verify:final": "npm run verify:common && npm run check:pre-score-freeze && npm run check:benchmark",
     "verify:static": "node scripts/run-static-verification.mjs",
+    "check:site": "node scripts/check-site.mjs",
     "verify:release": "benchmark/.venv/bin/python benchmark/run_release_replay.py && npm run verify:static",
     "verify": "npm run verify:static",
     "check": "npm run verify:static",
