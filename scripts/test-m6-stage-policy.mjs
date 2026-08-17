@@ -33,6 +33,13 @@ import {
   M6_NO_SLOP_UI_ARTIFACT_SHA256,
   M6_NO_SLOP_UI_COMMIT,
   M6_BETA1_EXPECTED,
+  M6_P6_PARENT,
+  M6_P6_CHECK_STATUS,
+  M6_P6_EXPECTED,
+  M6_P6_ARTIFACT_SHA256,
+  matchesM6P6Head,
+  validateM6P6Artifacts,
+  validateM6P6Inventory,
   M6_BETA1_ARTIFACT_SHA256,
   M6_BETA1_COMMIT,
   M6_BETA1_RECOVERY_EXPECTED,
@@ -145,7 +152,8 @@ assert.equal(matchesM6Beta1Recovery5Head({ head: "b".repeat(40), parent: M6_BETA
 assert.equal(matchesM6Beta1Recovery5Head({ head: "b".repeat(40), parent: M6_BETA1_RECOVERY3_COMMIT, rows: beta1Recovery5Rows }), false);
 assert.equal(matchesM6Beta1Recovery5Head({ head: "b".repeat(40), parent: M6_BETA1_RECOVERY4_COMMIT, rows: beta1Recovery5Rows.slice(1) }), false);
 assert.equal(matchesM6Beta1Recovery5Head({ head: "b".repeat(40), parent: M6_BETA1_RECOVERY4_COMMIT, rows: [...beta1Recovery5Rows, ["extra", "M"]] }), false);
-const beta1Recovery5Artifacts = Object.fromEntries(Object.keys(M6_BETA1_RECOVERY5_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+// Historical recovery5 validation must read its immutable source commit, not the descendant worktree.
+const beta1Recovery5Artifacts = Object.fromEntries(Object.keys(M6_BETA1_RECOVERY5_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_P6_PARENT}:${path}`])]));
 assert.equal(validateM6P5Artifacts(beta1Recovery5Artifacts, M6_BETA1_RECOVERY5_ARTIFACT_SHA256), true);
 assert.equal(matchesM6Beta1AuthorizationHead({ head: "5".repeat(40), parent: "4".repeat(40), rows: [[M6_BETA1_AUTHORIZATION_PATH, "A"]] }), true);
 assert.equal(matchesM6Beta1AuthorizationHead({ head: "5".repeat(40), parent: "4".repeat(40), rows: [[M6_BETA1_AUTHORIZATION_PATH, "M"]] }), false);
@@ -210,4 +218,14 @@ assert.throws(() => validateM6VerifyRequirements(Buffer.from(requirementsText.re
 assert.throws(() => validateM6VerifyRequirements(Buffer.from(requirementsText.replace("numpy==2.2.6", "numpy==0.0.0"))), /bytes changed/);
 assert.throws(() => validateM6VerifyRequirements(Buffer.from(requirementsText + "requests==2.0.0\n")), /bytes changed/);
 assert.throws(() => validateM6VerifyRequirements(Buffer.from(requirementsText + "pyarrow==20.0.0\n")), /bytes changed/);
+const p6Rows = M6_P6_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6P6Head({ head: "f".repeat(40), parent: M6_P6_PARENT, rows: p6Rows, treePaths: p6Rows.map(([path]) => path) }), true);
+assert.equal(matchesM6P6Head({ head: "f".repeat(40), parent: "0".repeat(40), rows: p6Rows, treePaths: p6Rows.map(([path]) => path) }), false);
+assert.equal(matchesM6P6Head({ head: "f".repeat(40), parent: M6_P6_PARENT, rows: [...p6Rows, ["extra", "A"]], treePaths: p6Rows.map(([path]) => path) }), false);
+const p6Artifacts = Object.fromEntries(Object.keys(M6_P6_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+assert.equal(validateM6P6Artifacts(p6Artifacts), true);
+assert.throws(() => validateM6P6Artifacts({ ...p6Artifacts, "package.json": Buffer.from("mutated") }), /bytes changed/);
+assert.equal(validateM6P6Inventory(p6Artifacts["benchmark/m6/p6-frontier-inventory.json"]).status, "metadata-only; no acquisition or materialization");
+assert.equal(M6_P6_CHECK_STATUS, "m6-p6-metadata-only-unverified-pass");
+assert.throws(() => validateM6P6Inventory(Buffer.from(`${readFileSync("benchmark/m6/p6-frontier-inventory.json", "utf8").trim()}\n\n`)), /canonical/);
 console.log("M6 stage policy PASS");

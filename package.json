@@ -65,7 +65,7 @@
     "check:m5-failure-stage": "node scripts/check-m5-failure-stage.mjs",
     "check:m5-large-source-stage": "node scripts/check-m5-large-source-stage.mjs",
     "check:m5-final-stage": "node scripts/check-m5-final-stage.mjs",
-    "check:m6-pipeline": "node scripts/run-benchmark-python.mjs -m unittest benchmark.m6.test_contracts benchmark.m6.test_p5_protocol",
+    "check:m6-pipeline": "node scripts/run-benchmark-python.mjs -m unittest benchmark.m6.test_contracts benchmark.m6.test_p5_protocol benchmark.m6.test_p6_frontier_inventory",
     "check:m6-p5": "node scripts/run-benchmark-python.mjs -m unittest benchmark.m6.test_p5_protocol",
     "check:m6-stage-policy": "node scripts/test-m6-stage-policy.mjs",
     "check:m6-source-stage": "node scripts/run-benchmark-python.mjs benchmark/m6/prepare.py --phase census",

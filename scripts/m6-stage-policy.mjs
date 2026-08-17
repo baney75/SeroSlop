@@ -89,6 +89,62 @@ export const M6_P5_RECOVERY_ARTIFACT_SHA256 = Object.freeze({
   "benchmark/m6/p5_transform_fixture.py": "5cfbb8c3df33887aea2740003f8ef7ea39b2c691ca9464214f7eb739b399f73f",
   "benchmark/m6/README.md": "6fd0e35cf55fcfd580d2e634e22626c1910aacf4246e402fc67280bc3ca0e1ac",
 });
+
+// P6 is an append-only frontier child of the source-lock authorization head.
+export const M6_P6_PARENT = "20154cb1bceda64aa74bbf1020f0a8ae8b2a513f";
+export const M6_P6_PARENT_TREE = "8469c2609db99096695bf9d9f4ee88b54cc09d0b";
+export const M6_P6_CHECK_STATUS = "m6-p6-metadata-only-unverified-pass";
+export const M6_P6_EXPECTED = Object.freeze([
+  ["benchmark/m6/p6-frontier-inventory.json", "A"],
+  ["benchmark/m6/p6_frontier_inventory.py", "A"],
+  ["benchmark/m6/test_p6_frontier_inventory.py", "A"],
+  ["benchmark/m6/source-cards/aigenimages2026.README.md", "A"],
+  ["benchmark/m6/source-cards/x-aigd.README.md", "A"],
+  ["benchmark/m6/source-cards/taste.README.md", "A"],
+  ["benchmark/m6/source-cards/nano-banana.README.md", "A"],
+  ["package.json", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+  ["scripts/run-static-verification.mjs", "M"],
+]);
+export const M6_P6_ARTIFACT_SHA256 = Object.freeze({
+  "benchmark/m6/p6-frontier-inventory.json": "9b3a2a75b5d6ce1262ca3c39a100dbca801f0a09dcf939be5478f740989bcf74",
+  "benchmark/m6/p6_frontier_inventory.py": "5e52a074aac595b6bfae808adc47d1f53adaa64b609091cf50db07a4ae6d74ab",
+  "benchmark/m6/test_p6_frontier_inventory.py": "e68bd93b3ce4668ab829330e589994d2fa0d0a916122993a9eceec27a7c180a5",
+  "benchmark/m6/source-cards/aigenimages2026.README.md": "53d6bbd13bdeb16c6da0f4d7a780fca4b411422e26debf61450ec758847a6ff0",
+  "benchmark/m6/source-cards/x-aigd.README.md": "e0121b9772a42b5953b68d26e99c4b0d6be29b7995156e13494a67b6dde99484",
+  "benchmark/m6/source-cards/taste.README.md": "a602cf5bf11e67ab3e89f4fe3853326ae2978a8312f8d1633b1f2a9d3d1c562b",
+  "benchmark/m6/source-cards/nano-banana.README.md": "d7f5f97cea4776c0a0c1ed97ba5139afda4f94dc42d5aec5dff2dd2c459f875c",
+  "package.json": "d6e064d8c9df1e65e8359e8ca24c5cdf1f03356bb59fdab15af967d4e40d4450",
+});
+export function matchesM6P6Head({ head, parent, rows = [], treePaths = [] } = {}) {
+  const expected = normalizedRows(M6_P6_EXPECTED);
+  const actual = normalizedRows(rows);
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent && parent === M6_P6_PARENT &&
+    JSON.stringify(actual) === JSON.stringify(expected) && M6_P6_EXPECTED.every(([path]) => treePaths.includes(path));
+}
+export function validateM6P6Artifacts(artifactBytes = {}) {
+  const expectedPaths = Object.keys(M6_P6_ARTIFACT_SHA256).sort();
+  if (JSON.stringify(Object.keys(artifactBytes).sort()) !== JSON.stringify(expectedPaths)) throw new Error("M6 P6 artifact inventory changed");
+  for (const path of expectedPaths) {
+    if (createHash("sha256").update(Buffer.from(artifactBytes[path])).digest("hex") !== M6_P6_ARTIFACT_SHA256[path]) throw new Error(`M6 P6 artifact bytes changed: ${path}`);
+  }
+  return true;
+}
+export function validateM6P6Inventory(bytes) {
+  const raw = Buffer.from(bytes); const text = raw.toString("utf8");
+  if (!text.endsWith("\n") || Buffer.from(text).compare(raw) !== 0) throw new Error("M6 P6 inventory must be canonical UTF-8 JSON");
+  rejectDuplicateKeys(text); const value = JSON.parse(text);
+  if (text !== canonicalM6Json(value)) throw new Error("M6 P6 inventory bytes are not canonical");
+  if (["sourceLock", "trainingClaim", "acceptanceClaim", "benchmarkAcceptanceEligible"].some((key) => Object.hasOwn(value, key))) throw new Error("M6 P6 stage claim boundary changed");
+  if (value.schemaVersion !== 1 || value.sourceCommit !== "d4bc2fb9299534e821f05914d51cab0d41e7a030" || value.status !== "metadata-only; no acquisition or materialization") throw new Error("M6 P6 inventory lineage changed");
+  if (value.claims?.publisherMetadataIsGroundTruthBoundary !== true || value.claims?.commercialRightsClearanceClaimed !== false || value.claims?.h3PixelsRead !== false) throw new Error("M6 P6 claims boundary changed");
+  if (value.quotaCorrection?.aigenimages2026TrainAdmittedRows !== 4879 || value.quotaCorrection?.omniSetTrainSynthetic !== 43783 || value.quotaCorrection?.rightsClaimed !== false) throw new Error("M6 P6 quota correction changed");
+  const sources = value.sources ?? {};
+  for (const source of Object.values(sources)) if (source.publisherAssertionOnly !== true || source.independentOriginProofClaimed !== false || source.labelEvidenceScope !== "publisherAssertionOnly") throw new Error("M6 P6 source boundary changed");
+  return value;
+}
 export const M6_SUBMISSION_UI_EXPECTED = Object.freeze([
   ["scripts/build.mjs", "M"],
   ["scripts/check-benchmark-evidence.mjs", "M"],
@@ -478,7 +534,8 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 }
 
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
-  return isM6ProtocolHead({ head, parent, treePaths }) ||
+  return matchesM6P6Head({ head, parent, rows, treePaths }) ||
+    isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||
     matchesM6SubmissionUiHead({ head, parent, rows }) ||

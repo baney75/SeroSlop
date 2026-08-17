@@ -69,6 +69,12 @@ import {
   matchesM6Beta1AuthorizationHead,
   validateM6Beta1Authorization,
   validateM6P5Artifacts,
+  M6_P6_PARENT_TREE,
+  M6_P6_CHECK_STATUS,
+  M6_P6_ARTIFACT_SHA256,
+  matchesM6P6Head,
+  validateM6P6Artifacts,
+  validateM6P6Inventory,
 } from "./m6-stage-policy.mjs";
 
 const git = (args) => m5Git(args);
@@ -200,6 +206,15 @@ const head = git(["rev-parse", "HEAD"]);
 const headParents = parentsOf(head);
 const headRows = rowsOf(head).map(({ path, status }) => [path, status]);
 const headTreePaths = git(["ls-tree", "-r", "--name-only", head]).split("\n").filter(Boolean);
+if (headParents.length === 1 && matchesM6P6Head({ head, parent: headParents[0], rows: headRows, treePaths: headTreePaths })) {
+  if (git(["rev-parse", `${headParents[0]}^{tree}`]) !== M6_P6_PARENT_TREE) throw new Error("M6 P6 parent tree changed");
+  const bytes = Object.fromEntries(Object.keys(M6_P6_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])]));
+  validateM6P6Artifacts(bytes);
+  validateM6P6Inventory(bytes["benchmark/m6/p6-frontier-inventory.json"]);
+  // S is a metadata-only, unverified frontier; it is not protocol authorization.
+  console.log(JSON.stringify({ status: M6_P6_CHECK_STATUS, head, parent: headParents[0], rows: headRows }));
+  process.exit(0);
+}
 if (headParents.length === 1 && matchesM6Beta1AuthorizationHead({ head, parent: headParents[0], rows: headRows })) {
   const sourceCommit = headParents[0];
   const sourceParents = parentsOf(sourceCommit);

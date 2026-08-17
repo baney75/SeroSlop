@@ -37,6 +37,7 @@ const m6ProtocolExists = (() => {
         const [status, path] = line.split("\t");
         return [path, status];
       });
+    // The lineage predicate includes the exact append-only P6 frontier child.
     return parent.length === 1 && isM6ProtocolLineageHead({ head, parent: parent[0], treePaths, rows });
   } catch { return false; }
 })();
