@@ -64,7 +64,7 @@ import {
   matchesM6P7AuthorizationHead,
   validateM6P7Authorization,
   M6_P8_PARENT, M6_P8_EXPECTED, M6_P8_PROTOCOL_SHA256,
-  matchesM6P8Head, validateM6P8Protocol,
+  matchesM6P8Head, validateM6P8Protocol, M6_P8_S_COMMIT, M6_P8_S_TREE, M6_P8_S_ROWS, M6_P8_S_ARTIFACT_SHA256, M6_P8_R_EXPECTED, M6_P8_R_STATUS, M6_P8_A_STATUS, M6_P8_AUTHORIZATION_PATH, matchesM6P8RHead, matchesM6P8AuthorizationHead, validateM6P8Authorization,
   M6_P6_EXPECTED,
   M6_P6_ARTIFACT_SHA256,
   matchesM6P6Head,
@@ -325,5 +325,30 @@ assert.equal(matchesM6P8Head({head:"a".repeat(40), parent:M6_P8_PARENT, rows:p8R
 assert.equal(createHash("sha256").update(readFileSync("benchmark/m6/p8-protocol.json")).digest("hex"), M6_P8_PROTOCOL_SHA256);
 assert.equal(validateM6P8Protocol(readFileSync("benchmark/m6/p8-protocol.json")), true);
 assert.equal(checkerSource.includes("p8-frontier-adapters-unverified"), true);
+const p8RRows=M6_P8_R_EXPECTED.map(([path,status])=>[path,status]);
+assert.equal(matchesM6P8RHead({head:"b".repeat(40),parent:M6_P8_S_COMMIT,rows:p8RRows}),true);
+assert.equal(matchesM6P8RHead({head:"b".repeat(40),parent:"0".repeat(40),rows:p8RRows}),false);
+assert.equal(matchesM6P8RHead({head:"b".repeat(40),parent:M6_P8_S_COMMIT,rows:M6_P8_S_ROWS}),false);
+assert.equal(matchesM6P8AuthorizationHead({head:"c".repeat(40),parent:"b".repeat(40),rows:[[M6_P8_AUTHORIZATION_PATH,"A"]]}),true);
+assert.equal(matchesM6P8AuthorizationHead({head:"c".repeat(40),parent:"b".repeat(40),rows:[[M6_P8_AUTHORIZATION_PATH,"M"]]}),false);
+assert.equal(M6_P8_R_STATUS,"p8-frontier-adapters-verifier-ready"); assert.equal(M6_P8_A_STATUS,"p8-frontier-adapters-authorized");
+const p8Ci={conclusion:"success",event:"push",headSha:"b".repeat(40),runId:321,status:"completed",url:"https://github.com/baney75/prooflens/actions/runs/321",workflowPath:".github/workflows/quality.yml"};
+const p8Auth={acceptanceEligible:false,adapterImplementationVerified:true,authorizationPath:M6_P8_AUTHORIZATION_PATH,commercialRightsClearanceClaimed:false,fullCacheMaterializationAuthorized:true,h3PixelsRead:false,independentOriginProofClaimed:false,protocolCommit:M6_P8_S_COMMIT,protocolParent:M6_P8_PARENT,protocolPathMap:M6_P8_S_ARTIFACT_SHA256,protocolRows:M6_P8_S_ROWS,protocolTree:M6_P8_S_TREE,publisherAssertionOnly:true,schemaVersion:1,sourceLockAuthorized:false,status:M6_P8_A_STATUS,trainingAuthorized:false,verifierCommit:"b".repeat(40),verifierPublicCi:p8Ci,verifierRows:p8RRows,verifierTree:"d".repeat(40)};
+const p8Args={sourceCommit:M6_P8_S_COMMIT,sourceTree:M6_P8_S_TREE,sourceParent:M6_P8_PARENT,sourceRows:M6_P8_S_ROWS,sourcePathMap:M6_P8_S_ARTIFACT_SHA256,verifierCommit:p8Auth.verifierCommit,verifierTree:p8Auth.verifierTree,verifierRows:p8RRows,publicCi:p8Ci};
+assert.equal(validateM6P8Authorization(Buffer.from(canonicalM6Json(p8Auth)),p8Args).status,M6_P8_A_STATUS);
+for (const key of ["sourceLockAuthorized","trainingAuthorized","acceptanceEligible"]) assert.throws(()=>validateM6P8Authorization(Buffer.from(canonicalM6Json({...p8Auth,[key]:true})),p8Args),/boundary/);
+assert.throws(()=>validateM6P8Authorization(Buffer.from(canonicalM6Json({...p8Auth,adapterImplementationVerified:false})),p8Args),/boundary/);
+assert.throws(()=>validateM6P8Authorization(Buffer.from(canonicalM6Json({...p8Auth,fullCacheMaterializationAuthorized:false})),p8Args),/boundary/);
+assert.throws(()=>validateM6P8Authorization(Buffer.from(canonicalM6Json({...p8Auth,verifierTree:"e".repeat(40)})),p8Args),/source binding/);
+assert.throws(()=>validateM6P8Authorization(Buffer.from(canonicalM6Json({...p8Auth,verifierCommit:"e".repeat(40)})),p8Args),/source binding/);
+assert.throws(()=>validateM6P8Authorization(Buffer.from(canonicalM6Json({...p8Auth,protocolRows:p8RRows})),p8Args),/source binding/);
+assert.throws(()=>validateM6P8Authorization(Buffer.from(canonicalM6Json({...p8Auth,protocolPathMap:{...M6_P8_S_ARTIFACT_SHA256,"benchmark/m6/README.md":"0".repeat(64)}})),p8Args),/source binding/);
+assert.throws(()=>validateM6P8Authorization(Buffer.from(canonicalM6Json({...p8Auth,verifierPublicCi:{...p8Ci,runId:0}})),{...p8Args,publicCi:{...p8Ci,runId:0}}),/CI proof/);
+assert.throws(()=>validateM6P8Authorization(Buffer.from(canonicalM6Json({...p8Auth,verifierPublicCi:{...p8Ci,url:"https://example.com/forged"}})),{...p8Args,publicCi:{...p8Ci,url:"https://example.com/forged"}}),/CI proof/);
+const p8Duplicate=canonicalM6Json(p8Auth).replace('{"acceptanceEligible":false','{"acceptanceEligible":false,"acceptanceEligible":false');
+assert.throws(()=>validateM6P8Authorization(Buffer.from(p8Duplicate),p8Args),/duplicate/);
+assert.throws(()=>validateM6P8Authorization(Buffer.from(`${canonicalM6Json(p8Auth).trim()}\n\n`),p8Args),/canonical/);
+assert.equal(checkerSource.includes("authorize-p8"),true);
+assert.equal(checkerSource.includes('process.argv[2] === undefined && currentParents.length === 1 && matchesM6P8RHead'),true);
 assert.equal(m5GitBytes(["rev-parse", "285bc3eefcaff35a6ae8a6cc9b23b2d0abdd4f90^{tree}"]).toString("utf8").trim(), "2457bb455d05fcef86aee07fb0c38cccd6ba289e");
 console.log("M6 stage policy PASS");

@@ -111,6 +111,8 @@ import {
   M6_P8_PROTOCOL_PATH,
   matchesM6P8Head,
   validateM6P8Protocol,
+  M6_P8_S_COMMIT, M6_P8_S_TREE, M6_P8_S_ROWS, M6_P8_S_ARTIFACT_SHA256, M6_P8_R_STATUS, M6_P8_A_STATUS, M6_P8_AUTHORIZATION_PATH,
+  matchesM6P8RHead, matchesM6P8AuthorizationHead, validateM6P8Authorization,
 } from "./m6-stage-policy.mjs";
 
 const git = (args) => m5Git(args);
@@ -125,6 +127,18 @@ const rowsOf = (commit) => git([
 const currentHead = git(["rev-parse", "HEAD"]);
 const currentParents = parentsOf(currentHead);
 const currentRows = rowsOf(currentHead).map(({ path, status }) => [path, status]);
+const p8RecoveryRows = rowsOf(currentHead).map(({path,status})=>[path,status]);
+if (process.argv[2] === undefined && currentParents.length === 1 && matchesM6P8AuthorizationHead({head:currentHead,parent:currentParents[0],rows:p8RecoveryRows})) {
+  const sourceCommit=currentParents[0], sourceParents=parentsOf(sourceCommit), sourceRows=rowsOf(sourceCommit).map(({path,status})=>[path,status]);
+  if(sourceParents.length!==1||!matchesM6P8RHead({head:sourceCommit,parent:sourceParents[0],rows:sourceRows})) throw new Error("P8 authorization source is not exact R");
+  const receipt=m5GitBytes(["show",`${currentHead}:${M6_P8_AUTHORIZATION_PATH}`]), value=JSON.parse(receipt.toString("utf8")), verifierTree=git(["rev-parse",`${sourceCommit}^{tree}`]);
+  const sourcePathMap=Object.fromEntries(Object.keys(M6_P8_S_ARTIFACT_SHA256).map((p)=>[p,digest(m5GitBytes(["show",`${M6_P8_S_COMMIT}:${p}`]))])); validateM6P8Authorization(receipt,{sourceCommit:M6_P8_S_COMMIT,sourceTree:M6_P8_S_TREE,sourceParent:M6_P8_PARENT,sourceRows:rowsOf(M6_P8_S_COMMIT).map(({path,status})=>[path,status]),sourcePathMap,verifierCommit:sourceCommit,verifierTree,verifierRows:sourceRows,publicCi:value.verifierPublicCi});
+  const live=process.env.GITHUB_ACTIONS==="true"&&process.env.GITHUB_EVENT_NAME==="push"&&process.env.GITHUB_SHA===currentHead&&process.env.GITHUB_REPOSITORY==="baney75/prooflens"; if(!live) await fetchPublicCiRun(value.verifierPublicCi.runId,sourceCommit); console.log(JSON.stringify({status:M6_P8_A_STATUS,head:currentHead,sourceCommit,deferredToExternal:live,rows:p8RecoveryRows})); process.exit(0);
+}
+if (process.argv[2] === undefined && currentParents.length === 1 && matchesM6P8RHead({head:currentHead,parent:currentParents[0],rows:p8RecoveryRows})) {
+  if(currentParents[0]!==M6_P8_S_COMMIT||git(["rev-parse",`${currentParents[0]}^{tree}`])!==M6_P8_S_TREE) throw new Error("P8 S lineage changed");
+  const sourceRows=rowsOf(M6_P8_S_COMMIT).map(({path,status})=>[path,status]); const sourcePathMap=Object.fromEntries(Object.keys(M6_P8_S_ARTIFACT_SHA256).map((p)=>[p,digest(m5GitBytes(["show",`${M6_P8_S_COMMIT}:${p}`]))])); if(JSON.stringify(sourceRows)!==JSON.stringify(M6_P8_S_ROWS)||JSON.stringify(sourcePathMap)!==JSON.stringify(M6_P8_S_ARTIFACT_SHA256)) throw new Error("P8 S blob map changed"); validateM6P8Protocol(m5GitBytes(["show",`${M6_P8_S_COMMIT}:${M6_P8_PROTOCOL_PATH}`])); console.log(JSON.stringify({status:M6_P8_R_STATUS,head:currentHead,parent:currentParents[0],rows:p8RecoveryRows})); process.exit(0);
+}
 // P8 status: p8-frontier-adapters-unverified (adapter code only; no authority).
 if (currentParents.length === 1 && currentParents[0] === M6_P8_PARENT && matchesM6P8Head({ head: currentHead, parent: currentParents[0], rows: currentRows })) {
   validateM6P8Protocol(m5GitBytes(["show", `${currentHead}:${M6_P8_PROTOCOL_PATH}`]));
@@ -182,6 +196,14 @@ if (process.argv[2] === "authorize-p7") {
   const value = { acceptanceEligible:false, authorizationPath:M6_P7_AUTHORIZATION_PATH, commercialRightsClearanceClaimed:false, h3PixelsRead:false, independentOriginProofClaimed:false, phase1InputsAuthorized:true, protocolCommit:M6_P7_S_COMMIT, protocolParent:M6_P7_PARENT, protocolPathMap:sourcePathMap, protocolRows:sourceRows, protocolTree:M6_P7_S_TREE, publisherAssertionOnly:true, schemaVersion:1, sourceLockAuthorized:false, status:M6_P7_A_STATUS, tasteMaterializationAuthorized:true, trainingAuthorized:false, verifierCommit:head, verifierPublicCi:publicCi, verifierRows:rows, verifierTree:tree };
   validateM6P7Authorization(Buffer.from(canonicalM6Json(value)), {sourceCommit:M6_P7_S_COMMIT,sourceTree:M6_P7_S_TREE,sourceParent:M6_P7_PARENT,sourceRows,sourcePathMap,verifierCommit:head,verifierTree:tree,verifierRows:rows,publicCi});
   if (existsSync(M6_P7_AUTHORIZATION_PATH)) throw new Error("P7 authorization already exists"); mkdirSync("benchmark/evidence/m6",{recursive:true}); writeFileSync(M6_P7_AUTHORIZATION_PATH,canonicalM6Json(value),{flag:"wx"}); console.log(JSON.stringify({status:"p7-phase1-taste-authorization-created",head,tree,path:M6_P7_AUTHORIZATION_PATH})); process.exit(0);
+}
+if (process.argv[2] === "authorize-p8") {
+  assertM5WorktreeExact(); const head=git(["rev-parse","HEAD"]); const parents=parentsOf(head); const rows=rowsOf(head).map(({path,status})=>[path,status]); const tree=git(["rev-parse",`${head}^{tree}`]);
+  if(parents.length!==1||!matchesM6P8RHead({head,parent:parents[0],rows})) throw new Error("P8 authorization requires exact R head");
+  if(parents[0]!==M6_P8_S_COMMIT||git(["rev-parse",`${parents[0]}^{tree}`])!==M6_P8_S_TREE) throw new Error("P8 S lineage changed");
+  const sourceRows=rowsOf(M6_P8_S_COMMIT).map(({path,status})=>[path,status]); const sourcePathMap=Object.fromEntries(Object.keys(M6_P8_S_ARTIFACT_SHA256).map((p)=>[p,digest(m5GitBytes(["show",`${M6_P8_S_COMMIT}:${p}`]))])); if(JSON.stringify(sourceRows)!==JSON.stringify(M6_P8_S_ROWS)||JSON.stringify(sourcePathMap)!==JSON.stringify(M6_P8_S_ARTIFACT_SHA256)) throw new Error("P8 S source map changed");
+  const publicCi=await fetchPublicCiForCurrentMain(head); const value={acceptanceEligible:false,adapterImplementationVerified:true,authorizationPath:M6_P8_AUTHORIZATION_PATH,commercialRightsClearanceClaimed:false,fullCacheMaterializationAuthorized:true,h3PixelsRead:false,independentOriginProofClaimed:false,protocolCommit:M6_P8_S_COMMIT,protocolParent:M6_P8_PARENT,protocolPathMap:sourcePathMap,protocolRows:sourceRows,protocolTree:M6_P8_S_TREE,publisherAssertionOnly:true,schemaVersion:1,sourceLockAuthorized:false,status:M6_P8_A_STATUS,trainingAuthorized:false,verifierCommit:head,verifierPublicCi:publicCi,verifierRows:rows,verifierTree:tree};
+  validateM6P8Authorization(Buffer.from(canonicalM6Json(value)),{sourceCommit:M6_P8_S_COMMIT,sourceTree:M6_P8_S_TREE,sourceParent:M6_P8_PARENT,sourceRows,sourcePathMap,verifierCommit:head,verifierTree:tree,verifierRows:rows,publicCi}); if(existsSync(M6_P8_AUTHORIZATION_PATH)) throw new Error("P8 authorization already exists"); mkdirSync("benchmark/evidence/m6",{recursive:true}); writeFileSync(M6_P8_AUTHORIZATION_PATH,canonicalM6Json(value),{flag:"wx"}); console.log(JSON.stringify({status:"p8-frontier-adapters-authorization-created",head,tree,path:M6_P8_AUTHORIZATION_PATH})); process.exit(0);
 }
 
 if (git(["rev-parse", `${M6_BASE_COMMIT}^{tree}`]) !== M6_BASE_TREE) {

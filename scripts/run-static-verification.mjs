@@ -8,6 +8,7 @@ import { classifyM5Stage, M5_FAILURE_PATH, M5_FINAL_RECEIPT_PATH, M5_LARGE_SOURC
 import { m5Git } from "./m5-safe-git.mjs";
 import { isM6ProtocolLineageHead } from "./m6-stage-policy.mjs";
 // M6 P5/P7/P8 prospective direct-child routing is handled by isM6ProtocolLineageHead.
+// P8 R/A remain receipt-bound and never imply source-lock or training authority.
 
 function git(arguments_) {
   return m5Git(arguments_);
