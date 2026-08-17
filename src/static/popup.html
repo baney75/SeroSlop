@@ -6,29 +6,30 @@
     <title>SeroSlop</title>
     <style>
       :root { color-scheme: light dark; font: 14px/1.4 system-ui, sans-serif; }
-      body { margin: 0; width: 320px; background: Canvas; color: CanvasText; }
+      body { margin: 0; width: 360px; background: light-dark(#f7f8fb, #0c1018); color: light-dark(#18202c, #f3f5f8); }
       header, main, footer { padding: 16px; }
-      header { background: #171b2c; color: #fff; }
-      h1 { font-size: 18px; margin: 0 0 4px; } p { margin: 0; }
-      .status { color: #81f4c5; font-weight: 700; }
-      .context { color: color-mix(in srgb, CanvasText 70%, transparent); font-size: 12px; margin: 0 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      header { align-items: center; background: light-dark(#ffffff, #141b27); border-bottom: 1px solid light-dark(#e3e7ef, #273242); display: flex; gap: 12px; }
+      .brand-mark { background: #111827; border-radius: 10px; flex: 0 0 36px; height: 36px; object-fit: contain; padding: 4px; width: 36px; }
+      h1 { font-size: 18px; letter-spacing: -0.02em; margin: 0 0 2px; } p { margin: 0; }
+      .status { color: light-dark(#087443, #81f4c5); font-weight: 700; }
+      .context { color: color-mix(in srgb, CanvasText 70%, transparent); font-size: 12px; margin: 0 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .summary { margin-bottom: 12px; }
       .feedback { min-height: 20px; margin: -4px 0 4px; color: color-mix(in srgb, CanvasText 76%, transparent); font-size: 12px; }
       .feedback[data-state="error"] { color: light-dark(#b42318, #ffb4ab); }
-      .caveat { background: color-mix(in srgb, CanvasText 7%, transparent); border-radius: 8px; font-size: 12px; margin: 0 0 8px; padding: 9px; }
-      label { align-items: center; display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; }
-      button { width: 100%; margin-top: 12px; padding: 9px; }
+      label { align-items: center; border-top: 1px solid color-mix(in srgb, CanvasText 12%, transparent); display: flex; justify-content: space-between; gap: 16px; min-height: 44px; }
+      label small { color: color-mix(in srgb, CanvasText 58%, transparent); }
+      button { background: light-dark(#172033, #e9eef7); border: 0; border-radius: 8px; color: light-dark(#fff, #111827); font: inherit; font-weight: 700; min-height: 44px; width: 100%; margin-top: 14px; padding: 9px; }
+      button:disabled { cursor: not-allowed; opacity: .55; }
       footer { border-top: 1px solid color-mix(in srgb, CanvasText 18%, transparent); }
       a { color: LinkText; }
     </style>
   </head>
   <body>
-    <header><h1>SeroSlop</h1><p id="model-status" class="status">Checking setup…</p></header>
+    <header><img class="brand-mark" src="seroslop.svg" alt=""><div><h1>SeroSlop</h1><p id="model-status" class="status">Checking setup…</p></div></header>
     <main>
       <p id="site-context" class="context">No supported site selected</p>
       <p id="page-summary" class="summary">Reading this page…</p>
       <p id="control-feedback" class="feedback" role="status" aria-live="polite"></p>
-      <p class="caveat">Each result is an estimate, not proof of origin or authenticity.</p>
       <label><span>Analyze this site <small>(saved)</small></span><input id="site-enabled" type="checkbox" disabled></label>
       <label><span>Show labels on this page <small>(temporary)</small></span><input id="labels-visible" type="checkbox" disabled></label>
       <button id="rescan" type="button" disabled>This page can’t be scanned</button>

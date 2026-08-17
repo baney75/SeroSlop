@@ -331,10 +331,10 @@ try {
   statusPage.on("console", (message) => popupDiagnostics.push(`console:${message.type()}:${message.text()}`));
   statusPage.on("pageerror", (error) => popupDiagnostics.push(`pageerror:${error.message}`));
   await statusPage.goto(`chrome-extension://${extensionId}/popup.html`);
-  const popupCaveatVisible = await statusPage.getByText("Each result is an estimate, not proof of origin or authenticity.").isVisible();
+  const popupCaveatVisible = await statusPage.locator(".caveat").count() > 0;
   const popupUnsupportedGuard = await statusPage.getByRole("button", { name: "This page can’t be scanned" }).isDisabled();
-  if (!popupCaveatVisible || !popupUnsupportedGuard) {
-    throw new Error("Popup did not explain estimate limits or disable re-scan on its unsupported tab");
+  if (popupCaveatVisible || !popupUnsupportedGuard) {
+    throw new Error("Popup disclaimer was present or re-scan was not disabled on its unsupported tab");
   }
   stage("restart persistence check");
   try {

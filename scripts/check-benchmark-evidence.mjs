@@ -446,7 +446,7 @@ for (const [provider, file] of Object.entries(CHROME_E2E)) {
     report.provider === provider && report.cleanProfile === true && report.persistedModelAfterRestart === true &&
     report.serverStoppedBeforeAnalysis === true && report.browserOfflineBeforeAnalysis === true &&
     jsonEqual(report.postCutoffNetworkRequests, []) && report.setupProgressAccessibleName === true &&
-    report.setupProgressAdvanced === true && report.popupCaveatVisible === true &&
+    report.setupProgressAdvanced === true && report.popupCaveatVisible === false &&
     report.setupInitialFailureRecovered === true && report.popupUnsupportedGuard === true &&
     report.popupSupportedPageControls === true && report.popupTemporaryLabelsReset === true &&
     report.popupSavedSiteStatePersisted === true && report.popupRescanFeedback === true &&

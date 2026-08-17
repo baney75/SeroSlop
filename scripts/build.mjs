@@ -27,7 +27,7 @@ await rm(releaseDir, { recursive: true, force: true });
 await mkdir(outdir, { recursive: true });
 await mkdir(releaseDir, { recursive: true });
 
-for (const name of ["manifest.json", "offscreen.html", "popup.html", "setup.html"]) {
+for (const name of ["manifest.json", "offscreen.html", "popup.html", "setup.html", "seroslop.svg"]) {
   await cp(path.join(root, "src", "static", name), path.join(outdir, name));
 }
 await cp(path.join(root, "model-lock.json"), path.join(outdir, "model-lock.json"));

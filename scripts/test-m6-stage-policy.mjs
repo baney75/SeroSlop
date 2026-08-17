@@ -21,13 +21,17 @@ import {
   validateM6VerifyRequirements,
   M6_P5_PARENT,
   M6_P5_COMMIT,
+  M6_P5_CI_RECOVERY_COMMIT,
   M6_P5_CI_RECOVERY_EXPECTED,
   M6_P5_ARTIFACT_SHA256,
   M6_P5_RECOVERY_ARTIFACT_SHA256,
   M6_P5_PROTOCOL_PATHS,
+  M6_SUBMISSION_UI_EXPECTED,
+  M6_SUBMISSION_UI_ARTIFACT_SHA256,
   matchesProspectiveP5,
   matchesM6P5Head,
   matchesM6P5CiRecovery,
+  matchesM6SubmissionUiHead,
   validateM6P5Artifacts,
 } from "./m6-stage-policy.mjs";
 const recipe = parseM6Recipe();
@@ -50,6 +54,14 @@ assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_COMMIT,
 assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_COMMIT, rows: [...p5RecoveryRows, ["extra", "M"]] }), false);
 const p5RecoveryArtifacts = Object.fromEntries(Object.keys(M6_P5_RECOVERY_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
 assert.equal(validateM6P5Artifacts(p5RecoveryArtifacts, M6_P5_RECOVERY_ARTIFACT_SHA256), true);
+const submissionUiRows = M6_SUBMISSION_UI_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6SubmissionUiHead({ head: "2".repeat(40), parent: M6_P5_CI_RECOVERY_COMMIT, rows: submissionUiRows }), true);
+assert.equal(matchesM6SubmissionUiHead({ head: "2".repeat(40), parent: M6_P5_COMMIT, rows: submissionUiRows }), false);
+assert.equal(matchesM6SubmissionUiHead({ head: "2".repeat(40), parent: M6_P5_CI_RECOVERY_COMMIT, rows: submissionUiRows.slice(1) }), false);
+assert.equal(matchesM6SubmissionUiHead({ head: "2".repeat(40), parent: M6_P5_CI_RECOVERY_COMMIT, rows: [...submissionUiRows, ["extra", "M"]] }), false);
+const submissionUiArtifacts = Object.fromEntries(Object.keys(M6_SUBMISSION_UI_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+assert.equal(validateM6P5Artifacts(submissionUiArtifacts, M6_SUBMISSION_UI_ARTIFACT_SHA256), true);
+assert.throws(() => validateM6P5Artifacts({ ...submissionUiArtifacts, "src/static/popup.html": Buffer.from("bad") }, M6_SUBMISSION_UI_ARTIFACT_SHA256), /bytes changed/);
 assert.throws(() => classifyM6Stage({ sourceLock: true }), /executable/);
 assert.throws(() => classifyM6Stage({ trained: true }), /executable/);
 assert.throws(() => classifyM6Stage({ evaluated: true }), /executable/);
