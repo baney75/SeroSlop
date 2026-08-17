@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+import struct
 
 import PIL
 from PIL import Image, ImageOps, ImageEnhance, ImageFilter
@@ -58,18 +59,18 @@ def apply_view(image: Image.Image, view: str) -> Image.Image:
 
 def render(view: str) -> tuple[bytes, tuple[int, int]]:
     image = apply_view(Image.frombytes("RGB", (8, 6), FIXTURE), view)
-    output = BytesIO()
-    image.save(output, format="PNG", optimize=False, compress_level=6)
-    return output.getvalue(), image.size
+    width, height = image.size
+    payload = b"seroslop-m6-view-fixture-v1\0" + struct.pack(">II", width, height) + image.tobytes()
+    return payload, image.size
 
 
 # Generated only from FIXTURE through apply_view under PINNED_PILLOW.
 GOLDENS = {
-    "original": {"sha256": "26aadcd12d6d013670b19cb5925c9dde800a3de211763e33ecdb437c492743c6", "dimensions": [8, 6]},
-    "screenshot": {"sha256": "cb8995e9424a97d012ee5ffe90c13f899a71c92da85975ccbe1c34ee71f3202d", "dimensions": [10, 8]},
-    "social-q75": {"sha256": "3842e1f4567279c80bc98147d8eaf04deb2bc95a232afc1cc6b2f64daf9a340a", "dimensions": [8, 6]},
-    "social-heavy": {"sha256": "720816a012718eed1716b1aad25a154575efcf5bddc3e91b30387797c9d1e9aa", "dimensions": [8, 6]},
-    "forum-repost": {"sha256": "691d6607e6b69c54aa8ebca8bc78bcf3834c49489b04bec651f34d93f1c42a8d", "dimensions": [10, 8]},
-    "search-thumbnail": {"sha256": "6ee1fa8906d4b28208b9035827a7ba4d5d02353e18b0c1a54b7282947ada9692", "dimensions": [8, 6]},
-    "provider-cdn": {"sha256": "b6a769372f1b51f91ff545008a7180bfe52562f31c2952bd4174b8edd76dd418", "dimensions": [8, 6]},
+    "original": {"sha256": "27c3d5caed3009a1b8b3093755404ec76b94d58f39090c365e63e60e580c6c2b", "dimensions": [8, 6]},
+    "screenshot": {"sha256": "62068f2fac720eede3d2db70f5ccb0461048272db25c2f69fe9244d8dd222d52", "dimensions": [10, 8]},
+    "social-q75": {"sha256": "0166d2c962ac0983d20c593eabc26fdc44e9e074ce6d12898aa2efa084fbad12", "dimensions": [8, 6]},
+    "social-heavy": {"sha256": "a2726e34b469e1e5ad91407ae66d773bb059d378b233d1b05ba2311eed959122", "dimensions": [8, 6]},
+    "forum-repost": {"sha256": "8f6a236d900cea72703a9655e17a9c146c2018b3f2110399a898cdf32c7bb3ed", "dimensions": [10, 8]},
+    "search-thumbnail": {"sha256": "d54193e6c0f2b0b82e88b9880552babe88db74acef54c04cf2b2ad8212b09b56", "dimensions": [8, 6]},
+    "provider-cdn": {"sha256": "c2ae567db2741afd362ff3f152fff88a250e7ed0c80738103baf7c4640a47a7a", "dimensions": [8, 6]},
 }

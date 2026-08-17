@@ -26,8 +26,12 @@ import {
   parseM6Recipe,
   validateM6VerifyRequirements,
   M6_P5_PARENT,
+  M6_P5_COMMIT,
+  M6_P5_TREE,
   M6_P5_ARTIFACT_SHA256,
+  M6_P5_RECOVERY_ARTIFACT_SHA256,
   matchesM6P5Head,
+  matchesM6P5CiRecovery,
   validateM6P5Artifacts,
 } from "./m6-stage-policy.mjs";
 
@@ -101,6 +105,13 @@ if (digest(p3SourceShardBytes) !== M6_SOURCE_SHARDS_SHA256) throw new Error("M6 
 const p3RequirementsBytes = m5GitBytes(["show", `${M6_P3_COMMIT}:${M6_VERIFY_REQUIREMENTS_PATH}`]);
 if (digest(p3RequirementsBytes) !== M6_P3_VERIFY_REQUIREMENTS_SHA256) throw new Error("M6 immutable P3 verification requirements changed");
 
+if (git(["rev-parse", `${M6_P5_COMMIT}^{tree}`]) !== M6_P5_TREE) throw new Error("M6 immutable P5 tree changed");
+const p5Parents = parentsOf(M6_P5_COMMIT);
+const p5Rows = rowsOf(M6_P5_COMMIT).map(({ path, status }) => [path, status]);
+const p5TreePaths = git(["ls-tree", "-r", "--name-only", M6_P5_COMMIT]).split("\n").filter(Boolean);
+if (p5Parents.length !== 1 || !matchesM6P5Head({ head: M6_P5_COMMIT, parent: p5Parents[0], rows: p5Rows, treePaths: p5TreePaths })) throw new Error("M6 immutable P5 lineage/path map changed");
+validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_P5_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_P5_COMMIT}:${path}`])])));
+
 const head = git(["rev-parse", "HEAD"]);
 const headParents = parentsOf(head);
 const headRows = rowsOf(head).map(({ path, status }) => [path, status]);
@@ -108,6 +119,11 @@ const headTreePaths = git(["ls-tree", "-r", "--name-only", head]).split("\n").fi
 if (headParents.length === 1 && headParents[0] === M6_P5_PARENT && matchesM6P5Head({ head, parent: headParents[0], rows: headRows, treePaths: headTreePaths })) {
   validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_P5_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])));
   console.log(JSON.stringify({ status: "m6-p5-protocol-pass", head, parent: headParents[0], rows: headRows }));
+  process.exit(0);
+}
+if (headParents.length === 1 && matchesM6P5CiRecovery({ head, parent: headParents[0], rows: headRows })) {
+  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_P5_RECOVERY_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])), M6_P5_RECOVERY_ARTIFACT_SHA256);
+  console.log(JSON.stringify({ status: "m6-p5-ci-recovery-pass", head, parent: headParents[0], rows: headRows }));
   process.exit(0);
 }
 if (head === M6_P_COMMIT) {

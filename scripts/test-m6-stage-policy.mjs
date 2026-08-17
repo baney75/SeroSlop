@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { m5GitBytes } from "./m5-safe-git.mjs";
 import {
   classifyM6Stage,
   isM6ProtocolHead,
@@ -19,10 +20,14 @@ import {
   parseM6Recipe,
   validateM6VerifyRequirements,
   M6_P5_PARENT,
+  M6_P5_COMMIT,
+  M6_P5_CI_RECOVERY_EXPECTED,
   M6_P5_ARTIFACT_SHA256,
+  M6_P5_RECOVERY_ARTIFACT_SHA256,
   M6_P5_PROTOCOL_PATHS,
   matchesProspectiveP5,
   matchesM6P5Head,
+  matchesM6P5CiRecovery,
   validateM6P5Artifacts,
 } from "./m6-stage-policy.mjs";
 const recipe = parseM6Recipe();
@@ -32,12 +37,19 @@ const p5Statuses = Object.fromEntries(M6_P5_PROTOCOL_PATHS.map((path) => [path, 
 assert.equal(matchesProspectiveP5({ head: "f".repeat(40), parent: M6_P5_PARENT, paths: M6_P5_PROTOCOL_PATHS, statuses: p5Statuses }), true);
 assert.equal(matchesProspectiveP5({ head: "f".repeat(40), parent: M6_P5_PARENT, paths: M6_P5_PROTOCOL_PATHS.slice(1), statuses: p5Statuses }), false);
 assert.equal(matchesM6P5Head({ head: "f".repeat(40), parent: M6_P5_PARENT, rows: M6_P5_PROTOCOL_PATHS.map((p) => [p, ["benchmark/m6/DATA_PROVENANCE.md","benchmark/m6/p5-protocol.json","benchmark/m6/p5-quota-census.json","benchmark/m6/p5_protocol.py","benchmark/m6/p5_transform_fixture.py","benchmark/m6/test_p5_protocol.py"].includes(p) ? "A" : "M"]), treePaths: M6_P5_PROTOCOL_PATHS }), true);
-const p5Artifacts = Object.fromEntries(Object.keys(M6_P5_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+const p5Artifacts = Object.fromEntries(Object.keys(M6_P5_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_P5_COMMIT}:${path}`])]));
 assert.equal(validateM6P5Artifacts(p5Artifacts), true);
 assert.throws(() => validateM6P5Artifacts({ ...p5Artifacts, "benchmark/m6/p5-protocol.json": Buffer.from("{}\n") }), /bytes changed/);
 const missingP5Artifact = { ...p5Artifacts };
 delete missingP5Artifact[Object.keys(M6_P5_ARTIFACT_SHA256)[0]];
 assert.throws(() => validateM6P5Artifacts(missingP5Artifact), /inventory changed/);
+const p5RecoveryRows = M6_P5_CI_RECOVERY_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_COMMIT, rows: p5RecoveryRows }), true);
+assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_PARENT, rows: p5RecoveryRows }), false);
+assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_COMMIT, rows: p5RecoveryRows.slice(1) }), false);
+assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_COMMIT, rows: [...p5RecoveryRows, ["extra", "M"]] }), false);
+const p5RecoveryArtifacts = Object.fromEntries(Object.keys(M6_P5_RECOVERY_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+assert.equal(validateM6P5Artifacts(p5RecoveryArtifacts, M6_P5_RECOVERY_ARTIFACT_SHA256), true);
 assert.throws(() => classifyM6Stage({ sourceLock: true }), /executable/);
 assert.throws(() => classifyM6Stage({ trained: true }), /executable/);
 assert.throws(() => classifyM6Stage({ evaluated: true }), /executable/);

@@ -57,6 +57,8 @@ export const M6_CI_RECOVERY_EXPECTED = Object.freeze([
 ]);
 export const M6_STAGES = Object.freeze(["m6-protocol", "m6-source-lock", "m6-preflight", "m6-trained", "m6-evaluated"]);
 export const M6_P5_PARENT = "05a131b64fdef5f7fe8a6bdad4dac6d401e8193a";
+export const M6_P5_COMMIT = "c878c2dc7ecbb49edb1cac4395aa20649471a330";
+export const M6_P5_TREE = "4657121b4ba5c99006b8f0df8f0c4b629c78dc2d";
 export const M6_P5_PROTOCOL_PATHS = Object.freeze(["benchmark/m6/DATA_PROVENANCE.md", "benchmark/m6/p5-protocol.json", "benchmark/m6/p5-quota-census.json", "benchmark/m6/p5_protocol.py", "benchmark/m6/p5_transform_fixture.py", "benchmark/m6/test_p5_protocol.py", "benchmark/m6/README.md", "benchmark/m6/THIRD_PARTY_NOTICES.md", "package.json", "scripts/m6-stage-policy.mjs", "scripts/check-m6-protocol-stage.mjs", "scripts/test-m6-stage-policy.mjs", "scripts/run-static-verification.mjs"]);
 export const M6_P5_ARTIFACT_SHA256 = Object.freeze({
   "benchmark/m6/DATA_PROVENANCE.md": "858f02abaf94445387f1cbd91f8495b0f0e179bfc3fd63e6f678e32f6fa90523",
@@ -69,12 +71,24 @@ export const M6_P5_ARTIFACT_SHA256 = Object.freeze({
   "benchmark/m6/THIRD_PARTY_NOTICES.md": "e66693fd6b18d089f127dfd5199bc88fd2e3ddf5b85924aea661bb15db730c27",
   "package.json": "fd0c21754713ad1bda2dd22c520133bd118fc46e35c551832b878e5e61d96f4e",
 });
-export function validateM6P5Artifacts(artifactBytes = {}) {
-  const expectedPaths = Object.keys(M6_P5_ARTIFACT_SHA256).sort();
+export const M6_P5_CI_RECOVERY_EXPECTED = Object.freeze([
+  ["benchmark/m6/README.md", "M"],
+  ["benchmark/m6/p5_transform_fixture.py", "M"],
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+]);
+export const M6_P5_RECOVERY_ARTIFACT_SHA256 = Object.freeze({
+  ...M6_P5_ARTIFACT_SHA256,
+  "benchmark/m6/p5_transform_fixture.py": "5cfbb8c3df33887aea2740003f8ef7ea39b2c691ca9464214f7eb739b399f73f",
+  "benchmark/m6/README.md": "6fd0e35cf55fcfd580d2e634e22626c1910aacf4246e402fc67280bc3ca0e1ac",
+});
+export function validateM6P5Artifacts(artifactBytes = {}, expectedDigests = M6_P5_ARTIFACT_SHA256) {
+  const expectedPaths = Object.keys(expectedDigests).sort();
   if (JSON.stringify(Object.keys(artifactBytes).sort()) !== JSON.stringify(expectedPaths)) throw new Error("M6 P5 artifact inventory changed");
   for (const path of expectedPaths) {
     const bytes = Buffer.from(artifactBytes[path]);
-    if (createHash("sha256").update(bytes).digest("hex") !== M6_P5_ARTIFACT_SHA256[path]) throw new Error(`M6 P5 artifact bytes changed: ${path}`);
+    if (createHash("sha256").update(bytes).digest("hex") !== expectedDigests[path]) throw new Error(`M6 P5 artifact bytes changed: ${path}`);
   }
   return true;
 }
@@ -86,6 +100,11 @@ export function matchesProspectiveP5({ head, parent, paths = [], statuses = {} }
 export function matchesM6P5Head({ head, parent, rows = [], treePaths = [] } = {}) {
   const statuses = Object.fromEntries(rows.map(([path, status]) => [path, status]));
   return matchesProspectiveP5({ head, parent, paths: rows.map(([p]) => p), statuses }) && M6_P5_PROTOCOL_PATHS.every((p) => treePaths.includes(p));
+}
+
+export function matchesM6P5CiRecovery({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== M6_P5_COMMIT && parent === M6_P5_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_P5_CI_RECOVERY_EXPECTED));
 }
 
 function rejectDuplicateKeys(text) {
@@ -183,6 +202,7 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
   return isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
+    matchesM6P5CiRecovery({ head, parent, rows }) ||
     matchesM6ProtocolRecovery({ head, parent, rows }) ||
     matchesM6MaterializerRecovery({ head, parent, rows }) ||
     matchesM6CiRecovery({ head, parent, rows });

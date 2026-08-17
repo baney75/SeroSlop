@@ -111,3 +111,13 @@ wrapping the deterministic P5 cores. The X-AIGD labeled-test member is pinned to
 The quota census in `p5-quota-census.json` supersedes the provisional panel:
 SET validation synthetic 58,228 and OOD synthetic 28,693, yielding exactly
 100,000 synthetic items after overlap quarantine.
+
+P5 commit `c878c2dc7ecbb49edb1cac4395aa20649471a330` is retained as
+immutable public-red history. Its protocol logic passed locally, but the first
+public run exposed that the tiny transform fixture hashed PNG container bytes;
+the same Pillow version can produce different compressed PNG bytes across
+platform builds even when the transformed RGB pixels are identical. The direct
+CI recovery changes no transform, view, data, model, threshold, quota, or paid
+boundary. It hashes a canonical domain-tagged width/height/RGB payload instead,
+then updates only the lineage checker and this explanation. P6 remains blocked
+until that exact recovery child is public-green.
