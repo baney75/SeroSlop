@@ -109,21 +109,15 @@ const UI_EVIDENCE_WIDTHS = Object.freeze([320, 375, 414, 768]);
 async function captureUiMatrix(page, surface) {
   const originalViewport = page.viewportSize() ?? { width: 1280, height: 720 };
   const records = [];
-  // Playwright's page.screenshot() can hang indefinitely under GitHub's
-  // Chromium/Xvfb runner even after fonts are ready. Capture through Chrome's
-  // DevTools protocol instead; the DOM/layout assertions below remain the
-  // source of truth and the resulting PNGs retain the full-page evidence.
+  // Playwright's full-page screenshot path can hang indefinitely under
+  // GitHub's Chromium/Xvfb runner even after fonts are ready. The evidence
+  // viewport is already a fixed 900 CSS pixels tall, so capture that exact
+  // surface through Chrome's DevTools protocol without full-page stitching.
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Page.enable");
   const capture = async (file) => {
-    const metrics = await cdp.send("Page.getLayoutMetrics");
-    const size = metrics.cssContentSize ?? metrics.contentSize;
-    if (!size || !Number.isFinite(size.width) || !Number.isFinite(size.height) || size.width <= 0 || size.height <= 0) {
-      throw new Error(`${surface} screenshot layout metrics were invalid`);
-    }
     const result = await cdp.send("Page.captureScreenshot", {
-      captureBeyondViewport: true,
-      clip: { x: 0, y: 0, width: Math.ceil(size.width), height: Math.ceil(size.height), scale: 1 },
+      captureBeyondViewport: false,
       format: "png",
       fromSurface: true,
     });

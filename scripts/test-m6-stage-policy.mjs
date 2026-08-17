@@ -43,6 +43,9 @@ import {
   M6_BETA1_RECOVERY2_COMMIT,
   M6_BETA1_RECOVERY3_EXPECTED,
   M6_BETA1_RECOVERY3_ARTIFACT_SHA256,
+  M6_BETA1_RECOVERY3_COMMIT,
+  M6_BETA1_RECOVERY4_EXPECTED,
+  M6_BETA1_RECOVERY4_ARTIFACT_SHA256,
   M6_BETA1_AUTHORIZATION_PATH,
   M6_BETA1_AUTHORIZATION_STATUS,
   canonicalM6Json,
@@ -55,6 +58,7 @@ import {
   matchesM6Beta1RecoveryHead,
   matchesM6Beta1Recovery2Head,
   matchesM6Beta1Recovery3Head,
+  matchesM6Beta1Recovery4Head,
   matchesM6Beta1AuthorizationHead,
   validateM6Beta1Authorization,
   validateM6P5Artifacts,
@@ -123,8 +127,15 @@ assert.equal(matchesM6Beta1Recovery3Head({ head: "9".repeat(40), parent: M6_BETA
 assert.equal(matchesM6Beta1Recovery3Head({ head: "9".repeat(40), parent: M6_BETA1_RECOVERY_COMMIT, rows: beta1Recovery3Rows }), false);
 assert.equal(matchesM6Beta1Recovery3Head({ head: "9".repeat(40), parent: M6_BETA1_RECOVERY2_COMMIT, rows: beta1Recovery3Rows.slice(1) }), false);
 assert.equal(matchesM6Beta1Recovery3Head({ head: "9".repeat(40), parent: M6_BETA1_RECOVERY2_COMMIT, rows: [...beta1Recovery3Rows, ["extra", "M"]] }), false);
-const beta1Recovery3Artifacts = Object.fromEntries(Object.keys(M6_BETA1_RECOVERY3_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+const beta1Recovery3Artifacts = Object.fromEntries(Object.keys(M6_BETA1_RECOVERY3_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_BETA1_RECOVERY3_COMMIT}:${path}`])]));
 assert.equal(validateM6P5Artifacts(beta1Recovery3Artifacts, M6_BETA1_RECOVERY3_ARTIFACT_SHA256), true);
+const beta1Recovery4Rows = M6_BETA1_RECOVERY4_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6Beta1Recovery4Head({ head: "a".repeat(40), parent: M6_BETA1_RECOVERY3_COMMIT, rows: beta1Recovery4Rows }), true);
+assert.equal(matchesM6Beta1Recovery4Head({ head: "a".repeat(40), parent: M6_BETA1_RECOVERY2_COMMIT, rows: beta1Recovery4Rows }), false);
+assert.equal(matchesM6Beta1Recovery4Head({ head: "a".repeat(40), parent: M6_BETA1_RECOVERY3_COMMIT, rows: beta1Recovery4Rows.slice(1) }), false);
+assert.equal(matchesM6Beta1Recovery4Head({ head: "a".repeat(40), parent: M6_BETA1_RECOVERY3_COMMIT, rows: [...beta1Recovery4Rows, ["extra", "M"]] }), false);
+const beta1Recovery4Artifacts = Object.fromEntries(Object.keys(M6_BETA1_RECOVERY4_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+assert.equal(validateM6P5Artifacts(beta1Recovery4Artifacts, M6_BETA1_RECOVERY4_ARTIFACT_SHA256), true);
 assert.equal(matchesM6Beta1AuthorizationHead({ head: "5".repeat(40), parent: "4".repeat(40), rows: [[M6_BETA1_AUTHORIZATION_PATH, "A"]] }), true);
 assert.equal(matchesM6Beta1AuthorizationHead({ head: "5".repeat(40), parent: "4".repeat(40), rows: [[M6_BETA1_AUTHORIZATION_PATH, "M"]] }), false);
 const beta1SourcePathMap = Object.fromEntries(M6_BETA1_EXPECTED.map(([path]) => [path, "a".repeat(64)]));

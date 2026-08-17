@@ -48,6 +48,9 @@ import {
   M6_BETA1_RECOVERY2_COMMIT,
   M6_BETA1_RECOVERY2_TREE,
   M6_BETA1_RECOVERY3_ARTIFACT_SHA256,
+  M6_BETA1_RECOVERY3_COMMIT,
+  M6_BETA1_RECOVERY3_TREE,
+  M6_BETA1_RECOVERY4_ARTIFACT_SHA256,
   M6_BETA1_AUTHORIZATION_PATH,
   M6_BETA1_EXPECTED,
   matchesM6P5Head,
@@ -58,6 +61,7 @@ import {
   matchesM6Beta1RecoveryHead,
   matchesM6Beta1Recovery2Head,
   matchesM6Beta1Recovery3Head,
+  matchesM6Beta1Recovery4Head,
   matchesM6Beta1AuthorizationHead,
   validateM6Beta1Authorization,
   validateM6P5Artifacts,
@@ -176,6 +180,12 @@ const beta1Recovery2Rows = rowsOf(M6_BETA1_RECOVERY2_COMMIT).map(({ path, status
 if (beta1Recovery2Parents.length !== 1 || !matchesM6Beta1Recovery2Head({ head: M6_BETA1_RECOVERY2_COMMIT, parent: beta1Recovery2Parents[0], rows: beta1Recovery2Rows })) throw new Error("M6 immutable Beta1 recovery2 lineage/path map changed");
 validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_RECOVERY2_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_BETA1_RECOVERY2_COMMIT}:${path}`])])), M6_BETA1_RECOVERY2_ARTIFACT_SHA256);
 
+if (git(["rev-parse", `${M6_BETA1_RECOVERY3_COMMIT}^{tree}`]) !== M6_BETA1_RECOVERY3_TREE) throw new Error("M6 immutable Beta1 recovery3 tree changed");
+const beta1Recovery3Parents = parentsOf(M6_BETA1_RECOVERY3_COMMIT);
+const beta1Recovery3Rows = rowsOf(M6_BETA1_RECOVERY3_COMMIT).map(({ path, status }) => [path, status]);
+if (beta1Recovery3Parents.length !== 1 || !matchesM6Beta1Recovery3Head({ head: M6_BETA1_RECOVERY3_COMMIT, parent: beta1Recovery3Parents[0], rows: beta1Recovery3Rows })) throw new Error("M6 immutable Beta1 recovery3 lineage/path map changed");
+validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_RECOVERY3_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_BETA1_RECOVERY3_COMMIT}:${path}`])])), M6_BETA1_RECOVERY3_ARTIFACT_SHA256);
+
 const head = git(["rev-parse", "HEAD"]);
 const headParents = parentsOf(head);
 const headRows = rowsOf(head).map(({ path, status }) => [path, status]);
@@ -184,12 +194,12 @@ if (headParents.length === 1 && matchesM6Beta1AuthorizationHead({ head, parent: 
   const sourceCommit = headParents[0];
   const sourceParents = parentsOf(sourceCommit);
   const sourceRows = rowsOf(sourceCommit).map(({ path, status }) => [path, status]);
-  if (sourceParents.length !== 1 || !matchesM6Beta1Recovery3Head({ head: sourceCommit, parent: sourceParents[0], rows: sourceRows })) {
+  if (sourceParents.length !== 1 || !matchesM6Beta1Recovery4Head({ head: sourceCommit, parent: sourceParents[0], rows: sourceRows })) {
     throw new Error("M6 Beta1 authorization source lineage changed");
   }
   const sourceTree = git(["rev-parse", `${sourceCommit}^{tree}`]);
   const sourcePathMap = Object.fromEntries(M6_BETA1_EXPECTED.map(([path]) => [path, digest(m5GitBytes(["show", `${sourceCommit}:${path}`]))]));
-  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_RECOVERY3_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${sourceCommit}:${path}`])])), M6_BETA1_RECOVERY3_ARTIFACT_SHA256);
+  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_RECOVERY4_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${sourceCommit}:${path}`])])), M6_BETA1_RECOVERY4_ARTIFACT_SHA256);
   validateM6Beta1Authorization(m5GitBytes(["show", `${head}:${M6_BETA1_AUTHORIZATION_PATH}`]), { sourceCommit, sourceTree, sourcePathMap });
   console.log(JSON.stringify({ status: "m6-beta1-authorized-pass", head, sourceCommit, sourceTree, rows: headRows }));
   process.exit(0);
@@ -232,6 +242,11 @@ if (headParents.length === 1 && matchesM6Beta1Recovery2Head({ head, parent: head
 if (headParents.length === 1 && matchesM6Beta1Recovery3Head({ head, parent: headParents[0], rows: headRows })) {
   validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_RECOVERY3_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])), M6_BETA1_RECOVERY3_ARTIFACT_SHA256);
   console.log(JSON.stringify({ status: "m6-beta1-ci-recovery3-pass", head, parent: headParents[0], rows: headRows }));
+  process.exit(0);
+}
+if (headParents.length === 1 && matchesM6Beta1Recovery4Head({ head, parent: headParents[0], rows: headRows })) {
+  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_RECOVERY4_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])), M6_BETA1_RECOVERY4_ARTIFACT_SHA256);
+  console.log(JSON.stringify({ status: "m6-beta1-ci-recovery4-pass", head, parent: headParents[0], rows: headRows }));
   process.exit(0);
 }
 if (head === M6_P_COMMIT) {
