@@ -13,7 +13,7 @@ const inside = (elementId) => ({
   placement: "inside-top-right",
   pointerEvents: "none",
   text: "Likely AI · 99.9/100",
-  accessibleName: `Likely AI result for image “${elementId}”; score 99.9 out of 100; not proof`,
+  accessibleName: `Likely AI result for image “${elementId}”; score 99.9 out of 100`,
   badgeRect: { left: 160, top: 108, right: 292, bottom: 136 },
   targetRect: target,
 });
@@ -25,7 +25,7 @@ const outside = {
   placement: "outside-right",
   pointerEvents: "none",
   text: "Below flag threshold · 0.1/100",
-  accessibleName: "Below flag threshold for image “small target fixture”; score 0.1 out of 100; not proof",
+  accessibleName: "Below flag threshold for image “small target fixture”; score 0.1 out of 100",
   badgeRect: { left: 306, top: 110, right: 450, bottom: 138 },
   targetRect: target,
 };

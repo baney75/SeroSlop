@@ -30,12 +30,16 @@ import {
   M6_P5_TREE,
   M6_P5_CI_RECOVERY_COMMIT,
   M6_P5_CI_RECOVERY_TREE,
+  M6_SUBMISSION_UI_COMMIT,
+  M6_SUBMISSION_UI_TREE,
   M6_P5_ARTIFACT_SHA256,
   M6_P5_RECOVERY_ARTIFACT_SHA256,
   M6_SUBMISSION_UI_ARTIFACT_SHA256,
+  M6_NO_SLOP_UI_ARTIFACT_SHA256,
   matchesM6P5Head,
   matchesM6P5CiRecovery,
   matchesM6SubmissionUiHead,
+  matchesM6NoSlopUiHead,
   validateM6P5Artifacts,
 } from "./m6-stage-policy.mjs";
 
@@ -122,6 +126,12 @@ const p5RecoveryRows = rowsOf(M6_P5_CI_RECOVERY_COMMIT).map(({ path, status }) =
 if (p5RecoveryParents.length !== 1 || !matchesM6P5CiRecovery({ head: M6_P5_CI_RECOVERY_COMMIT, parent: p5RecoveryParents[0], rows: p5RecoveryRows })) throw new Error("M6 immutable P5 CI recovery lineage/path map changed");
 validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_P5_RECOVERY_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_P5_CI_RECOVERY_COMMIT}:${path}`])])), M6_P5_RECOVERY_ARTIFACT_SHA256);
 
+if (git(["rev-parse", `${M6_SUBMISSION_UI_COMMIT}^{tree}`]) !== M6_SUBMISSION_UI_TREE) throw new Error("M6 immutable submission UI tree changed");
+const submissionUiParents = parentsOf(M6_SUBMISSION_UI_COMMIT);
+const submissionUiRows = rowsOf(M6_SUBMISSION_UI_COMMIT).map(({ path, status }) => [path, status]);
+if (submissionUiParents.length !== 1 || !matchesM6SubmissionUiHead({ head: M6_SUBMISSION_UI_COMMIT, parent: submissionUiParents[0], rows: submissionUiRows })) throw new Error("M6 immutable submission UI lineage/path map changed");
+validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_SUBMISSION_UI_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_SUBMISSION_UI_COMMIT}:${path}`])])), M6_SUBMISSION_UI_ARTIFACT_SHA256);
+
 const head = git(["rev-parse", "HEAD"]);
 const headParents = parentsOf(head);
 const headRows = rowsOf(head).map(({ path, status }) => [path, status]);
@@ -139,6 +149,11 @@ if (headParents.length === 1 && matchesM6P5CiRecovery({ head, parent: headParent
 if (headParents.length === 1 && matchesM6SubmissionUiHead({ head, parent: headParents[0], rows: headRows })) {
   validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_SUBMISSION_UI_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])), M6_SUBMISSION_UI_ARTIFACT_SHA256);
   console.log(JSON.stringify({ status: "m6-submission-ui-pass", head, parent: headParents[0], rows: headRows }));
+  process.exit(0);
+}
+if (headParents.length === 1 && matchesM6NoSlopUiHead({ head, parent: headParents[0], rows: headRows })) {
+  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_NO_SLOP_UI_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])), M6_NO_SLOP_UI_ARTIFACT_SHA256);
+  console.log(JSON.stringify({ status: "m6-no-slop-ui-pass", head, parent: headParents[0], rows: headRows }));
   process.exit(0);
 }
 if (head === M6_P_COMMIT) {

@@ -249,9 +249,11 @@ try {
   await setup.getByRole("progressbar", { name: "Model preparation progress" }).waitFor({ timeout: 30_000 });
   setupProgressAccessibleName = true;
   const progress = setup.getByRole("progressbar", { name: "Model preparation progress" });
-  await setup.getByRole("heading", { name: "Verifying local model…" }).waitFor({ timeout: 30_000 });
-  const preparingButton = setup.getByRole("button", { name: "Preparing…" });
-  if (!await preparingButton.isDisabled()) throw new Error("Setup preparation did not disable its action button");
+  await setup.getByRole("heading", { name: "Verifying model" }).waitFor({ timeout: 30_000 });
+  const preparingButton = setup.locator("#prepare-model");
+  if (!await preparingButton.isDisabled() || await preparingButton.isVisible()) {
+    throw new Error("Setup preparation exposed an inactive action button");
+  }
   const initialProgress = await progress.evaluate(
     (element) => Number(element.dataset.minimumObservedBytes ?? element.value),
   );
@@ -273,11 +275,12 @@ try {
   }), initialProgress);
   setupProgressAdvanced = setupPreparingState.observedBytes > setupPreparingState.initialBytes &&
     setupPreparingState.observedBytes <= setupPreparingState.totalBytes && setupPreparingState.buttonDisabled;
-  if (!setupProgressAdvanced || !/MB verified/u.test(setupPreparingState.visibleText ?? "")) {
+  if (!setupProgressAdvanced || !/MB$/u.test(setupPreparingState.visibleText ?? "")) {
     throw new Error(`Setup did not expose determinate progress: ${JSON.stringify(setupPreparingState)}`);
   }
   await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}-preparing.png`), fullPage: true });
   await setup.getByRole("heading", { name: "Offline ready" }).waitFor({ timeout: 300_000 });
+  if (await setup.locator("#prepare-model").isVisible()) throw new Error("Ready setup retained an inactive action button");
   const observedProgress = await progress.evaluate((element) => ({
     minimumBytes: Number(element.dataset.minimumObservedBytes),
     maximumBytes: Number(element.dataset.maximumObservedBytes),
@@ -714,13 +717,12 @@ try {
       throw new Error(`Missing numeric model score: ${JSON.stringify(badge)}`);
     }
     const runtimeLabel = expectedProvider === "webgpu" ? "WebGPU" : "WASM";
-    if (badge.provider !== expectedProvider || !badge.title?.includes(`locally with ${runtimeLabel}`)) {
+    if (badge.provider !== expectedProvider || !badge.title?.includes(`Ran with ${runtimeLabel}`)) {
       throw new Error(`${runtimeLabel} provider was not observable: ${JSON.stringify(badge)}`);
     }
   }
   const normalBadge = completed.find((badge) => badge.elementId === "normal");
-  if (!normalBadge?.accessibleName?.includes("image “normal fixture”") ||
-    !normalBadge.accessibleName.includes("not proof")) {
+  if (!normalBadge?.accessibleName?.includes("image “normal fixture”")) {
     throw new Error(`Completed result lacks target-specific accessible context: ${JSON.stringify(normalBadge)}`);
   }
   const accessibleCssBadge = completed.find((badge) => badge.elementId === "css-background");
@@ -842,15 +844,13 @@ try {
   if (stateBadges.likely.classification !== "likely-ai" ||
     !String(stateBadges.likely.text).startsWith("Likely AI · ") || likelyScore < 80 ||
     !stateBadges.likely.accessibleName?.includes("image “high-margin likely AI fixture”") ||
-    !stateBadges.likely.accessibleName.includes("not proof") ||
-    stateBadges.likely.provider !== expectedProvider || !stateBadges.likely.title?.includes(`locally with ${runtimeLabel}`)) {
+    stateBadges.likely.provider !== expectedProvider || !stateBadges.likely.title?.includes(`Ran with ${runtimeLabel}`)) {
     throw new Error(`Likely-AI fixture rendered the wrong state: ${JSON.stringify(stateBadges.likely)}`);
   }
   if (stateBadges.below.classification !== "not-flagged" ||
     !String(stateBadges.below.text).startsWith("Below flag threshold · ") || belowScore > 45 ||
     !stateBadges.below.accessibleName?.includes("image “high-margin below threshold fixture”") ||
-    !stateBadges.below.accessibleName.includes("not proof") ||
-    stateBadges.below.provider !== expectedProvider || !stateBadges.below.title?.includes(`locally with ${runtimeLabel}`)) {
+    stateBadges.below.provider !== expectedProvider || !stateBadges.below.title?.includes(`Ran with ${runtimeLabel}`)) {
     throw new Error(`Below-threshold fixture rendered the wrong state: ${JSON.stringify(stateBadges.below)}`);
   }
   if (Math.abs(likelyScore - likelyReferenceScore) > 0.2 || Math.abs(belowScore - belowReferenceScore) > 0.2) {
@@ -1437,8 +1437,7 @@ try {
     if (badge.pointerEvents !== "none" || currentBadge.left < 0 || currentBadge.top < 0 ||
       currentBadge.right > 480 || currentBadge.bottom > 720 ||
       (String(badge.placement).startsWith("outside-") && overlaps) ||
-      typeof badge.accessibleName !== "string" || badge.accessibleName.length <= String(badge.text ?? "").length ||
-      (badge.state === "complete" && !badge.accessibleName.includes("not proof"))) {
+      typeof badge.accessibleName !== "string" || badge.accessibleName.length <= String(badge.text ?? "").length) {
       throw new Error(`Narrow/zoomed label contract failed: ${JSON.stringify(badge)}`);
     }
     const associationError = badgeAssociationError(badge, visibleNarrowTargets);

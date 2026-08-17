@@ -30,6 +30,7 @@ await mkdir(releaseDir, { recursive: true });
 for (const name of ["manifest.json", "offscreen.html", "popup.html", "setup.html", "seroslop.svg"]) {
   await cp(path.join(root, "src", "static", name), path.join(outdir, name));
 }
+await cp(path.join(root, "src", "static", "icons"), path.join(outdir, "icons"), { recursive: true });
 await cp(path.join(root, "model-lock.json"), path.join(outdir, "model-lock.json"));
 await cp(path.join(root, "LICENSE"), path.join(outdir, "LICENSE"));
 await cp(path.join(root, "THIRD_PARTY_NOTICES.md"), path.join(outdir, "THIRD_PARTY_NOTICES.md"));

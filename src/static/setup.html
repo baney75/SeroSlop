@@ -5,37 +5,219 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Set up SeroSlop</title>
     <style>
-      :root { color-scheme: light dark; font: 16px/1.55 system-ui, sans-serif; }
-      body { margin: 0; background: #f5f7fb; color: #171b2c; }
-      main { box-sizing: border-box; max-width: 720px; min-height: 100vh; margin: auto; padding: 64px 24px; }
-      .card { background: #fff; border: 1px solid #dce1eb; border-radius: 18px; box-shadow: 0 16px 50px #23304a14; padding: 32px; }
-      .eyebrow { color: #5b5ee5; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-      h1 { font-size: clamp(32px, 7vw, 52px); letter-spacing: -.04em; line-height: 1; margin: 8px 0 18px; }
-      h2 { margin-top: 32px; }
-      .privacy { background: #e9fbf4; border-radius: 10px; color: #164d3a; padding: 14px; }
-      dl { display: grid; grid-template-columns: 1fr auto; gap: 8px 20px; }
-      dt { color: #586174; } dd { margin: 0; font-weight: 650; }
-      .hash { font: 12px/1.35 ui-monospace, monospace; max-width: 390px; overflow-wrap: anywhere; }
-      progress { display: block; height: 12px; margin: 18px 0 8px; width: 100%; }
-      .progress-text { color: #586174; font-size: 13px; margin: 0 0 18px; }
-      button { background: #5b5ee5; border: 0; border-radius: 9px; color: white; cursor: pointer; font: inherit; font-weight: 750; padding: 12px 18px; }
-      button:disabled { cursor: default; opacity: .55; }
-      @media (prefers-color-scheme: dark) { body { background: #11131c; color: #f6f7fb; } .card { background: #1a1e2a; border-color: #343a4a; } .privacy { background: #163c31; color: #c5fae7; } dt, .progress-text { color: #b0b8cb; } }
+      :root {
+        color-scheme: light dark;
+        font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --accent: #ef333b;
+        --accent-strong: #d51f2a;
+        --background: #f4f6f9;
+        --surface: #ffffff;
+        --surface-muted: #f7f8fa;
+        --text: #171b25;
+        --text-muted: #626b7a;
+        --border: #dfe3ea;
+        --track: #e7eaf0;
+        --focus: #2563eb;
+        --ready: #087443;
+        --error: #b42318;
+        --shadow: 0 18px 60px rgba(23, 27, 37, .09);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--text);
+        min-width: 280px;
+      }
+      main {
+        align-items: center;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 40px 24px;
+      }
+      .shell { width: min(100%, 600px); }
+      .brand {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        margin: 0 0 18px 4px;
+      }
+      .brand img {
+        border-radius: 12px;
+        height: 44px;
+        width: 44px;
+      }
+      .brand-name {
+        font-size: 17px;
+        font-weight: 760;
+        letter-spacing: -.015em;
+        margin: 0;
+      }
+      .brand-context { color: var(--text-muted); font-size: 13px; margin: 1px 0 0; }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .status-panel { padding: 32px; }
+      .status-heading {
+        align-items: center;
+        display: flex;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .status-dot {
+        background: var(--text-muted);
+        border: 3px solid var(--surface);
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px var(--border);
+        flex: 0 0 12px;
+        height: 12px;
+        width: 12px;
+      }
+      body[data-state="preparing"] .status-dot { background: var(--accent); }
+      body[data-state="ready"] .status-dot { background: var(--ready); }
+      body[data-state="error"] .status-dot { background: var(--error); }
+      h1 {
+        font-size: clamp(28px, 7vw, 38px);
+        letter-spacing: -.035em;
+        line-height: 1.08;
+        margin: 0;
+      }
+      .detail { color: var(--text-muted); margin: 0; }
+      body[data-state="ready"] h1 { color: var(--ready); }
+      body[data-state="error"] h1 { color: var(--error); }
+      .progress-region { margin-top: 26px; }
+      progress {
+        appearance: none;
+        background: var(--track);
+        border: 0;
+        border-radius: 999px;
+        display: block;
+        height: 8px;
+        overflow: hidden;
+        width: 100%;
+      }
+      progress::-webkit-progress-bar { background: var(--track); border-radius: 999px; }
+      progress::-webkit-progress-value { background: var(--accent); border-radius: 999px; transition: width 180ms ease-out; }
+      progress::-moz-progress-bar { background: var(--accent); border-radius: 999px; }
+      body[data-state="ready"] progress::-webkit-progress-value { background: var(--ready); }
+      body[data-state="ready"] progress::-moz-progress-bar { background: var(--ready); }
+      .progress-text {
+        color: var(--text-muted);
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+        margin: 9px 0 0;
+      }
+      button {
+        background: var(--text);
+        border: 0;
+        border-radius: 10px;
+        color: var(--surface);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 720;
+        margin-top: 24px;
+        min-height: 44px;
+        padding: 11px 18px;
+      }
+      button:hover:not(:disabled) { background: #2a3140; }
+      button:focus-visible, summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 35%, transparent); outline-offset: 3px; }
+      button:disabled { cursor: default; opacity: .5; }
+      [hidden] { display: none !important; }
+      .sr-only {
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        height: 1px;
+        overflow: hidden;
+        position: absolute;
+        white-space: nowrap;
+        width: 1px;
+      }
+      details { border-top: 1px solid var(--border); }
+      summary {
+        cursor: pointer;
+        font-weight: 700;
+        list-style: none;
+        min-height: 52px;
+        padding: 15px 32px;
+      }
+      summary::-webkit-details-marker { display: none; }
+      summary::after { color: var(--text-muted); content: "+"; float: right; font-size: 20px; font-weight: 400; line-height: 20px; }
+      details[open] summary::after { content: "−"; }
+      .model-details {
+        background: var(--surface-muted);
+        border-top: 1px solid var(--border);
+        padding: 22px 32px 26px;
+      }
+      dl { display: grid; gap: 10px 20px; grid-template-columns: 130px minmax(0, 1fr); margin: 0; }
+      dt { color: var(--text-muted); }
+      dd { font-weight: 650; margin: 0; min-width: 0; }
+      .hash { font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #0d1118;
+          --surface: #151b25;
+          --surface-muted: #111720;
+          --text: #f2f4f7;
+          --text-muted: #a8b0be;
+          --border: #2b3544;
+          --track: #313b4a;
+          --ready: #77e2b2;
+          --error: #ffb4ab;
+          --shadow: 0 24px 70px rgba(0, 0, 0, .32);
+        }
+        button { background: #f2f4f7; color: #151b25; }
+        button:hover:not(:disabled) { background: #dfe4ec; }
+      }
+      @media (max-width: 480px) {
+        main { align-items: flex-start; padding: 24px 16px; }
+        .brand { margin-left: 2px; }
+        .status-panel { padding: 26px 22px; }
+        summary { padding-inline: 22px; }
+        .model-details { padding-inline: 22px; }
+        dl { grid-template-columns: 1fr; gap: 2px; }
+        dd { margin-bottom: 10px; }
+        button { width: 100%; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        progress::-webkit-progress-value { transition: none; }
+      }
     </style>
   </head>
-  <body>
+  <body data-state="checking">
     <main>
-      <div class="card">
-        <div class="eyebrow">Private by design</div>
-        <h1>Set up SeroSlop</h1>
-        <p class="privacy"><strong>Images never go to a detector service.</strong> Inference runs in Chrome with a packaged model—no cloud API or local server.</p>
-        <h2 id="setup-state">Checking setup…</h2>
-        <p id="setup-detail">Looking for the verified local model.</p>
-        <progress id="setup-progress" value="0" max="100" aria-label="Model preparation progress"></progress>
-        <p id="setup-progress-text" class="progress-text">0.0 MB verified</p>
-        <button id="prepare-model" type="button" disabled>Prepare verified model</button>
-        <h2>Model</h2>
-        <dl><dt>Name</dt><dd id="model-name"></dd><dt>Packaged size</dt><dd id="model-size"></dd><dt>SHA-256</dt><dd id="model-hash" class="hash"></dd><dt>Decision threshold</dt><dd>AI score 65.0/100 (inclusive)</dd></dl>
+      <div class="shell">
+        <header class="brand">
+          <img src="icons/seroslop-48.png" alt="">
+          <div><p class="brand-name">SeroSlop</p><p class="brand-context">Model setup</p></div>
+        </header>
+        <div class="card">
+          <section id="setup-status-panel" class="status-panel" aria-labelledby="setup-state" aria-busy="true">
+            <div class="status-heading"><span class="status-dot" aria-hidden="true"></span><h1 id="setup-state">Checking model</h1></div>
+            <p id="setup-detail" class="detail">Reading the packaged model status.</p>
+            <div id="setup-progress-region" class="progress-region">
+              <progress id="setup-progress" value="0" max="100" aria-label="Model preparation progress" aria-describedby="setup-progress-text"></progress>
+              <p id="setup-progress-text" class="progress-text">0.0 of 87.4 MB</p>
+            </div>
+            <button id="prepare-model" type="button" disabled hidden>Verify model</button>
+            <p id="setup-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+          </section>
+          <details>
+            <summary>Model details</summary>
+            <div class="model-details">
+              <dl>
+                <dt>Name</dt><dd id="model-name"></dd>
+                <dt>Packaged size</dt><dd id="model-size"></dd>
+                <dt>Threshold</dt><dd>65.0/100 (inclusive)</dd>
+                <dt>SHA-256</dt><dd id="model-hash" class="hash"></dd>
+              </dl>
+            </div>
+          </details>
+        </div>
       </div>
     </main>
     <script src="setup.js"></script>

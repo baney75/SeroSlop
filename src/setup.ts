@@ -9,18 +9,24 @@ function requireElement<T extends Element>(selector: string): T {
 
 const stateElement = requireElement<HTMLElement>("#setup-state");
 const detailElement = requireElement<HTMLElement>("#setup-detail");
+const statusPanel = requireElement<HTMLElement>("#setup-status-panel");
+const announcementElement = requireElement<HTMLElement>("#setup-announcement");
 const progressElement = requireElement<HTMLProgressElement>("#setup-progress");
 const progressTextElement = requireElement<HTMLElement>("#setup-progress-text");
+const progressRegion = requireElement<HTMLElement>("#setup-progress-region");
 const prepareButton = requireElement<HTMLButtonElement>("#prepare-model");
 const modelElement = requireElement<HTMLElement>("#model-name");
 const sizeElement = requireElement<HTMLElement>("#model-size");
 const hashElement = requireElement<HTMLElement>("#model-hash");
+let announcedState = "";
 
 modelElement.textContent = MODEL_SPEC.displayName;
 sizeElement.textContent = `${(MODEL_SPEC.weightsBytes / 1_000_000).toFixed(1)} MB`;
 hashElement.textContent = MODEL_SPEC.weightsSha256;
 
 function render(status: ModelStatus): void {
+  document.body.dataset.state = status.state;
+  statusPanel.setAttribute("aria-busy", String(status.state === "preparing"));
   const previousMinimum = Number(progressElement.dataset.minimumObservedBytes ?? status.completedBytes);
   const previousMaximum = Number(progressElement.dataset.maximumObservedBytes ?? status.completedBytes);
   progressElement.dataset.minimumObservedBytes = String(Math.min(previousMinimum, status.completedBytes));
@@ -30,28 +36,40 @@ function render(status: ModelStatus): void {
   progressElement.value = status.completedBytes;
   const completedMb = (status.completedBytes / 1_000_000).toFixed(1);
   const totalMb = ((status.totalBytes || MODEL_SPEC.weightsBytes) / 1_000_000).toFixed(1);
-  progressTextElement.textContent = `${completedMb} of ${totalMb} MB verified`;
+  progressTextElement.textContent = `${completedMb} of ${totalMb} MB`;
   progressElement.setAttribute("aria-valuetext", progressTextElement.textContent);
   if (status.state === "ready") {
     stateElement.textContent = "Offline ready";
-    detailElement.textContent = "The packaged model passed its SHA-256 check and is stored locally. No server is used.";
+    detailElement.textContent = "Model verified. You can close this tab.";
     prepareButton.textContent = "Model verified";
     prepareButton.disabled = true;
+    prepareButton.hidden = true;
+    progressRegion.hidden = false;
   } else if (status.state === "preparing") {
-    stateElement.textContent = "Verifying local model…";
-    detailElement.textContent = "Keep this page open while SeroSlop verifies and prepares the packaged model.";
-    prepareButton.textContent = "Preparing…";
+    stateElement.textContent = "Verifying model";
+    detailElement.textContent = "Keep this tab open until verification finishes.";
+    prepareButton.textContent = "Verifying model";
     prepareButton.disabled = true;
+    prepareButton.hidden = true;
+    progressRegion.hidden = false;
   } else if (status.state === "error") {
     stateElement.textContent = "Setup failed";
     detailElement.textContent = status.error ?? "The packaged model could not be verified.";
     prepareButton.textContent = "Retry verification";
     prepareButton.disabled = false;
+    prepareButton.hidden = false;
+    progressRegion.hidden = true;
   } else {
-    stateElement.textContent = "Preparing local detector";
-    detailElement.textContent = "SeroSlop needs to verify its packaged model once before scanning pages.";
-    prepareButton.textContent = "Prepare verified model";
+    stateElement.textContent = "Model not verified";
+    detailElement.textContent = "Verify the model before scanning pages.";
+    prepareButton.textContent = "Verify model";
     prepareButton.disabled = false;
+    prepareButton.hidden = false;
+    progressRegion.hidden = true;
+  }
+  if (announcedState !== status.state) {
+    announcedState = status.state;
+    announcementElement.textContent = `${stateElement.textContent}. ${detailElement.textContent}`;
   }
 }
 

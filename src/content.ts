@@ -421,7 +421,7 @@ function syncElement(element: HTMLElement): void {
     slots.set(descriptor.slot, record);
     records.add(record);
     trackAdmissionCandidate(record);
-    updateBadge(record, "SeroSlop · queued", "Waiting for this image to enter the local analysis queue");
+    updateBadge(record, "SeroSlop · queued", "Waiting to analyze this image");
   }
   if (!slots.size) {
     intersectionObserver.unobserve(element);
@@ -756,7 +756,7 @@ async function analyze(record: TargetRecord): Promise<void> {
   const expectedMutationEpoch = mutationInvalidationEpoch;
   const expectedDocumentLifecycleEpoch = documentLifecycleEpoch;
   record.requestId = requestId;
-  updateBadge(record, "SeroSlop · analyzing", "Analysis runs privately on this device");
+  updateBadge(record, "SeroSlop · analyzing", "Analyzing this image");
 
   try {
     const source = inferenceSource(record);
@@ -804,8 +804,8 @@ async function analyze(record: TargetRecord): Promise<void> {
       record,
       record.flagged ? `Likely AI · ${score}` : `Below flag threshold · ${score}`,
       record.flagged
-        ? `A score of 65.0/100 and above is flagged. Processed locally with ${runtime}. This estimate is not proof.`
-        : `Below the inclusive 65.0/100 flag threshold. Processed locally with ${runtime}. This estimate is not proof of authenticity.`,
+        ? `Flagged at 65.0/100 and above. Ran with ${runtime}.`
+        : `Below 65.0/100. Ran with ${runtime}.`,
     );
   } catch {
     if (record.requestId !== requestId) return;
@@ -1171,7 +1171,7 @@ chrome.runtime.onMessage.addListener((
     return false;
   }
   if (message.type === "PL_RESCAN" || message.type === "PL_MODEL_READY") {
-    for (const record of records) resetRecord(record, "Queued for fresh local analysis");
+    for (const record of records) resetRecord(record, "Queued for a fresh scan");
     scan();
     pumpAnalysisQueue();
     sendResponse({ rescanned: message.type === "PL_RESCAN" });

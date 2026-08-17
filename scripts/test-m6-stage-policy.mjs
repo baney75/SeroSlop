@@ -22,16 +22,20 @@ import {
   M6_P5_PARENT,
   M6_P5_COMMIT,
   M6_P5_CI_RECOVERY_COMMIT,
+  M6_SUBMISSION_UI_COMMIT,
   M6_P5_CI_RECOVERY_EXPECTED,
   M6_P5_ARTIFACT_SHA256,
   M6_P5_RECOVERY_ARTIFACT_SHA256,
   M6_P5_PROTOCOL_PATHS,
   M6_SUBMISSION_UI_EXPECTED,
   M6_SUBMISSION_UI_ARTIFACT_SHA256,
+  M6_NO_SLOP_UI_EXPECTED,
+  M6_NO_SLOP_UI_ARTIFACT_SHA256,
   matchesProspectiveP5,
   matchesM6P5Head,
   matchesM6P5CiRecovery,
   matchesM6SubmissionUiHead,
+  matchesM6NoSlopUiHead,
   validateM6P5Artifacts,
 } from "./m6-stage-policy.mjs";
 const recipe = parseM6Recipe();
@@ -59,9 +63,23 @@ assert.equal(matchesM6SubmissionUiHead({ head: "2".repeat(40), parent: M6_P5_CI_
 assert.equal(matchesM6SubmissionUiHead({ head: "2".repeat(40), parent: M6_P5_COMMIT, rows: submissionUiRows }), false);
 assert.equal(matchesM6SubmissionUiHead({ head: "2".repeat(40), parent: M6_P5_CI_RECOVERY_COMMIT, rows: submissionUiRows.slice(1) }), false);
 assert.equal(matchesM6SubmissionUiHead({ head: "2".repeat(40), parent: M6_P5_CI_RECOVERY_COMMIT, rows: [...submissionUiRows, ["extra", "M"]] }), false);
-const submissionUiArtifacts = Object.fromEntries(Object.keys(M6_SUBMISSION_UI_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+const submissionUiArtifacts = Object.fromEntries(Object.keys(M6_SUBMISSION_UI_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_SUBMISSION_UI_COMMIT}:${path}`])]));
 assert.equal(validateM6P5Artifacts(submissionUiArtifacts, M6_SUBMISSION_UI_ARTIFACT_SHA256), true);
 assert.throws(() => validateM6P5Artifacts({ ...submissionUiArtifacts, "src/static/popup.html": Buffer.from("bad") }, M6_SUBMISSION_UI_ARTIFACT_SHA256), /bytes changed/);
+const noSlopUiRows = M6_NO_SLOP_UI_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6NoSlopUiHead({ head: "3".repeat(40), parent: M6_SUBMISSION_UI_COMMIT, rows: noSlopUiRows }), true);
+assert.equal(matchesM6NoSlopUiHead({ head: "3".repeat(40), parent: M6_P5_CI_RECOVERY_COMMIT, rows: noSlopUiRows }), false);
+assert.equal(matchesM6NoSlopUiHead({ head: "3".repeat(40), parent: M6_SUBMISSION_UI_COMMIT, rows: noSlopUiRows.slice(1) }), false);
+assert.equal(matchesM6NoSlopUiHead({ head: "3".repeat(40), parent: M6_SUBMISSION_UI_COMMIT, rows: [...noSlopUiRows, ["extra", "M"]] }), false);
+const noSlopUiArtifacts = Object.fromEntries(Object.keys(M6_NO_SLOP_UI_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+assert.equal(validateM6P5Artifacts(noSlopUiArtifacts, M6_NO_SLOP_UI_ARTIFACT_SHA256), true);
+assert.throws(() => validateM6P5Artifacts({ ...noSlopUiArtifacts, "src/static/setup.html": Buffer.from("bad") }, M6_NO_SLOP_UI_ARTIFACT_SHA256), /bytes changed/);
+const productCopy = ["src/content.ts", "src/popup.ts", "src/setup.ts", "src/static/manifest.json", "src/static/setup.html"]
+  .map((path) => readFileSync(path, "utf8")).join("\n");
+for (const forbidden of ["Private by design", "Images never go to a detector service", "Runs offline after setup", "not proof", "No server is used"]) {
+  assert.equal(productCopy.includes(forbidden), false, `product copy retained: ${forbidden}`);
+}
+assert.match(readFileSync("src/static/setup.html", "utf8"), /<button id="prepare-model" type="button" disabled hidden>/u);
 assert.throws(() => classifyM6Stage({ sourceLock: true }), /executable/);
 assert.throws(() => classifyM6Stage({ trained: true }), /executable/);
 assert.throws(() => classifyM6Stage({ evaluated: true }), /executable/);

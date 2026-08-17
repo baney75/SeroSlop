@@ -109,10 +109,6 @@ function validateSection(section, actualScreenshot, label) {
     requireCondition(typeof badge.text === "string" && typeof badge.accessibleName === "string" &&
       badge.accessibleName.length > badge.text.length,
     `${label} badge ${badge.elementId} has no target-specific accessible name`);
-    if (badge.state === "complete") {
-      requireCondition(badge.accessibleName.includes("not proof"),
-        `${label} badge ${badge.elementId} omits the not-proof caveat`);
-    }
     const associationError = badgeAssociationError(badge, visibleTargetRects, POSITION_MARGIN);
     requireCondition(!associationError, `${label} badge ${badge.elementId} lost target association: ${associationError}`);
   }

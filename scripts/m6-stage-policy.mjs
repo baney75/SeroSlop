@@ -61,6 +61,8 @@ export const M6_P5_COMMIT = "c878c2dc7ecbb49edb1cac4395aa20649471a330";
 export const M6_P5_TREE = "4657121b4ba5c99006b8f0df8f0c4b629c78dc2d";
 export const M6_P5_CI_RECOVERY_COMMIT = "57beb67fbfd9a140565b3b83436ba2893fd0fd82";
 export const M6_P5_CI_RECOVERY_TREE = "bd75e0203f3b7156ee4cd3e870d22f1787d60b05";
+export const M6_SUBMISSION_UI_COMMIT = "d3b712513e91d89c9de2ac7d958b1d24ca844b1a";
+export const M6_SUBMISSION_UI_TREE = "25c896193faa5e26520c5ea4334e922e3a3ee74f";
 export const M6_P5_PROTOCOL_PATHS = Object.freeze(["benchmark/m6/DATA_PROVENANCE.md", "benchmark/m6/p5-protocol.json", "benchmark/m6/p5-quota-census.json", "benchmark/m6/p5_protocol.py", "benchmark/m6/p5_transform_fixture.py", "benchmark/m6/test_p5_protocol.py", "benchmark/m6/README.md", "benchmark/m6/THIRD_PARTY_NOTICES.md", "package.json", "scripts/m6-stage-policy.mjs", "scripts/check-m6-protocol-stage.mjs", "scripts/test-m6-stage-policy.mjs", "scripts/run-static-verification.mjs"]);
 export const M6_P5_ARTIFACT_SHA256 = Object.freeze({
   "benchmark/m6/DATA_PROVENANCE.md": "858f02abaf94445387f1cbd91f8495b0f0e179bfc3fd63e6f678e32f6fa90523",
@@ -102,6 +104,43 @@ export const M6_SUBMISSION_UI_ARTIFACT_SHA256 = Object.freeze({
   "src/static/popup.html": "747150fc7fc2e22de4a9cbf2e3afacd410d975380255abb5d84c5909062166bb",
   "src/static/seroslop.svg": "3305b345c480a6ea2f3ed7e7ae907c7ff2ebbffa9dd221342070cbe294ab9c9f",
 });
+export const M6_NO_SLOP_UI_EXPECTED = Object.freeze([
+  ["DESIGN.md", "M"],
+  ["scripts/browser-geometry-contract.mjs", "M"],
+  ["scripts/build.mjs", "M"],
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/chrome-smoke.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/test-browser-geometry-contract.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+  ["src/content.ts", "M"],
+  ["src/popup.ts", "M"],
+  ["src/setup.ts", "M"],
+  ["src/static/icons/seroslop-128.png", "A"],
+  ["src/static/icons/seroslop-16.png", "A"],
+  ["src/static/icons/seroslop-32.png", "A"],
+  ["src/static/icons/seroslop-48.png", "A"],
+  ["src/static/manifest.json", "M"],
+  ["src/static/setup.html", "M"],
+  ["tests/manifest.test.ts", "M"],
+]);
+export const M6_NO_SLOP_UI_ARTIFACT_SHA256 = Object.freeze({
+  "DESIGN.md": "432f12c90ece677dd947a8ea0dec370c7f6f476bce091bcaf6018bb4c2b842cb",
+  "scripts/browser-geometry-contract.mjs": "d590a587ac18bc46fbc679eafce9eea9cb940ae6b6d86ade10e9f15d4455b031",
+  "scripts/build.mjs": "f3c26c1af5d18a511330d8ce09185e3de56d4d7040e23c800f6dd7bfb736979e",
+  "scripts/chrome-smoke.mjs": "5db788535afe6142dbee77377b6912aefa67453f614cba0f6c1024bc8cb02de4",
+  "scripts/test-browser-geometry-contract.mjs": "cade1710c7b4be98154324c289279e6ff447cd8c8c4be66adb5b6fcf3ff8bc64",
+  "src/content.ts": "e38c857774e2ac6962f2f59e8df3cc9769d2128ca5ea101b082e09904f00eb5e",
+  "src/popup.ts": "d8f9bde4db68a26f0cce92379f2a4945e7ffafbb1c22265ba442e6fc872f7085",
+  "src/setup.ts": "ff2eb523281f12a1f5c518fe74f9631e11960068f8757539954ef5030cfc76fd",
+  "src/static/icons/seroslop-128.png": "106dc7077994c7fd19ca50b0397229951b35df32c21eca64865fd36e62b596b2",
+  "src/static/icons/seroslop-16.png": "8e2f9c496b9bf1dbd00f902907b7a46759eb0efa4952c09f8d4fc0a5da3bcca2",
+  "src/static/icons/seroslop-32.png": "04430af321509b88d3cddb083ea976ad4c6a39067574ed3f875e9c68a2b14ff0",
+  "src/static/icons/seroslop-48.png": "9a86cb3c7b2697834dc3802091a5bf6c0ab4726f537fe6275636549e7b16e55d",
+  "src/static/manifest.json": "f4189c1eda0b7fb06bad8a9ca537756693a4cbbde413df1b50c30265325aa77a",
+  "src/static/setup.html": "bc3ddc345d5e3b1c26c1114856822f091d4034247e43501047457e60f645c00b",
+  "tests/manifest.test.ts": "1292cb527a577f1b78ee4ad41019c4368cf4321b1ee19ab60026f011a32823ed",
+});
 export function validateM6P5Artifacts(artifactBytes = {}, expectedDigests = M6_P5_ARTIFACT_SHA256) {
   const expectedPaths = Object.keys(expectedDigests).sort();
   if (JSON.stringify(Object.keys(artifactBytes).sort()) !== JSON.stringify(expectedPaths)) throw new Error("M6 P5 artifact inventory changed");
@@ -130,6 +169,12 @@ export function matchesM6SubmissionUiHead({ head, parent, rows = [] } = {}) {
   return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== M6_P5_CI_RECOVERY_COMMIT &&
     parent === M6_P5_CI_RECOVERY_COMMIT &&
     JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_SUBMISSION_UI_EXPECTED));
+}
+
+export function matchesM6NoSlopUiHead({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== M6_SUBMISSION_UI_COMMIT &&
+    parent === M6_SUBMISSION_UI_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_NO_SLOP_UI_EXPECTED));
 }
 
 function rejectDuplicateKeys(text) {
@@ -229,6 +274,7 @@ export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||
     matchesM6SubmissionUiHead({ head, parent, rows }) ||
+    matchesM6NoSlopUiHead({ head, parent, rows }) ||
     matchesM6ProtocolRecovery({ head, parent, rows }) ||
     matchesM6MaterializerRecovery({ head, parent, rows }) ||
     matchesM6CiRecovery({ head, parent, rows });

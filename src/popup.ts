@@ -288,7 +288,7 @@ rescanButton.addEventListener("click", async () => {
   rescanButton.disabled = true;
   rescanButton.setAttribute("aria-busy", "true");
   rescanButton.textContent = "Scanning again…";
-  setFeedback("Starting a fresh local analysis…");
+  setFeedback("Starting a fresh scan…");
   try {
     const target = await requireCurrentTarget();
     if (!target) return;
@@ -300,8 +300,8 @@ rescanButton.addEventListener("click", async () => {
       new Promise((resolve) => window.setTimeout(resolve, 500)),
     ]);
     if (response?.rescanned !== true) throw new Error("Page did not confirm the re-scan");
-    pageElement.textContent = "Fresh local analysis queued";
-    setFeedback("Fresh local analysis started.");
+    pageElement.textContent = "Fresh scan queued";
+    setFeedback("Scan started.");
     window.setTimeout(() => void refreshPageState(), 300);
   } catch {
     contentAvailable = false;
