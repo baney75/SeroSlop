@@ -201,6 +201,8 @@ export function matchesM6SubmissionProxyR3Head({ head, parent, rows = [] } = {})
     JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_SUBMISSION_PROXY_R3_EXPECTED));
 }
 export const M6_SUBMISSION_PROXY_RESULT_STATUS = "m2-bounty-proxy-result-published";
+export const M6_SUBMISSION_PROXY_RESULT_COMMIT = "0adc795115495e1f5f58c9f745195e8bf53f5509";
+export const M6_SUBMISSION_PROXY_RESULT_TREE = "f1a895a23752eafb883c5e35a8c43aa52e14d94a";
 export const M6_SUBMISSION_PROXY_RESULT_EXPECTED = Object.freeze([
   ["BENCHMARK.md", "M"],
   ["README.md", "M"],
@@ -239,6 +241,22 @@ export function matchesM6SubmissionProxyResultHead({ head, parent, rows = [] } =
   return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent &&
     parent === M6_SUBMISSION_PROXY_R3_COMMIT &&
     JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_SUBMISSION_PROXY_RESULT_EXPECTED));
+}
+export const M6_SUBMISSION_PROXY_RESULT_RECOVERY_STATUS = "m2-bounty-proxy-result-ci-recovery-ready";
+export const M6_SUBMISSION_PROXY_RESULT_RECOVERY_EXPECTED = Object.freeze([
+  [".github/workflows/quality.yml", "M"],
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/run-static-verification.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+]);
+export const M6_SUBMISSION_PROXY_RESULT_RECOVERY_ARTIFACT_SHA256 = Object.freeze({
+  ".github/workflows/quality.yml": "26e43a8751d8a9a107d631cf1bdd12f599b6a1374237ac280fbcd9092043573c",
+});
+export function matchesM6SubmissionProxyResultRecoveryHead({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent &&
+    parent === M6_SUBMISSION_PROXY_RESULT_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_SUBMISSION_PROXY_RESULT_RECOVERY_EXPECTED));
 }
 export const M6_PROTOCOL_RECOVERY_EXPECTED = Object.freeze([
   ["benchmark/m6/README.md", "M"],
@@ -806,7 +824,7 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 }
 
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
-  return matchesM6SubmissionProxyResultHead({ head, parent, rows }) || matchesM6SubmissionProxyR3Head({ head, parent, rows }) || matchesM6SubmissionProxyR2Head({ head, parent, rows }) || matchesM6SubmissionProxyRHead({ head, parent, rows }) || matchesM6P8AuthorizationHead({ head, parent, rows }) || matchesM6P8RHead({ head, parent, rows }) || matchesM6P8Head({ head, parent, rows }) || matchesM6P7AuthorizationHead({ head, parent, rows }) || matchesM6P7RHead({ head, parent, rows }) || matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
+  return matchesM6SubmissionProxyResultRecoveryHead({ head, parent, rows }) || matchesM6SubmissionProxyResultHead({ head, parent, rows }) || matchesM6SubmissionProxyR3Head({ head, parent, rows }) || matchesM6SubmissionProxyR2Head({ head, parent, rows }) || matchesM6SubmissionProxyRHead({ head, parent, rows }) || matchesM6P8AuthorizationHead({ head, parent, rows }) || matchesM6P8RHead({ head, parent, rows }) || matchesM6P8Head({ head, parent, rows }) || matchesM6P7AuthorizationHead({ head, parent, rows }) || matchesM6P7RHead({ head, parent, rows }) || matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
     isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||
