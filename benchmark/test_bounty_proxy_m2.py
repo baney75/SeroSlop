@@ -78,24 +78,34 @@ class BountyProxyTests(unittest.TestCase):
         value = {"b": 1, "a": "ok"}
         self.assertEqual(proxy.canonical_json(proxy.parse_json_bytes(proxy.canonical_json(value))), proxy.canonical_json(value))
 
-    def test_actual_freeze_is_metadata_only_exact_and_refuses_overwrite(self):
+    def test_committed_freeze_is_exact_and_local_regeneration_is_metadata_only(self):
+        rows, reopened, manifest, raw_lock = proxy.reopen_frozen()
+        self.assertEqual(len(rows), 1200)
+        self.assertEqual(sum(row["label"] == 0 for row in rows), 600)
+        self.assertEqual(sum(row["label"] == 1 for row in rows), 600)
+        self.assertTrue(reopened["pixelsReadAtFreeze"] is False)
+        self.assertTrue(reopened["inferenceRun"] is False)
+        self.assertTrue(reopened["bountyAcceptanceClaimed"] is False)
+        self.assertEqual(len(manifest.splitlines()), 1200)
+        self.assertEqual(proxy.canonical_json(json.loads(raw_lock)), raw_lock)
+        for group, omitted in reopened["selection"]["tasteOmittedAssetIds"].items():
+            self.assertIn(group, proxy.TASTE_GROUPS)
+            self.assertEqual(len(omitted), 11)
+
+        # Source metadata is intentionally local-only. CI proves the committed
+        # byte-locked freeze above; a machine holding the fixed metadata also
+        # proves deterministic regeneration without opening selected images.
+        if not proxy.H3_MANIFEST.is_file() or not proxy.TASTE_ASSETS.is_file():
+            return
         with tempfile.TemporaryDirectory() as temporary:
             evidence = Path(temporary)
             with patch.object(proxy, "_physical_file", side_effect=AssertionError("freeze opened a selected image")):
                 lock = proxy.freeze_manifest(evidence)
-            rows, reopened, manifest, raw_lock = proxy.reopen_frozen(evidence)
-            self.assertEqual(lock, reopened)
-            self.assertEqual(len(rows), 1200)
-            self.assertEqual(sum(row["label"] == 0 for row in rows), 600)
-            self.assertEqual(sum(row["label"] == 1 for row in rows), 600)
-            self.assertTrue(reopened["pixelsReadAtFreeze"] is False)
-            self.assertTrue(reopened["inferenceRun"] is False)
-            self.assertTrue(reopened["bountyAcceptanceClaimed"] is False)
-            self.assertEqual(len(manifest.splitlines()), 1200)
-            self.assertEqual(proxy.canonical_json(json.loads(raw_lock)), raw_lock)
-            for group, omitted in reopened["selection"]["tasteOmittedAssetIds"].items():
-                self.assertIn(group, proxy.TASTE_GROUPS)
-                self.assertEqual(len(omitted), 11)
+            regenerated_rows, regenerated, regenerated_manifest, regenerated_lock = proxy.reopen_frozen(evidence)
+            self.assertEqual(lock, regenerated)
+            self.assertEqual(regenerated_rows, rows)
+            self.assertEqual(regenerated_manifest, manifest)
+            self.assertEqual(regenerated_lock, raw_lock)
             with self.assertRaises(FileExistsError):
                 proxy.freeze_manifest(evidence)
 
