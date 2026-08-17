@@ -94,6 +94,16 @@ import {
   validateM6P6Inventory,
   M6_P7_PARENT,
   M6_P7_STATUS,
+  M6_P7_S_COMMIT,
+  M6_P7_S_TREE,
+  M6_P7_S_ROWS,
+  M6_P7_S_ARTIFACT_SHA256,
+  M6_P7_R_STATUS,
+  M6_P7_A_STATUS,
+  M6_P7_AUTHORIZATION_PATH,
+  matchesM6P7RHead,
+  matchesM6P7AuthorizationHead,
+  validateM6P7Authorization,
   matchesM6P7Head,
   validateM6P7Protocol,
 } from "./m6-stage-policy.mjs";
@@ -145,6 +155,19 @@ if (process.argv[2] === "authorize-p6") {
   if (existsSync(M6_P6_AUTHORIZATION_PATH)) throw new Error("P6 authorization already exists");
   mkdirSync("benchmark/evidence/m6", { recursive: true }); writeFileSync(M6_P6_AUTHORIZATION_PATH, canonicalM6Json(value), { flag: "wx" });
   console.log(JSON.stringify({ status: "m6-p6-authorization-created", head, tree, path: M6_P6_AUTHORIZATION_PATH })); process.exit(0);
+}
+
+if (process.argv[2] === "authorize-p7") {
+  assertM5WorktreeExact();
+  const head = git(["rev-parse", "HEAD"]); const parents = parentsOf(head); const rows = rowsOf(head).map(({path,status}) => [path,status]); const tree = git(["rev-parse", `${head}^{tree}`]);
+  if (parents.length !== 1 || !matchesM6P7RHead({head,parent:parents[0],rows})) throw new Error("P7 authorization requires exact R head");
+  if (parents[0] !== M6_P7_S_COMMIT || git(["rev-parse", `${parents[0]}^{tree}`]) !== M6_P7_S_TREE) throw new Error("P7 S lineage changed");
+  const sourceRows = rowsOf(M6_P7_S_COMMIT).map(({path,status}) => [path,status]); const sourcePathMap = Object.fromEntries(Object.keys(M6_P7_S_ARTIFACT_SHA256).map((p)=>[p,digest(m5GitBytes(["show",`${M6_P7_S_COMMIT}:${p}`]))]));
+  if (JSON.stringify(sourceRows) !== JSON.stringify(M6_P7_S_ROWS) || JSON.stringify(sourcePathMap) !== JSON.stringify(M6_P7_S_ARTIFACT_SHA256)) throw new Error("P7 S source map changed");
+  const publicCi = await fetchPublicCiForCurrentMain(head);
+  const value = { acceptanceEligible:false, authorizationPath:M6_P7_AUTHORIZATION_PATH, commercialRightsClearanceClaimed:false, h3PixelsRead:false, independentOriginProofClaimed:false, phase1InputsAuthorized:true, protocolCommit:M6_P7_S_COMMIT, protocolParent:M6_P7_PARENT, protocolPathMap:sourcePathMap, protocolRows:sourceRows, protocolTree:M6_P7_S_TREE, publisherAssertionOnly:true, schemaVersion:1, sourceLockAuthorized:false, status:M6_P7_A_STATUS, tasteMaterializationAuthorized:true, trainingAuthorized:false, verifierCommit:head, verifierPublicCi:publicCi, verifierRows:rows, verifierTree:tree };
+  validateM6P7Authorization(Buffer.from(canonicalM6Json(value)), {sourceCommit:M6_P7_S_COMMIT,sourceTree:M6_P7_S_TREE,sourceParent:M6_P7_PARENT,sourceRows,sourcePathMap,verifierCommit:head,verifierTree:tree,verifierRows:rows,publicCi});
+  if (existsSync(M6_P7_AUTHORIZATION_PATH)) throw new Error("P7 authorization already exists"); mkdirSync("benchmark/evidence/m6",{recursive:true}); writeFileSync(M6_P7_AUTHORIZATION_PATH,canonicalM6Json(value),{flag:"wx"}); console.log(JSON.stringify({status:"p7-phase1-taste-authorization-created",head,tree,path:M6_P7_AUTHORIZATION_PATH})); process.exit(0);
 }
 
 if (git(["rev-parse", `${M6_BASE_COMMIT}^{tree}`]) !== M6_BASE_TREE) {
@@ -385,6 +408,21 @@ if (head === M6_P3_COMMIT) {
 }
 
 const recoveryRows = rowsOf(head);
+if (headParents.length === 1 && matchesM6P7AuthorizationHead({head,parent:headParents[0],rows:recoveryRows.map(({path,status})=>[path,status])})) {
+  const sourceCommit = headParents[0]; const sourceParents = parentsOf(sourceCommit); const sourceRows = rowsOf(sourceCommit).map(({path,status})=>[path,status]);
+  if (sourceParents.length !== 1 || !matchesM6P7RHead({head:sourceCommit,parent:sourceParents[0],rows:sourceRows})) throw new Error("P7 authorization source is not exact R");
+  const receipt = m5GitBytes(["show",`${head}:${M6_P7_AUTHORIZATION_PATH}`]); const value = JSON.parse(receipt.toString("utf8")); const verifierTree = git(["rev-parse",`${sourceCommit}^{tree}`]);
+  const sourcePathMap = Object.fromEntries(Object.keys(M6_P7_S_ARTIFACT_SHA256).map((p)=>[p,digest(m5GitBytes(["show",`${M6_P7_S_COMMIT}:${p}`]))]));
+  validateM6P7Authorization(receipt,{sourceCommit:M6_P7_S_COMMIT,sourceTree:M6_P7_S_TREE,sourceParent:M6_P7_PARENT,sourceRows:rowsOf(M6_P7_S_COMMIT).map(({path,status})=>[path,status]),sourcePathMap,verifierCommit:sourceCommit,verifierTree,verifierRows:sourceRows,publicCi:value.verifierPublicCi});
+  const liveContext=process.env.GITHUB_ACTIONS==="true"&&process.env.GITHUB_EVENT_NAME==="push"&&process.env.GITHUB_SHA===head&&process.env.GITHUB_REPOSITORY==="baney75/prooflens"; if(!liveContext) await fetchPublicCiRun(value.verifierPublicCi.runId,sourceCommit);
+  console.log(JSON.stringify({status:M6_P7_A_STATUS,head,sourceCommit,deferredToExternal:liveContext,rows:recoveryRows})); process.exit(0);
+}
+if (headParents.length === 1 && matchesM6P7RHead({head,parent:headParents[0],rows:recoveryRows.map(({path,status})=>[path,status])})) {
+  if (headParents[0] !== M6_P7_S_COMMIT || git(["rev-parse",`${headParents[0]}^{tree}`]) !== M6_P7_S_TREE) throw new Error("P7 S lineage changed");
+  const sourceRows = rowsOf(M6_P7_S_COMMIT).map(({path,status})=>[path,status]); const sourcePathMap = Object.fromEntries(Object.keys(M6_P7_S_ARTIFACT_SHA256).map((p)=>[p,digest(m5GitBytes(["show",`${M6_P7_S_COMMIT}:${p}`]))]));
+  if (JSON.stringify(sourceRows)!==JSON.stringify(M6_P7_S_ROWS)||JSON.stringify(sourcePathMap)!==JSON.stringify(M6_P7_S_ARTIFACT_SHA256)) throw new Error("P7 S blob map changed");
+  validateM6P7Protocol(m5GitBytes(["show",`${M6_P7_S_COMMIT}:benchmark/m6/p7-protocol.json`])); console.log(JSON.stringify({status:M6_P7_R_STATUS,head,parent:headParents[0],rows:recoveryRows})); process.exit(0);
+}
 if (headParents.length === 1 && matchesM6P7Head({ head, parent: headParents[0], rows: recoveryRows.map(({ path, status }) => [path, status]), treePaths: git(["ls-tree", "-r", "--name-only", head]).split("\n") })) {
   if (headParents[0] !== M6_P7_PARENT) throw new Error("P7 parent changed");
   validateM6P7Protocol(m5GitBytes(["show", `${head}:benchmark/m6/p7-protocol.json`]));

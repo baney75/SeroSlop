@@ -28,6 +28,26 @@ export const M6_P7_PARENT = "e6412f90736d39985332ef009a360614865306d2";
 export const M6_P7_PARENT_TREE = "b99608de8093fcdd70d7f3520ebfbce3344dfcb5";
 export const M6_P7_STATUS = "p7-phase1-taste-unverified";
 export const M6_P7_PROTOCOL_SHA256 = "f05deaba1e8d7f056b33ee4ce80c4846259d8425b273dc8a5ccdfd41abeddb95";
+export const M6_P7_S_COMMIT = "53b696e09d1e6243349aeece843afb7f7de6f17f";
+export const M6_P7_S_TREE = "1793e108eb9bc30c35037fad56da545b4a3c866a";
+export const M6_P7_S_ROWS = Object.freeze([["benchmark/m6/README.md","M"],["benchmark/m6/p7-protocol.json","A"],["benchmark/m6/p7_operational.py","A"],["benchmark/m6/test_p7_operational.py","A"],["package.json","M"],["scripts/check-m6-protocol-stage.mjs","M"],["scripts/m6-stage-policy.mjs","M"],["scripts/run-static-verification.mjs","M"],["scripts/test-m6-stage-policy.mjs","M"]]);
+export const M6_P7_S_ARTIFACT_SHA256 = Object.freeze({"benchmark/m6/README.md":"25249cb448d8c208aeaab5e8d701bf53109afe5cf8a7feb90732788f8e8caa23","benchmark/m6/p7-protocol.json":"f05deaba1e8d7f056b33ee4ce80c4846259d8425b273dc8a5ccdfd41abeddb95","benchmark/m6/p7_operational.py":"daa6c2f7b1512ef9540e6cba3318ff92d46719a4f59a3ead9b9a72fc44564cd9","benchmark/m6/test_p7_operational.py":"2d1fc6b0f3d98a8f127c183835e26b273a15f138d2d48fd52c26bda2909eca5e","package.json":"707dd55d4b4177504b33881bb9bf5f9b38352e43c76f7c92cbb8e28d42d8f864","scripts/check-m6-protocol-stage.mjs":"1747f424287de357b90e8392c4a81b9110583957e9e48c1cbe83e85dcbc02db7","scripts/m6-stage-policy.mjs":"6d5e95739745b63d88833253e4196817429e18de6288b68ee4bdee8871738723","scripts/run-static-verification.mjs":"ffe4ad530bbd5f9bf056688fa2017ac2e2a37b9cac3e9899c21f2117d79ae3c0","scripts/test-m6-stage-policy.mjs":"1563ac7ec5a8d6a1a33e350694aca81d7aef1336eb0c926d8cd1669792213940"});
+export const M6_P7_R_EXPECTED = Object.freeze([["scripts/check-m6-protocol-stage.mjs","M"],["scripts/m6-stage-policy.mjs","M"],["scripts/run-static-verification.mjs","M"],["scripts/test-m6-stage-policy.mjs","M"]]);
+export const M6_P7_R_STATUS = "p7-phase1-taste-verifier-ready";
+export const M6_P7_A_STATUS = "p7-phase1-taste-authorized";
+export const M6_P7_AUTHORIZATION_PATH = "benchmark/evidence/m6/p7-phase1-taste-authorization.json";
+export function matchesM6P7RHead({head,parent,rows=[]}={}) { return typeof head==="string" && /^[0-9a-f]{40}$/.test(head) && head!==parent && parent===M6_P7_S_COMMIT && JSON.stringify(normalizedRows(rows))===JSON.stringify(normalizedRows(M6_P7_R_EXPECTED)); }
+export function matchesM6P7AuthorizationHead({head,parent,rows=[]}={}) { return typeof head==="string" && /^[0-9a-f]{40}$/.test(head) && head!==parent && JSON.stringify(normalizedRows(rows))===JSON.stringify([[M6_P7_AUTHORIZATION_PATH,"A"]]); }
+export function validateM6P7Authorization(bytes,{sourceCommit,sourceTree,sourceParent=M6_P7_PARENT,sourceRows,sourcePathMap,verifierCommit,verifierTree,verifierRows,publicCi}={}) {
+  const raw=Buffer.from(bytes), text=raw.toString("utf8"); if(!text.endsWith("\n")||Buffer.from(text).compare(raw)!==0) throw new Error("P7 authorization must be canonical UTF-8 JSON");
+  rejectDuplicateKeys(text); const value=JSON.parse(text); if(text!==canonicalM6Json(value)) throw new Error("P7 authorization bytes are not canonical");
+  const keys=["acceptanceEligible","authorizationPath","commercialRightsClearanceClaimed","h3PixelsRead","independentOriginProofClaimed","phase1InputsAuthorized","protocolCommit","protocolParent","protocolPathMap","protocolRows","protocolTree","publisherAssertionOnly","schemaVersion","sourceLockAuthorized","status","tasteMaterializationAuthorized","trainingAuthorized","verifierCommit","verifierPublicCi","verifierRows","verifierTree"].sort();
+  if(JSON.stringify(Object.keys(value).sort())!==JSON.stringify(keys)) throw new Error("P7 authorization schema changed");
+  if(value.schemaVersion!==1||value.status!==M6_P7_A_STATUS||value.authorizationPath!==M6_P7_AUTHORIZATION_PATH||value.protocolCommit!==sourceCommit||value.protocolTree!==sourceTree||value.protocolParent!==sourceParent||value.publisherAssertionOnly!==true||value.independentOriginProofClaimed!==false||value.commercialRightsClearanceClaimed!==false||value.phase1InputsAuthorized!==true||value.tasteMaterializationAuthorized!==true||value.sourceLockAuthorized!==false||value.trainingAuthorized!==false||value.acceptanceEligible!==false||value.h3PixelsRead!==false) throw new Error("P7 authorization boundary changed");
+  if(canonicalM6Json(normalizedRows(value.protocolRows))!==canonicalM6Json(normalizedRows(sourceRows))||canonicalM6Json(value.protocolPathMap)!==canonicalM6Json(sourcePathMap)||value.verifierCommit!==verifierCommit||value.verifierTree!==verifierTree||canonicalM6Json(normalizedRows(value.verifierRows))!==canonicalM6Json(normalizedRows(verifierRows))) throw new Error("P7 authorization source binding changed");
+  const ci=value.verifierPublicCi, expected=publicCi??{}; const ciKeys=["conclusion","event","headSha","runId","status","url","workflowPath"].sort(); if(!ci||JSON.stringify(Object.keys(ci).sort())!==JSON.stringify(ciKeys)||!Number.isSafeInteger(ci.runId)||ci.runId<=0||ci.status!=="completed"||ci.conclusion!=="success"||ci.event!=="push"||ci.workflowPath!==".github/workflows/quality.yml"||ci.headSha!==verifierCommit||ci.url!==`https://github.com/baney75/prooflens/actions/runs/${ci.runId}`||JSON.stringify(ci)!==JSON.stringify(expected)) throw new Error("P7 authorization CI proof changed");
+  return value;
+}
 export const M6_P7_EXPECTED = Object.freeze([
   ["benchmark/m6/README.md", "M"], ["benchmark/m6/p7-protocol.json", "A"], ["benchmark/m6/p7_operational.py", "A"], ["benchmark/m6/test_p7_operational.py", "A"], ["package.json", "M"],
   ["scripts/check-m6-protocol-stage.mjs", "M"], ["scripts/m6-stage-policy.mjs", "M"], ["scripts/run-static-verification.mjs", "M"], ["scripts/test-m6-stage-policy.mjs", "M"],
@@ -609,7 +629,7 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 }
 
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
-  return matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
+  return matchesM6P7AuthorizationHead({ head, parent, rows }) || matchesM6P7RHead({ head, parent, rows }) || matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
     isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||

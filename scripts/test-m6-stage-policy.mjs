@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { m5GitBytes } from "./m5-safe-git.mjs";
 import {
@@ -51,6 +52,17 @@ import {
   M6_P7_PARENT,
   M6_P7_EXPECTED,
   validateM6P7Protocol,
+  M6_P7_S_COMMIT,
+  M6_P7_S_TREE,
+  M6_P7_S_ROWS,
+  M6_P7_S_ARTIFACT_SHA256,
+  M6_P7_R_EXPECTED,
+  M6_P7_R_STATUS,
+  M6_P7_A_STATUS,
+  M6_P7_AUTHORIZATION_PATH,
+  matchesM6P7RHead,
+  matchesM6P7AuthorizationHead,
+  validateM6P7Authorization,
   M6_P6_EXPECTED,
   M6_P6_ARTIFACT_SHA256,
   matchesM6P6Head,
@@ -277,5 +289,32 @@ assert.equal(matchesM6P7Head({ head: "d".repeat(40), parent: "0".repeat(40), row
 const p7Protocol = readFileSync("benchmark/m6/p7-protocol.json");
 assert.equal(validateM6P7Protocol(p7Protocol), true);
 assert.throws(() => validateM6P7Protocol(Buffer.from(p7Protocol.toString().replace("p7-phase1-taste-unverified", "forged"))), /bytes changed/);
+const p7RRows = M6_P7_R_EXPECTED.map(([path, status]) => [path, status]);
+assert.deepEqual(Object.fromEntries(Object.keys(M6_P7_S_ARTIFACT_SHA256).map((path) => [path, createHash("sha256").update(m5GitBytes(["show", `${M6_P7_S_COMMIT}:${path}`])).digest("hex")])), M6_P7_S_ARTIFACT_SHA256);
+assert.equal(matchesM6P7RHead({ head: "e".repeat(40), parent: M6_P7_S_COMMIT, rows: p7RRows }), true);
+assert.equal(matchesM6P7RHead({ head: "e".repeat(40), parent: M6_P7_S_COMMIT, rows: M6_P7_S_ROWS }), false);
+assert.equal(matchesM6P7RHead({ head: "e".repeat(40), parent: "0".repeat(40), rows: p7RRows }), false);
+assert.equal(matchesM6P7AuthorizationHead({ head: "f".repeat(40), parent: "e".repeat(40), rows: [[M6_P7_AUTHORIZATION_PATH, "A"]] }), true);
+assert.equal(matchesM6P7AuthorizationHead({ head: "f".repeat(40), parent: "e".repeat(40), rows: [[M6_P7_AUTHORIZATION_PATH, "M"]] }), false);
+assert.equal(M6_P7_R_STATUS, "p7-phase1-taste-verifier-ready");
+assert.equal(M6_P7_A_STATUS, "p7-phase1-taste-authorized");
+const p7Ci = { conclusion: "success", event: "push", headSha: "e".repeat(40), runId: 123, status: "completed", url: "https://github.com/baney75/prooflens/actions/runs/123", workflowPath: ".github/workflows/quality.yml" };
+const p7Auth = { acceptanceEligible:false, authorizationPath:M6_P7_AUTHORIZATION_PATH, commercialRightsClearanceClaimed:false, h3PixelsRead:false, independentOriginProofClaimed:false, phase1InputsAuthorized:true, protocolCommit:M6_P7_S_COMMIT, protocolParent:M6_P7_PARENT, protocolPathMap:M6_P7_S_ARTIFACT_SHA256, protocolRows:M6_P7_S_ROWS, protocolTree:M6_P7_S_TREE, publisherAssertionOnly:true, schemaVersion:1, sourceLockAuthorized:false, status:M6_P7_A_STATUS, tasteMaterializationAuthorized:true, trainingAuthorized:false, verifierCommit:"e".repeat(40), verifierPublicCi:p7Ci, verifierRows:p7RRows, verifierTree:"u".repeat(40) };
+const p7Args = { sourceCommit:M6_P7_S_COMMIT, sourceTree:M6_P7_S_TREE, sourceParent:M6_P7_PARENT, sourceRows:M6_P7_S_ROWS, sourcePathMap:M6_P7_S_ARTIFACT_SHA256, verifierCommit:p7Auth.verifierCommit, verifierTree:p7Auth.verifierTree, verifierRows:p7RRows, publicCi:p7Ci };
+assert.equal(validateM6P7Authorization(Buffer.from(canonicalM6Json(p7Auth)), p7Args).status, M6_P7_A_STATUS);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, trainingAuthorized:true})), p7Args), /boundary/);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, sourceLockAuthorized:true})), p7Args), /boundary/);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, acceptanceEligible:true})), p7Args), /boundary/);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, phase1InputsAuthorized:false})), p7Args), /boundary/);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, verifierTree:"v".repeat(40)})), p7Args), /source binding/);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, verifierCommit:"f".repeat(40)})), p7Args), /source binding/);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, protocolRows:p7RRows})), p7Args), /source binding/);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, protocolPathMap:{...M6_P7_S_ARTIFACT_SHA256,"package.json":"0".repeat(64)}})), p7Args), /source binding/);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, verifierPublicCi:{...p7Ci,runId:0}})), {...p7Args, publicCi:{...p7Ci,runId:0}}), /CI proof/);
+assert.throws(() => validateM6P7Authorization(Buffer.from(canonicalM6Json({...p7Auth, verifierPublicCi:{...p7Ci,url:"https://example.com/forged"}})), {...p7Args, publicCi:{...p7Ci,url:"https://example.com/forged"}}), /CI proof/);
+const p7Duplicate = canonicalM6Json(p7Auth).replace('{"acceptanceEligible":false', '{"acceptanceEligible":false,"acceptanceEligible":false');
+assert.throws(() => validateM6P7Authorization(Buffer.from(p7Duplicate), p7Args), /duplicate/);
+assert.equal(checkerSource.includes("authorize-p7"), true);
+assert.equal(checkerSource.includes("p7-phase1-taste-authorization-created"), true);
 assert.equal(m5GitBytes(["rev-parse", "285bc3eefcaff35a6ae8a6cc9b23b2d0abdd4f90^{tree}"]).toString("utf8").trim(), "2457bb455d05fcef86aee07fb0c38cccd6ba289e");
 console.log("M6 stage policy PASS");
