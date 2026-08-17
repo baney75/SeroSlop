@@ -220,6 +220,18 @@ export const M6_BETA1_RECOVERY_ARTIFACT_SHA256 = Object.freeze({
   ...M6_BETA1_ARTIFACT_SHA256,
   "scripts/chrome-smoke.mjs": "ba70e516ab43cf6370c369833870d9176ee7a0635ce8f47c44c197d2d7590f7b",
 });
+export const M6_BETA1_RECOVERY_COMMIT = "340acf528e139676797ad7eb4ee7616f64b07102";
+export const M6_BETA1_RECOVERY_TREE = "afabb73f9026d213251aea8fd6e5814c4b143296";
+export const M6_BETA1_RECOVERY2_EXPECTED = Object.freeze([
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/chrome-smoke.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+]);
+export const M6_BETA1_RECOVERY2_ARTIFACT_SHA256 = Object.freeze({
+  ...M6_BETA1_ARTIFACT_SHA256,
+  "scripts/chrome-smoke.mjs": "4bfacb25d1a77a1d1d0a3c23d12c6a7563686e27b91cec05ba41a7957d877dd9",
+});
 export function validateM6P5Artifacts(artifactBytes = {}, expectedDigests = M6_P5_ARTIFACT_SHA256) {
   const expectedPaths = Object.keys(expectedDigests).sort();
   if (JSON.stringify(Object.keys(artifactBytes).sort()) !== JSON.stringify(expectedPaths)) throw new Error("M6 P5 artifact inventory changed");
@@ -271,6 +283,12 @@ export function matchesM6Beta1RecoveryHead({ head, parent, rows = [] } = {}) {
   return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent &&
     parent === M6_BETA1_COMMIT &&
     JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_BETA1_RECOVERY_EXPECTED));
+}
+
+export function matchesM6Beta1Recovery2Head({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent &&
+    parent === M6_BETA1_RECOVERY_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_BETA1_RECOVERY2_EXPECTED));
 }
 
 function canonicalM6Value(value) {
@@ -411,6 +429,7 @@ export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [
     matchesM6NoSlopUiHead({ head, parent, rows }) ||
     matchesM6Beta1Head({ head, parent, rows }) ||
     matchesM6Beta1RecoveryHead({ head, parent, rows }) ||
+    matchesM6Beta1Recovery2Head({ head, parent, rows }) ||
     matchesM6Beta1AuthorizationHead({ head, parent, rows }) ||
     matchesM6ProtocolRecovery({ head, parent, rows }) ||
     matchesM6MaterializerRecovery({ head, parent, rows }) ||

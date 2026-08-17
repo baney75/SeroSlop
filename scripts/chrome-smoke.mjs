@@ -2,7 +2,7 @@
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright-core";
@@ -349,11 +349,15 @@ try {
     observedProgress.renderCount < 3) {
     throw new Error(`Setup progress history was not determinate: ${JSON.stringify(observedProgress)}`);
   }
-  // GitHub's Xvfb/Chromium runner can take more than Playwright's 30-second
-  // default to encode this first post-model full-page frame. Keep the visual
-  // assertion and artifact; only give the screenshot operation enough time.
-  await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}.png`), fullPage: true, timeout: 120_000 });
   setupVisualEvidence = await captureUiMatrix(setup, "setup");
+  // The matrix already captures the ready state at four widths in both themes.
+  // Reuse its 375px light image for the legacy artifact name instead of asking
+  // Chromium/Xvfb to encode a redundant full-page frame before the viewport is
+  // initialized for visual evidence.
+  await copyFile(
+    path.join(artifactsPath, `setup-${expectedProvider}-light-375.png`),
+    path.join(artifactsPath, `setup-${expectedProvider}.png`),
+  );
   stage("setup initial-status failure recovery");
   const failureSetup = await context.newPage();
   await failureSetup.addInitScript(() => {

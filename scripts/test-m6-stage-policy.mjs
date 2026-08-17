@@ -37,6 +37,9 @@ import {
   M6_BETA1_COMMIT,
   M6_BETA1_RECOVERY_EXPECTED,
   M6_BETA1_RECOVERY_ARTIFACT_SHA256,
+  M6_BETA1_RECOVERY_COMMIT,
+  M6_BETA1_RECOVERY2_EXPECTED,
+  M6_BETA1_RECOVERY2_ARTIFACT_SHA256,
   M6_BETA1_AUTHORIZATION_PATH,
   M6_BETA1_AUTHORIZATION_STATUS,
   canonicalM6Json,
@@ -47,6 +50,7 @@ import {
   matchesM6NoSlopUiHead,
   matchesM6Beta1Head,
   matchesM6Beta1RecoveryHead,
+  matchesM6Beta1Recovery2Head,
   matchesM6Beta1AuthorizationHead,
   validateM6Beta1Authorization,
   validateM6P5Artifacts,
@@ -101,8 +105,15 @@ assert.equal(matchesM6Beta1RecoveryHead({ head: "7".repeat(40), parent: M6_BETA1
 assert.equal(matchesM6Beta1RecoveryHead({ head: "7".repeat(40), parent: M6_NO_SLOP_UI_COMMIT, rows: beta1RecoveryRows }), false);
 assert.equal(matchesM6Beta1RecoveryHead({ head: "7".repeat(40), parent: M6_BETA1_COMMIT, rows: beta1RecoveryRows.slice(1) }), false);
 assert.equal(matchesM6Beta1RecoveryHead({ head: "7".repeat(40), parent: M6_BETA1_COMMIT, rows: [...beta1RecoveryRows, ["extra", "M"]] }), false);
-const beta1RecoveryArtifacts = Object.fromEntries(Object.keys(M6_BETA1_RECOVERY_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+const beta1RecoveryArtifacts = Object.fromEntries(Object.keys(M6_BETA1_RECOVERY_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_BETA1_RECOVERY_COMMIT}:${path}`])]));
 assert.equal(validateM6P5Artifacts(beta1RecoveryArtifacts, M6_BETA1_RECOVERY_ARTIFACT_SHA256), true);
+const beta1Recovery2Rows = M6_BETA1_RECOVERY2_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6Beta1Recovery2Head({ head: "8".repeat(40), parent: M6_BETA1_RECOVERY_COMMIT, rows: beta1Recovery2Rows }), true);
+assert.equal(matchesM6Beta1Recovery2Head({ head: "8".repeat(40), parent: M6_BETA1_COMMIT, rows: beta1Recovery2Rows }), false);
+assert.equal(matchesM6Beta1Recovery2Head({ head: "8".repeat(40), parent: M6_BETA1_RECOVERY_COMMIT, rows: beta1Recovery2Rows.slice(1) }), false);
+assert.equal(matchesM6Beta1Recovery2Head({ head: "8".repeat(40), parent: M6_BETA1_RECOVERY_COMMIT, rows: [...beta1Recovery2Rows, ["extra", "M"]] }), false);
+const beta1Recovery2Artifacts = Object.fromEntries(Object.keys(M6_BETA1_RECOVERY2_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+assert.equal(validateM6P5Artifacts(beta1Recovery2Artifacts, M6_BETA1_RECOVERY2_ARTIFACT_SHA256), true);
 assert.equal(matchesM6Beta1AuthorizationHead({ head: "5".repeat(40), parent: "4".repeat(40), rows: [[M6_BETA1_AUTHORIZATION_PATH, "A"]] }), true);
 assert.equal(matchesM6Beta1AuthorizationHead({ head: "5".repeat(40), parent: "4".repeat(40), rows: [[M6_BETA1_AUTHORIZATION_PATH, "M"]] }), false);
 const beta1SourcePathMap = Object.fromEntries(M6_BETA1_EXPECTED.map(([path]) => [path, "a".repeat(64)]));
