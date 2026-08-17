@@ -129,3 +129,16 @@ CI recovery changes no transform, view, data, model, threshold, quota, or paid
 boundary. It hashes a canonical domain-tagged width/height/RGB payload instead,
 then updates only the lineage checker and this explanation. P6 remains blocked
 until that exact recovery child is public-green.
+## P8 frontier adapters
+
+P8 adds fail-closed, local-cache adapters for AIGenImages2026, X-AIGD, and
+Nano-Banana. The public adapter interface accepts only `--cache-root`,
+`--output`, and a source selector; it does not accept caller metadata, rows,
+or image bytes. Each adapter reopens the pinned physical container itself,
+binds decoded image facts to source/card/container evidence, atomically writes
+canonical receipts, and strictly reopens those receipts before returning.
+
+P8 is still publisher-assertion-only and unverified. No source lock, training,
+rights, commercial-use, or acceptance authority is implied. AIGen is streamed
+without extraction; X-AIGD and Nano-Banana read embedded Parquet image bytes.
+The large source runs are intentionally not part of this repository’s tests.

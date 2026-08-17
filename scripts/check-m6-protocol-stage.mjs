@@ -106,6 +106,11 @@ import {
   validateM6P7Authorization,
   matchesM6P7Head,
   validateM6P7Protocol,
+  M6_P8_PARENT,
+  M6_P8_STATUS,
+  M6_P8_PROTOCOL_PATH,
+  matchesM6P8Head,
+  validateM6P8Protocol,
 } from "./m6-stage-policy.mjs";
 
 const git = (args) => m5Git(args);
@@ -117,6 +122,15 @@ const rowsOf = (commit) => git([
   const [status, path] = line.split("\t");
   return { path, status };
 });
+const currentHead = git(["rev-parse", "HEAD"]);
+const currentParents = parentsOf(currentHead);
+const currentRows = rowsOf(currentHead).map(({ path, status }) => [path, status]);
+// P8 status: p8-frontier-adapters-unverified (adapter code only; no authority).
+if (currentParents.length === 1 && currentParents[0] === M6_P8_PARENT && matchesM6P8Head({ head: currentHead, parent: currentParents[0], rows: currentRows })) {
+  validateM6P8Protocol(m5GitBytes(["show", `${currentHead}:${M6_P8_PROTOCOL_PATH}`]));
+  console.log(JSON.stringify({ status: M6_P8_STATUS, head: currentHead, parent: currentParents[0], rows: currentRows }));
+  process.exit(0);
+}
 async function githubJson(url) {
   const response = await fetch(url, { headers: { Accept: "application/vnd.github+json", "User-Agent": "prooflens-p6-verifier" }, signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error(`GitHub API ${response.status}: ${url}`);

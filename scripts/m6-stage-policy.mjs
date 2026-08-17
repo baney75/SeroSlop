@@ -63,6 +63,26 @@ export function validateM6P7Protocol(bytes) {
   if (value.schemaVersion !== 1 || value.status !== "p7-phase1-taste-unverified" || value.parentCommit !== M6_P7_PARENT || value.parentTree !== M6_P7_PARENT_TREE || value.claims?.trainingAuthorized !== false || value.claims?.acceptanceEligible !== false) throw new Error("P7 protocol semantics changed");
   return true;
 }
+export const M6_P8_PARENT = "6fc4422327a9c6c40963ff1a57e62baa94511f1f";
+export const M6_P8_STATUS = "p8-frontier-adapters-unverified";
+export const M6_P8_PROTOCOL_PATH = "benchmark/m6/p8-protocol.json";
+export const M6_P8_PROTOCOL_SHA256 = "2f95f93232219b9eb3c9afe98b50188c3c889309f0526f0fd05ba14e80b978b7";
+export const M6_P8_EXPECTED = Object.freeze([
+  ["benchmark/m6/README.md","M"],["benchmark/m6/p7_operational.py","M"],["benchmark/m6/test_p7_operational.py","M"],[M6_P8_PROTOCOL_PATH,"A"],
+  ["scripts/check-m6-protocol-stage.mjs","M"],["scripts/m6-stage-policy.mjs","M"],["scripts/run-static-verification.mjs","M"],["scripts/test-m6-stage-policy.mjs","M"]
+]);
+export function matchesM6P8Head({head,parent,rows=[]}={}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent && parent === M6_P8_PARENT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_P8_EXPECTED));
+}
+export function validateM6P8Protocol(bytes) {
+  const text=Buffer.from(bytes).toString("utf8"); rejectDuplicateKeys(text); const value=JSON.parse(text);
+  if (text !== canonicalM6Json(value)) throw new Error("P8 protocol is not canonical");
+  if (!text.endsWith("\n") || createHash("sha256").update(Buffer.from(bytes)).digest("hex") !== M6_P8_PROTOCOL_SHA256) throw new Error("P8 protocol bytes changed or noncanonical");
+  const claims=value.claims;
+  if (value.schemaVersion!==1 || value.status!==M6_P8_STATUS || value.parentCommit!==M6_P8_PARENT || Object.keys(value).length!==5 || Object.keys(claims ?? {}).length!==8 || !Object.values(claims ?? {}).every((value) => value === false)) throw new Error("P8 protocol boundary changed");
+  return true;
+}
 export const M6_PROTOCOL_RECOVERY_EXPECTED = Object.freeze([
   ["benchmark/m6/README.md", "M"],
   ["benchmark/m6/contracts.py", "M"],
@@ -629,7 +649,7 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 }
 
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
-  return matchesM6P7AuthorizationHead({ head, parent, rows }) || matchesM6P7RHead({ head, parent, rows }) || matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
+  return matchesM6P8Head({ head, parent, rows }) || matchesM6P7AuthorizationHead({ head, parent, rows }) || matchesM6P7RHead({ head, parent, rows }) || matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
     isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||

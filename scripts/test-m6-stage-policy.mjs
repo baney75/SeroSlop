@@ -63,6 +63,8 @@ import {
   matchesM6P7RHead,
   matchesM6P7AuthorizationHead,
   validateM6P7Authorization,
+  M6_P8_PARENT, M6_P8_EXPECTED, M6_P8_PROTOCOL_SHA256,
+  matchesM6P8Head, validateM6P8Protocol,
   M6_P6_EXPECTED,
   M6_P6_ARTIFACT_SHA256,
   matchesM6P6Head,
@@ -316,5 +318,12 @@ const p7Duplicate = canonicalM6Json(p7Auth).replace('{"acceptanceEligible":false
 assert.throws(() => validateM6P7Authorization(Buffer.from(p7Duplicate), p7Args), /duplicate/);
 assert.equal(checkerSource.includes("authorize-p7"), true);
 assert.equal(checkerSource.includes("p7-phase1-taste-authorization-created"), true);
+const p8Rows = M6_P8_EXPECTED.map(([path,status]) => [path,status]);
+assert.equal(matchesM6P8Head({head:"a".repeat(40), parent:M6_P8_PARENT, rows:p8Rows}), true);
+assert.equal(matchesM6P8Head({head:"a".repeat(40), parent:"0".repeat(40), rows:p8Rows}), false);
+assert.equal(matchesM6P8Head({head:"a".repeat(40), parent:M6_P8_PARENT, rows:p8Rows.slice(1)}), false);
+assert.equal(createHash("sha256").update(readFileSync("benchmark/m6/p8-protocol.json")).digest("hex"), M6_P8_PROTOCOL_SHA256);
+assert.equal(validateM6P8Protocol(readFileSync("benchmark/m6/p8-protocol.json")), true);
+assert.equal(checkerSource.includes("p8-frontier-adapters-unverified"), true);
 assert.equal(m5GitBytes(["rev-parse", "285bc3eefcaff35a6ae8a6cc9b23b2d0abdd4f90^{tree}"]).toString("utf8").trim(), "2457bb455d05fcef86aee07fb0c38cccd6ba289e");
 console.log("M6 stage policy PASS");
