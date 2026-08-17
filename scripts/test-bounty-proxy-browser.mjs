@@ -5,11 +5,13 @@ import {
   canonicalJson,
   computeMetrics,
   DISPLAY_THRESHOLD,
+  MAX_SNAPSHOT_EDGE,
   MODEL_SHA256,
   PUBLIC_REPOSITORY,
   PUBLIC_REPOSITORY_URL,
   publicCiProof,
   RAW_PROBABILITY_THRESHOLD,
+  renderedPixelsUrl,
   rawProbability,
   TASTE_GROUPS,
 } from "./bounty-proxy-browser.mjs";
@@ -19,6 +21,10 @@ assert.equal(CALIBRATION_INTERCEPT, 1.6126519746720926);
 assert.equal(MODEL_SHA256, "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47");
 assert.equal(PUBLIC_REPOSITORY, "baney75/SeroSlop");
 assert.equal(PUBLIC_REPOSITORY_URL, "https://github.com/baney75/SeroSlop");
+const productSource = readFileSync("src/content.ts", "utf8");
+const productEdgeMatch = productSource.match(/const MAX_SNAPSHOT_EDGE = ([\d_]+);/u);
+assert.ok(productEdgeMatch);
+assert.equal(MAX_SNAPSHOT_EDGE, Number(productEdgeMatch[1].replaceAll("_", "")));
 assert.ok(Math.abs(rawProbability(DISPLAY_THRESHOLD) - RAW_PROBABILITY_THRESHOLD) < 1e-15);
 assert.equal(canonicalJson({ z: 1, a: { y: 2, b: 3 } }), '{"a":{"b":3,"y":2},"z":1}\n');
 assert.throws(() => canonicalJson({ score: Number.NaN }), /nonfinite/u);
@@ -60,6 +66,7 @@ assert.deepEqual(publicCiProof(ciRun, "a".repeat(40)), {
 });
 assert.throws(() => publicCiProof({ ...ciRun, head_sha: "b".repeat(40) }, "a".repeat(40)), /exact successful Quality/u);
 assert.throws(() => publicCiProof({ ...ciRun, html_url: "https://github.com/baney75/prooflens/actions/runs/123" }, "a".repeat(40)), /exact successful Quality/u);
+assert.equal(typeof renderedPixelsUrl, "function");
 
 const source = readFileSync("scripts/bounty-proxy-browser.mjs", "utf8");
 for (const pattern of [
@@ -76,8 +83,11 @@ for (const pattern of [
   /publicRemoteUrl/u,
   /publicMainSha/u,
   /publicCi/u,
+  /MAX_SNAPSHOT_EDGE = 1024/u,
+  /imageSmoothingQuality = "high"/u,
+  /product-rendered pixels exceed the local image budget/u,
   /proxyThresholdCleared/u,
   /bountyAcceptanceClaimed: false/u,
 ]) assert.match(source, pattern);
 
-console.log(JSON.stringify({ cases: 28, policy: "pass" }));
+console.log(JSON.stringify({ cases: 32, policy: "pass" }));

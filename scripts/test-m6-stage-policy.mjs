@@ -70,8 +70,10 @@ import {
   M6_SUBMISSION_PROXY_LOCK_STATUS, M6_SUBMISSION_PROXY_S_COMMIT, M6_SUBMISSION_PROXY_S_TREE,
   M6_SUBMISSION_PROXY_S_ROWS, M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256,
   M6_SUBMISSION_PROXY_R_COMMIT, M6_SUBMISSION_PROXY_R_TREE, M6_SUBMISSION_PROXY_R_EXPECTED,
-  M6_SUBMISSION_PROXY_R_STATUS, M6_SUBMISSION_PROXY_R2_EXPECTED, M6_SUBMISSION_PROXY_R2_STATUS,
-  M6_SUBMISSION_PROXY_R2_ARTIFACT_SHA256, matchesM6SubmissionProxyRHead, matchesM6SubmissionProxyR2Head,
+  M6_SUBMISSION_PROXY_R_STATUS, M6_SUBMISSION_PROXY_R2_COMMIT, M6_SUBMISSION_PROXY_R2_TREE,
+  M6_SUBMISSION_PROXY_R2_EXPECTED, M6_SUBMISSION_PROXY_R2_STATUS, M6_SUBMISSION_PROXY_R2_ARTIFACT_SHA256,
+  M6_SUBMISSION_PROXY_R3_EXPECTED, M6_SUBMISSION_PROXY_R3_STATUS, M6_SUBMISSION_PROXY_R3_ARTIFACT_SHA256,
+  matchesM6SubmissionProxyRHead, matchesM6SubmissionProxyR2Head, matchesM6SubmissionProxyR3Head,
   M6_P6_EXPECTED,
   M6_P6_ARTIFACT_SHA256,
   matchesM6P6Head,
@@ -389,6 +391,18 @@ assert.deepEqual(Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_R2_ARTIFACT_
   path,
   createHash("sha256").update(readFileSync(path)).digest("hex"),
 ])), M6_SUBMISSION_PROXY_R2_ARTIFACT_SHA256);
+assert.equal(m5GitBytes(["rev-parse", `${M6_SUBMISSION_PROXY_R2_COMMIT}^{tree}`]).toString("utf8").trim(), M6_SUBMISSION_PROXY_R2_TREE);
+assert.equal(m5GitBytes(["rev-parse", `${M6_SUBMISSION_PROXY_R2_COMMIT}^`]).toString("utf8").trim(), M6_SUBMISSION_PROXY_R_COMMIT);
+const submissionProxyRenderRecoveryRows = M6_SUBMISSION_PROXY_R3_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(M6_SUBMISSION_PROXY_R3_STATUS, "m2-bounty-proxy-render-path-recovery-ready");
+assert.equal(matchesM6SubmissionProxyR3Head({ head: "f".repeat(40), parent: M6_SUBMISSION_PROXY_R2_COMMIT, rows: submissionProxyRenderRecoveryRows }), true);
+assert.equal(matchesM6SubmissionProxyR3Head({ head: "f".repeat(40), parent: M6_SUBMISSION_PROXY_R_COMMIT, rows: submissionProxyRenderRecoveryRows }), false);
+assert.equal(matchesM6SubmissionProxyR3Head({ head: "f".repeat(40), parent: M6_SUBMISSION_PROXY_R2_COMMIT, rows: submissionProxyRenderRecoveryRows.slice(1) }), false);
+assert.equal(matchesM6SubmissionProxyR3Head({ head: "f".repeat(40), parent: M6_SUBMISSION_PROXY_R2_COMMIT, rows: [...submissionProxyRenderRecoveryRows, ["extra", "A"]] }), false);
+assert.deepEqual(Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_R3_ARTIFACT_SHA256).map((path) => [
+  path,
+  createHash("sha256").update(readFileSync(path)).digest("hex"),
+])), M6_SUBMISSION_PROXY_R3_ARTIFACT_SHA256);
 assert.deepEqual(Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256).map((path) => [
   path,
   createHash("sha256").update(m5GitBytes(["show", `${M6_SUBMISSION_PROXY_S_COMMIT}:${path}`])).digest("hex"),
@@ -403,6 +417,7 @@ assert.equal(checkerSource.includes("submission proxy manifest is not score-blin
 const staticRouter = readFileSync("scripts/run-static-verification.mjs", "utf8");
 assert.equal(staticRouter.includes("matchesM6SubmissionProxyRHead"), true);
 assert.equal(staticRouter.includes("matchesM6SubmissionProxyR2Head"), true);
+assert.equal(staticRouter.includes("matchesM6SubmissionProxyR3Head"), true);
 assert.equal(staticRouter.includes('npm", ["run", "verify:submission-proxy"]'), true);
 assert.equal(m5GitBytes(["rev-parse", "285bc3eefcaff35a6ae8a6cc9b23b2d0abdd4f90^{tree}"]).toString("utf8").trim(), "2457bb455d05fcef86aee07fb0c38cccd6ba289e");
 console.log("M6 stage policy PASS");

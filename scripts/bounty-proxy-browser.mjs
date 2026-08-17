@@ -1,4 +1,4 @@
-/* global AbortSignal, clearInterval, fetch, setInterval */
+/* global AbortSignal, clearInterval, document, fetch, Image, setInterval */
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
@@ -38,6 +38,8 @@ const DEFAULT_EVIDENCE_ROOT = path.join(REPOSITORY_ROOT, "benchmark/evidence/bou
 const H3_ROOT = path.join(REPOSITORY_ROOT, "benchmark/data/h3-met-holdout-v1");
 const TASTE_ROOT = path.join(REPOSITORY_ROOT, "benchmark/data/m6-frontier-cache/taste");
 const EXTENSION_ROOT = path.join(REPOSITORY_ROOT, "dist");
+const MAX_LOCAL_IMAGE_CHARACTERS = 8 * 1024 * 1024;
+export const MAX_SNAPSHOT_EDGE = 1024;
 const PUBLIC_ORIGIN_URLS = new Set([
   `${PUBLIC_REPOSITORY_URL}.git`,
   `git@github.com:${PUBLIC_REPOSITORY}.git`,
@@ -298,6 +300,29 @@ function mimeFor(file) {
   return "image/jpeg";
 }
 
+export async function renderedPixelsUrl(page, bytes, mime) {
+  const original = `data:${mime};base64,${bytes.toString("base64")}`;
+  const rendered = await page.evaluate(async ({ edge, url }) => {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const scale = Math.min(1, edge / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("2D canvas is unavailable");
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png");
+  }, { edge: MAX_SNAPSHOT_EDGE, url: original });
+  if (!rendered.startsWith("data:image/png") || rendered.length > MAX_LOCAL_IMAGE_CHARACTERS) {
+    throw new Error("product-rendered pixels exceed the local image budget");
+  }
+  return rendered;
+}
+
 async function fsyncDirectory(directory) {
   const handle = await open(directory, "r");
   try {
@@ -405,6 +430,7 @@ async function score(evidenceRoot = DEFAULT_EVIDENCE_ROOT) {
         const physical = await physicalFile(fixedRoot, input.path);
         const bytes = await readFile(physical.path);
         if (physical.bytes !== input.bytes || sha256(bytes) !== input.sha256) throw new Error(`input changed after verification: ${row.id}`);
+        const renderedUrl = await renderedPixelsUrl(page, bytes, mimeFor(input.path));
         const requestId = randomUUID();
         const response = await page.evaluate(
           async ({ id, url }) => chrome.runtime.sendMessage({
@@ -412,7 +438,7 @@ async function score(evidenceRoot = DEFAULT_EVIDENCE_ROOT) {
             requestId: id,
             source: { kind: "rendered-pixels", url },
           }),
-          { id: requestId, url: `data:${mimeFor(input.path)};base64,${bytes.toString("base64")}` },
+          { id: requestId, url: renderedUrl },
         );
         if (!response?.ok || response.requestId !== requestId || !response.result ||
             !Number.isFinite(response.result.aiLikelihood) || typeof response.result.provider !== "string") {
