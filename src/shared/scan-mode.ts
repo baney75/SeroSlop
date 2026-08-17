@@ -4,17 +4,17 @@ export type ScanMode = (typeof SCAN_MODES)[number];
 export const SCAN_MODE_COPY: Record<ScanMode, { title: string; description: string; action: string }> = {
   pick: {
     title: "Choose an image",
-    description: "Pick one image when you want a score.",
+    description: "Select one visible supported image. Nothing scans until you choose it.",
     action: "Choose image",
   },
   main: {
     title: "Main images",
-    description: "Scan images in the page’s main content.",
+    description: "Scan supported images in the main content. Headers, navigation, sidebars, and footers are excluded.",
     action: "Re-scan main images",
   },
   all: {
     title: "Every image",
-    description: "Scan all supported page images.",
+    description: "Scan every supported visible image on this page.",
     action: "Re-scan every image",
   },
 };

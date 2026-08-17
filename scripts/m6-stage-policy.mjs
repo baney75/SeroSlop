@@ -258,6 +258,90 @@ export function matchesM6SubmissionProxyResultRecoveryHead({ head, parent, rows 
     parent === M6_SUBMISSION_PROXY_RESULT_COMMIT &&
     JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_SUBMISSION_PROXY_RESULT_RECOVERY_EXPECTED));
 }
+export const M6_SUBMISSION_RELEASE_PARENT = "4c99b0af6e597120a41922d70ec24179c7f37670";
+export const M6_SUBMISSION_RELEASE_PARENT_TREE = "58cedc37b52ee5cabb2d9d8277368290d785b386";
+export const M6_SUBMISSION_RELEASE_STATUS = "m2-submission-release-candidate-unverified";
+export const M6_SUBMISSION_RELEASE_EXPECTED = Object.freeze([
+  [".github/workflows/pages.yml", "M"],
+  [".github/workflows/release.yml", "A"],
+  ["DESIGN.md", "M"],
+  ["PRIVACY.md", "M"],
+  ["README.md", "M"],
+  ["docs/images/README.md", "A"],
+  ["docs/images/seroslop-mobile-install.png", "A"],
+  ["docs/images/seroslop-modes.png", "A"],
+  ["docs/images/seroslop-results.png", "A"],
+  ["package.json", "M"],
+  ["scripts/check-bounty-proxy-results.mjs", "M"],
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/check-site.mjs", "M"],
+  ["scripts/chrome-smoke.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/prepare-release-assets.mjs", "A"],
+  ["scripts/prepare-store-assets.mjs", "A"],
+  ["scripts/run-static-verification.mjs", "M"],
+  ["scripts/test-bounty-proxy-results.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+  ["scripts/test-prepare-release-assets.mjs", "A"],
+  ["site/index.html", "M"],
+  ["site/privacy.html", "A"],
+  ["site/styles.css", "M"],
+  ["src/background.ts", "M"],
+  ["src/content.ts", "M"],
+  ["src/shared/context-menu.ts", "A"],
+  ["src/shared/scan-mode.ts", "M"],
+  ["src/static/manifest.json", "M"],
+  ["src/static/popup.html", "M"],
+  ["src/static/setup.html", "M"],
+  ["store/README.md", "A"],
+  ["store/assets/README.json", "A"],
+  ["store/assets/marquee-1400x560.png", "A"],
+  ["store/assets/screenshot-modes-1280x800.png", "A"],
+  ["store/assets/small-promo-440x280.png", "A"],
+  ["tests/context-menu.test.ts", "A"],
+  ["tests/manifest.test.ts", "M"],
+]);
+export const M6_SUBMISSION_RELEASE_ARTIFACT_SHA256 = Object.freeze({
+  ".github/workflows/pages.yml": "b84d7f4b706fef412225a0b056da823d03e78ac110f14a5dc4b38594ac50e3eb",
+  ".github/workflows/release.yml": "df460fe8569749fc7a3b446c173d5728dc35c9226f012854f2207e712e9168c4",
+  "DESIGN.md": "ca1afa871bf8d746763dca6d699bd0c76b50715a9ed115699ee524b1bf81f998",
+  "PRIVACY.md": "bcef4a0bd8629dbfa65e08ec5078404376959c1be8bfa00cb112f9ee39a04280",
+  "README.md": "7a5207617bea4839e9a5ffbd5d94e52f756a1b3b8eef76329c55e0351afda31c",
+  "docs/images/README.md": "0320758c273e3bdc8fe723120d86e54eda7afe127705eae4857a7112dd32814b",
+  "docs/images/seroslop-mobile-install.png": "681f5d48ca8b7d9d0129829162b8071de009b9d940a2f10f9de7f42fed4d8739",
+  "docs/images/seroslop-modes.png": "75aee837babcc44aab4cdbf61cba3be2323c86c51bd0fbf4da34006d0075328c",
+  "docs/images/seroslop-results.png": "d6888c0c9cfc31685c28d3bb96c6135627f93a54b2698f826f31e5a77e541ac7",
+  "package.json": "64475bf7363f188744509443ac553f157bd2a24b78cb93e46ff413c2c35357b7",
+  "scripts/check-bounty-proxy-results.mjs": "2c5018ac9cc192605878048b5e6cf958d9eee2cf2bdada4b5a0334037e5b4c4c",
+  "scripts/check-site.mjs": "e93aec365bd3bc070faab8da172e86c5b7ba83eca698af9467e1424b7d561f22",
+  "scripts/chrome-smoke.mjs": "087f2203c7e144e1c9056d5d2be2f1194d553fb74b3d0eedd21ffd2ad235091c",
+  "scripts/prepare-release-assets.mjs": "0e448a116b56509d68e2fc3dad3c6bb0d603fbc3f7b63c5b0bf77cecf6478464",
+  "scripts/prepare-store-assets.mjs": "cec93ee91418bcba7929061cafa6052e39acecd93c2c827a6959e902f0829df6",
+  "scripts/test-bounty-proxy-results.mjs": "071a3efdf1ae4a512750ebdf6fdac101970ae33998161e4ba647818a3e091054",
+  "scripts/test-prepare-release-assets.mjs": "b013d092b5300ca7b1de52641e7da3f0683dadbd3ee66806b49309cc58de6183",
+  "site/index.html": "586543c28dca3725ecde7e2a89126f54705b30fc35329bb949cfb1c1ea601dd2",
+  "site/privacy.html": "bd59fd2ac9bfb016de8698818c86a9ca53b1550b18594e990de514fe2dc33df9",
+  "site/styles.css": "5b2725cb9a71092cd0011d9b8df94fda4249d799ebb6e8fde87adac52293633c",
+  "src/background.ts": "b3a66e098b5aa6c8cc1caf154173f6c75840364fa8d22044bb75cd76bb6feca0",
+  "src/content.ts": "d10234f77539e570aa9174a4bfe0eead58b6f9956247f6b6cc594e07a2cd5fd7",
+  "src/shared/context-menu.ts": "6541644acb8c3ab57c9f0a2221eb3beea8421ea68708b9351c1df3cce5a91351",
+  "src/shared/scan-mode.ts": "35bd95bd2777d160bebe844089116e9ea4c41063f6af38344b2e351b40dec9ba",
+  "src/static/manifest.json": "831f0eb02f679cd5fb0a4c834b585b749747a794d3b8a69dcf4f7116fe6a49ce",
+  "src/static/popup.html": "59bb3673a13307aa2c48a90ecbe514aa70dfa7807a99dafcf7aa9769947a2add",
+  "src/static/setup.html": "f6f94a7b4879ed5902c1502cfead865d0916aa7f74f6d1cab1fa1a9ab3657293",
+  "store/README.md": "c45ed60c653f5e65c470e5f4e82423cf909d784c3c5fc1f544307ed12116da6e",
+  "store/assets/README.json": "564ae5205c92a51e41a7ecd8baeb3ee1bb85371c7abdc02c54dd1356c6fa314f",
+  "store/assets/marquee-1400x560.png": "1289a9f93fd20f0fcac3f8f0a5b1f3f939b9802156c83381439a9e93133a7079",
+  "store/assets/screenshot-modes-1280x800.png": "416b85832a83f87e6b92d386042bc98c37ea0761c867283fe53c35a7ec530452",
+  "store/assets/small-promo-440x280.png": "ca3ec824bd3b8a2cec22085bd0b5835ff7681a5a88e107d11887b5c4eae5a5ae",
+  "tests/context-menu.test.ts": "491d5df54dd94c0859909b0a9072cccb35b55e397e636772ce623a367dbc958d",
+  "tests/manifest.test.ts": "280edcfe9bbc6a0202c9fbce4878a89d79452924882d4bb0ede50b8bce0c5dc9",
+});
+export function matchesM6SubmissionReleaseHead({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent &&
+    parent === M6_SUBMISSION_RELEASE_PARENT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_SUBMISSION_RELEASE_EXPECTED));
+}
 export const M6_PROTOCOL_RECOVERY_EXPECTED = Object.freeze([
   ["benchmark/m6/README.md", "M"],
   ["benchmark/m6/contracts.py", "M"],
@@ -824,7 +908,7 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 }
 
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
-  return matchesM6SubmissionProxyResultRecoveryHead({ head, parent, rows }) || matchesM6SubmissionProxyResultHead({ head, parent, rows }) || matchesM6SubmissionProxyR3Head({ head, parent, rows }) || matchesM6SubmissionProxyR2Head({ head, parent, rows }) || matchesM6SubmissionProxyRHead({ head, parent, rows }) || matchesM6P8AuthorizationHead({ head, parent, rows }) || matchesM6P8RHead({ head, parent, rows }) || matchesM6P8Head({ head, parent, rows }) || matchesM6P7AuthorizationHead({ head, parent, rows }) || matchesM6P7RHead({ head, parent, rows }) || matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
+  return matchesM6SubmissionReleaseHead({ head, parent, rows }) || matchesM6SubmissionProxyResultRecoveryHead({ head, parent, rows }) || matchesM6SubmissionProxyResultHead({ head, parent, rows }) || matchesM6SubmissionProxyR3Head({ head, parent, rows }) || matchesM6SubmissionProxyR2Head({ head, parent, rows }) || matchesM6SubmissionProxyRHead({ head, parent, rows }) || matchesM6P8AuthorizationHead({ head, parent, rows }) || matchesM6P8RHead({ head, parent, rows }) || matchesM6P8Head({ head, parent, rows }) || matchesM6P7AuthorizationHead({ head, parent, rows }) || matchesM6P7RHead({ head, parent, rows }) || matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
     isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||

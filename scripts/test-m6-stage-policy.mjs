@@ -79,6 +79,8 @@ import {
   M6_SUBMISSION_PROXY_RESULT_COMMIT, M6_SUBMISSION_PROXY_RESULT_TREE,
   M6_SUBMISSION_PROXY_RESULT_RECOVERY_STATUS, M6_SUBMISSION_PROXY_RESULT_RECOVERY_EXPECTED,
   M6_SUBMISSION_PROXY_RESULT_RECOVERY_ARTIFACT_SHA256,
+  M6_SUBMISSION_RELEASE_PARENT, M6_SUBMISSION_RELEASE_PARENT_TREE, M6_SUBMISSION_RELEASE_STATUS,
+  M6_SUBMISSION_RELEASE_EXPECTED, M6_SUBMISSION_RELEASE_ARTIFACT_SHA256, matchesM6SubmissionReleaseHead,
   matchesM6SubmissionProxyRHead, matchesM6SubmissionProxyR2Head, matchesM6SubmissionProxyR3Head,
   matchesM6SubmissionProxyResultHead, matchesM6SubmissionProxyResultRecoveryHead,
   M6_P6_EXPECTED,
@@ -421,7 +423,7 @@ assert.equal(matchesM6SubmissionProxyResultHead({ head: "a".repeat(40), parent: 
 assert.equal(matchesM6SubmissionProxyResultHead({ head: "a".repeat(40), parent: M6_SUBMISSION_PROXY_R3_COMMIT, rows: submissionProxyResultRows.map(([path, status], index) => [path, index === 0 ? "A" : status]) }), false);
 assert.deepEqual(Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_RESULT_ARTIFACT_SHA256).map((path) => [
   path,
-  createHash("sha256").update(readFileSync(path)).digest("hex"),
+  createHash("sha256").update(m5GitBytes(["show", `${M6_SUBMISSION_PROXY_RESULT_COMMIT}:${path}`])).digest("hex"),
 ])), M6_SUBMISSION_PROXY_RESULT_ARTIFACT_SHA256);
 assert.equal(isM6ProtocolLineageHead({ head: "a".repeat(40), parent: M6_SUBMISSION_PROXY_R3_COMMIT, rows: submissionProxyResultRows }), true);
 assert.equal(m5GitBytes(["rev-parse", `${M6_SUBMISSION_PROXY_RESULT_COMMIT}^{tree}`]).toString("utf8").trim(), M6_SUBMISSION_PROXY_RESULT_TREE);
@@ -434,9 +436,21 @@ assert.equal(matchesM6SubmissionProxyResultRecoveryHead({ head: "b".repeat(40), 
 assert.equal(matchesM6SubmissionProxyResultRecoveryHead({ head: "b".repeat(40), parent: M6_SUBMISSION_PROXY_RESULT_COMMIT, rows: [...submissionProxyResultRecoveryRows, ["extra", "A"]] }), false);
 assert.deepEqual(Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_RESULT_RECOVERY_ARTIFACT_SHA256).map((path) => [
   path,
-  createHash("sha256").update(readFileSync(path)).digest("hex"),
+  createHash("sha256").update(m5GitBytes(["show", `${M6_SUBMISSION_RELEASE_PARENT}:${path}`])).digest("hex"),
 ])), M6_SUBMISSION_PROXY_RESULT_RECOVERY_ARTIFACT_SHA256);
 assert.equal(isM6ProtocolLineageHead({ head: "b".repeat(40), parent: M6_SUBMISSION_PROXY_RESULT_COMMIT, rows: submissionProxyResultRecoveryRows }), true);
+const submissionReleaseRows = M6_SUBMISSION_RELEASE_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(M6_SUBMISSION_RELEASE_STATUS, "m2-submission-release-candidate-unverified");
+assert.equal(m5GitBytes(["rev-parse", `${M6_SUBMISSION_RELEASE_PARENT}^{tree}`]).toString("utf8").trim(), M6_SUBMISSION_RELEASE_PARENT_TREE);
+assert.equal(matchesM6SubmissionReleaseHead({ head: "c".repeat(40), parent: M6_SUBMISSION_RELEASE_PARENT, rows: submissionReleaseRows }), true);
+assert.equal(matchesM6SubmissionReleaseHead({ head: "c".repeat(40), parent: M6_SUBMISSION_PROXY_RESULT_COMMIT, rows: submissionReleaseRows }), false);
+assert.equal(matchesM6SubmissionReleaseHead({ head: "c".repeat(40), parent: M6_SUBMISSION_RELEASE_PARENT, rows: submissionReleaseRows.slice(1) }), false);
+assert.equal(matchesM6SubmissionReleaseHead({ head: "c".repeat(40), parent: M6_SUBMISSION_RELEASE_PARENT, rows: [...submissionReleaseRows, ["extra", "A"]] }), false);
+assert.equal(matchesM6SubmissionReleaseHead({ head: "c".repeat(40), parent: M6_SUBMISSION_RELEASE_PARENT, rows: submissionReleaseRows.map(([path, status], index) => [path, index === 0 ? "A" : status]) }), false);
+assert.deepEqual(Object.fromEntries(Object.keys(M6_SUBMISSION_RELEASE_ARTIFACT_SHA256).map((path) => [
+  path,
+  createHash("sha256").update(readFileSync(path)).digest("hex"),
+])), M6_SUBMISSION_RELEASE_ARTIFACT_SHA256);
 assert.deepEqual(Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256).map((path) => [
   path,
   createHash("sha256").update(m5GitBytes(["show", `${M6_SUBMISSION_PROXY_S_COMMIT}:${path}`])).digest("hex"),
@@ -454,6 +468,8 @@ assert.equal(staticRouter.includes("matchesM6SubmissionProxyR2Head"), true);
 assert.equal(staticRouter.includes("matchesM6SubmissionProxyR3Head"), true);
 assert.equal(staticRouter.includes("matchesM6SubmissionProxyResultHead"), true);
 assert.equal(staticRouter.includes("matchesM6SubmissionProxyResultRecoveryHead"), true);
+assert.equal(staticRouter.includes("matchesM6SubmissionReleaseHead"), true);
+assert.equal(staticRouter.includes('npm", ["run", "verify:submission-release"]'), true);
 assert.equal(staticRouter.includes('npm", ["run", "verify:submission-proxy"]'), true);
 assert.equal(m5GitBytes(["rev-parse", "285bc3eefcaff35a6ae8a6cc9b23b2d0abdd4f90^{tree}"]).toString("utf8").trim(), "2457bb455d05fcef86aee07fb0c38cccd6ba289e");
 console.log("M6 stage policy PASS");

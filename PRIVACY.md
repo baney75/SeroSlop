@@ -15,6 +15,7 @@ SeroSlop has no analytics, telemetry, ads, user account, detector API, cloud inf
 
 | Permission | Reason |
 |---|---|
+| `contextMenus` | Adds **Analyze this image with SeroSlop** to an image's right-click menu. The action is bound to the exact image that received the trusted context-menu event and fails closed if the page, source, or element changes. |
 | `offscreen` | Chrome service workers have no DOM/canvas; an offscreen document decodes images and runs ONNX Runtime Web. |
 | `storage` | Saves per-origin enable/disable choices. |
 | `unlimitedStorage` | Holds the verified 87.4 MB model in extension-owned IndexedDB. |

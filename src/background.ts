@@ -11,6 +11,11 @@ import { MinimumIntervalGate } from "./shared/minimum-interval-gate";
 import { PageStatsStore } from "./shared/page-stats-store";
 import { captureForExactDocument } from "./shared/document-bound-capture";
 import { isScanMode, type ScanMode } from "./shared/scan-mode";
+import {
+  IMAGE_CONTEXT_MENU_ID,
+  IMAGE_CONTEXT_MENU_TITLE,
+  supportedContextPage,
+} from "./shared/context-menu";
 
 const OFFSCREEN_PATH = "offscreen.html";
 const MAX_INFERENCE_REQUESTS = 8;
@@ -153,6 +158,34 @@ async function disabledOrigins(): Promise<string[]> {
   return Array.isArray(stored.disabledOrigins) ? (stored.disabledOrigins as string[]) : [];
 }
 
+function installImageContextMenu(): void {
+  chrome.contextMenus.remove(IMAGE_CONTEXT_MENU_ID, () => {
+    void chrome.runtime.lastError;
+    chrome.contextMenus.create({
+      id: IMAGE_CONTEXT_MENU_ID,
+      title: IMAGE_CONTEXT_MENU_TITLE,
+      contexts: ["image"],
+      documentUrlPatterns: ["http://*/*", "https://*/*"],
+    }, () => { void chrome.runtime.lastError; });
+  });
+}
+
+async function analyzeContextImage(info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab): Promise<void> {
+  if (info.menuItemId !== IMAGE_CONTEXT_MENU_ID || info.mediaType !== "image" ||
+    !supportedContextPage(info.pageUrl) || tab?.id === undefined || typeof info.srcUrl !== "string") return;
+  const status = await offscreenMessage<ModelStatus>({ type: "PL_OFFSCREEN_STATUS" }).catch(() => undefined);
+  if (status?.state !== "ready") {
+    await chrome.tabs.create({ url: chrome.runtime.getURL("setup.html") });
+    return;
+  }
+  const response = await chrome.tabs.sendMessage(tab.id, {
+    type: "PL_ANALYZE_CONTEXT_IMAGE",
+    expectedUrl: info.pageUrl,
+    sourceUrl: info.srcUrl,
+  }, { frameId: info.frameId }).catch(() => undefined) as { started?: boolean } | undefined;
+  if (response?.started) await chrome.storage.local.set({ scanMode: "pick" });
+}
+
 async function notifyModelReady(): Promise<void> {
   const tabs = await chrome.tabs.query({});
   await Promise.all(
@@ -275,7 +308,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === "loading" || changeInfo.url !== undefined) pageStats.delete(tabId);
 });
 
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  void analyzeContextImage(info, tab);
+});
+
+chrome.runtime.onStartup.addListener(installImageContextMenu);
+
 chrome.runtime.onInstalled.addListener(({ reason }) => {
-  if (reason !== "install") return;
-  void chrome.tabs.create({ url: chrome.runtime.getURL("setup.html") });
+  installImageContextMenu();
+  if (reason === "install") void chrome.tabs.create({ url: chrome.runtime.getURL("setup.html") });
 });

@@ -226,9 +226,9 @@
             <p id="mode-intro" class="mode-intro">You can change this anytime from the extension.</p>
             <fieldset>
               <legend class="sr-only">Scanning mode</legend>
-              <label class="mode-option"><input type="radio" name="scan-mode" value="pick"><span><strong>Choose an image</strong><small>Pick one image when you want a score.</small></span></label>
-              <label class="mode-option"><input type="radio" name="scan-mode" value="main"><span><strong>Main images</strong><small>Scan images in the page’s main content.</small></span></label>
-              <label class="mode-option"><input type="radio" name="scan-mode" value="all"><span><strong>Every image</strong><small>Scan all supported page images.</small></span></label>
+              <label class="mode-option"><input type="radio" name="scan-mode" value="pick"><span><strong>Choose an image</strong><small>Select one visible supported image. Nothing scans until you choose it.</small></span></label>
+              <label class="mode-option"><input type="radio" name="scan-mode" value="main"><span><strong>Main images</strong><small>Scan supported images in the main content. Headers, navigation, sidebars, and footers are excluded.</small></span></label>
+              <label class="mode-option"><input type="radio" name="scan-mode" value="all"><span><strong>Every image</strong><small>Scan every supported visible image on this page.</small></span></label>
             </fieldset>
             <p id="mode-feedback" class="mode-feedback" role="status" aria-live="polite"></p>
             <button id="save-mode" type="button" disabled>Choose a mode</button>

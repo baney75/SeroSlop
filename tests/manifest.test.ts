@@ -17,6 +17,7 @@ describe("extension manifest", () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.background?.service_worker).toBe("background.js");
     expect(manifest.permissions).toContain("offscreen");
+    expect(manifest.permissions).toContain("contextMenus");
   });
 
   it("uses the selected SeroSlop mark for the extension and toolbar action", async () => {

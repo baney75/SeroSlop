@@ -23,18 +23,18 @@
       <section class="modes" aria-labelledby="modes-title">
         <div><p class="eyebrow">Choose your scope</p><h2 id="modes-title">Choose how much of the page to scan.</h2></div>
         <div class="mode-grid">
-          <article><span class="mode-number">01</span><h3>Choose an image</h3><p>Press the extension button, select one visible target, and inspect only that image.</p></article>
-          <article><span class="mode-number">02</span><h3>Main images</h3><p>Scan supported images in the page's main content, excluding navigation and sidebars.</p></article>
-          <article><span class="mode-number">03</span><h3>Every image</h3><p>Scan every supported visible image target in the current document.</p></article>
+          <article><span class="mode-number">01</span><h3>Choose an image</h3><p>Select one visible supported image from the extension, or right-click an image to analyze it directly. Nothing scans until you choose.</p></article>
+          <article><span class="mode-number">02</span><h3>Main images</h3><p>Scan supported images in the main content. Headers, navigation, sidebars, and footers are excluded.</p></article>
+          <article><span class="mode-number">03</span><h3>Every image</h3><p>Scan every supported visible image on the current page.</p></article>
         </div>
       </section>
       <section class="install" id="install" aria-labelledby="install-title">
-        <div><p class="eyebrow">Source install</p><h2 id="install-title">Build and load the extension.</h2><p>Requires Node.js 20.9 or newer and Chrome 121 or newer. Build the extension locally, then load the generated directory as an unpacked extension.</p></div>
-        <ol class="steps"><li><code>git clone https://github.com/baney75/SeroSlop.git</code><code>cd SeroSlop && npm ci && npm run build</code></li><li>Open <code>chrome://extensions</code> and enable Developer mode.</li><li>Choose <strong>Load unpacked</strong>, then select <code>dist/</code>.</li><li>Keep setup open until it says <strong>Offline ready</strong>, then choose a mode.</li></ol>
+        <div><p class="eyebrow">Install</p><h2 id="install-title">Install SeroSlop on desktop Chrome.</h2><p>Use a Mac, Windows, or Linux computer with desktop Chrome 121 or newer. Chrome on iPhone and Android cannot load unpacked extensions.</p><div class="release-links"><a class="button primary" href="https://github.com/baney75/SeroSlop/releases/latest">Download stable</a><a class="button secondary" href="https://github.com/baney75/SeroSlop/releases">Browse nightly builds</a></div><p class="release-note">Stable is the reviewed release. Nightly builds are developer previews and require manual updates.</p></div>
+        <ol class="steps"><li><div class="step-content">Download the stable ZIP above and unzip it to a folder you will keep.</div></li><li><div class="step-content">Open <code>chrome://extensions</code> and enable Developer mode.</div></li><li><div class="step-content">Choose <strong>Load unpacked</strong>, then select the unzipped SeroSlop folder.</div></li><li><div class="step-content">Keep setup open until it says <strong>Offline ready</strong>, then choose a mode.</div></li></ol>
       </section>
       <section class="docs" id="docs" aria-labelledby="docs-title">
         <div><p class="eyebrow">Read the contract</p><h2 id="docs-title">Model and privacy documentation.</h2></div>
-        <div class="doc-links"><a href="https://github.com/baney75/SeroSlop/blob/main/MODEL_CARD.md">Model card <span>↗</span></a><a href="https://github.com/baney75/SeroSlop/blob/main/PRIVACY.md">Privacy <span>↗</span></a><a href="https://github.com/baney75/SeroSlop/blob/main/SECURITY.md">Security <span>↗</span></a><a href="https://github.com/baney75/SeroSlop/blob/main/BENCHMARK.md">Benchmark <span>↗</span></a><a href="https://github.com/baney75/SeroSlop/blob/main/docs/ACCEPTANCE.md">Acceptance <span>↗</span></a></div>
+        <div class="doc-links"><a href="https://github.com/baney75/SeroSlop/blob/main/MODEL_CARD.md">Model card <span>↗</span></a><a href="./privacy.html">Privacy <span>→</span></a><a href="https://github.com/baney75/SeroSlop/blob/main/SECURITY.md">Security <span>↗</span></a><a href="https://github.com/baney75/SeroSlop/blob/main/BENCHMARK.md">Benchmark <span>↗</span></a><a href="https://github.com/baney75/SeroSlop/blob/main/docs/ACCEPTANCE.md">Acceptance <span>↗</span></a></div>
       </section>
     </main>
     <footer><span>SeroSlop · MIT licensed</span><span>Inference stays in Chrome</span></footer>

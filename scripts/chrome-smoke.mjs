@@ -23,7 +23,7 @@ const expectedProvider = process.env.PROOFLENS_E2E_PROVIDER === "webgpu" ? "webg
 // runs retain the PNG evidence used for visual review.
 const captureExtensionUiScreenshots = process.env.CI !== "true";
 const profilePath = await mkdtemp(path.join(os.tmpdir(), "prooflens-chrome-"));
-const artifactsPath = path.resolve("artifacts");
+const artifactsPath = path.resolve(process.env.SEROSLOP_E2E_ARTIFACTS_DIR ?? "artifacts");
 await mkdir(artifactsPath, { recursive: true });
 const modelLock = JSON.parse(await readFile("model-lock.json", "utf8"));
 const modelSha256 = modelLock.sha256;
@@ -213,6 +213,9 @@ const html = `<!doctype html>
   <img id="static-after-5000" width="640" height="480" alt="static target after 5000 inert elements" src="${fixtureB}" style="position:fixed;left:12px;bottom:12px;width:96px;height:72px;z-index:1">
   <script>window.addDynamicFixture=()=>{const figure=document.createElement('figure');const image=document.createElement('img');image.id='dynamic';image.width=640;image.height=480;image.alt='dynamic fixture';image.src=${JSON.stringify(fixtureB)};figure.append(image);document.querySelector('#grid').append(figure);};</script></body></html>`;
 const controlsHtml = "<!doctype html><html><head><meta charset=utf-8><title>SeroSlop controls fixture</title></head><body><h1>Controls fixture</h1><p>No eligible images are present on this page.</p></body></html>";
+const siteHtml = await readFile("site/index.html");
+const siteCss = await readFile("site/styles.css");
+const siteLogo = await readFile("site/assets/seroslop.svg");
 
 function fixtureRequestHandler(request, response) {
   const pathname = request.url?.split("?", 1)[0];
@@ -223,6 +226,21 @@ function fixtureRequestHandler(request, response) {
       connection: "close",
     });
     response.end(pathname === "/controls" ? controlsHtml : html);
+    return;
+  }
+  if (pathname === "/site" || pathname === "/site/") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", connection: "close" });
+    response.end(siteHtml);
+    return;
+  }
+  if (pathname === "/site/styles.css") {
+    response.writeHead(200, { "content-type": "text/css; charset=utf-8", "cache-control": "no-store", connection: "close" });
+    response.end(siteCss);
+    return;
+  }
+  if (pathname === "/site/assets/seroslop.svg") {
+    response.writeHead(200, { "content-type": "image/svg+xml", "cache-control": "no-store", connection: "close" });
+    response.end(siteLogo);
     return;
   }
   response.writeHead(404, { connection: "close" }).end();
@@ -237,6 +255,7 @@ if (!address || typeof address === "string") {
 }
 const pageUrl = `http://127.0.0.1:${address.port}/`;
 const controlsUrl = `http://127.0.0.1:${address.port}/controls`;
+const siteUrl = `http://127.0.0.1:${address.port}/site/`;
 const pageOrigin = new URL(pageUrl).origin;
 
 async function closeHttpServer(instance, label) {
@@ -318,12 +337,63 @@ let modelStateFixtures;
 let modelStateGeometryEvidence;
 let narrowGeometryEvidence;
 let smallTargetGeometryEvidence;
+let siteResponsiveEvidence;
+let contextMenuRegistered = false;
+let contextImageExactOneTarget = false;
+let contextImageMismatchRejected = false;
+let contextImageStaleTargetRejected = false;
 try {
   stage("initial browser launch");
   context = await launch();
   let worker = await extensionWorker(context);
   const extensionId = new URL(worker.url()).host;
+  const sitePage = await context.newPage();
+  stage("responsive install page");
+  const siteRecords = [];
+  for (const width of [320, 375, 390, 414, 768]) {
+    for (const theme of ["light", "dark"]) {
+      await sitePage.setViewportSize({ width, height: 844 });
+      await sitePage.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+      if (sitePage.url() !== siteUrl) await sitePage.goto(siteUrl, { waitUntil: "load", timeout: 30_000 });
+      const layout = await sitePage.evaluate(() => {
+        const visibleNav = [...document.querySelectorAll("nav a")].filter((link) => getComputedStyle(link).display !== "none");
+        const contents = [...document.querySelectorAll(".steps .step-content")];
+        const codes = [...document.querySelectorAll(".steps code")];
+        return {
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+          navHeights: visibleNav.map((link) => link.getBoundingClientRect().height),
+          contentWidths: contents.map((content) => content.getBoundingClientRect().width),
+          misplacedContent: contents.some((content) => {
+            const row = content.closest("li")?.getBoundingClientRect();
+            const rect = content.getBoundingClientRect();
+            return !row || rect.left < row.left + 38 || rect.right > row.right + 1;
+          }),
+          narrowCode: codes.some((code) => code.getBoundingClientRect().width < 160),
+        };
+      });
+      if (layout.horizontalOverflow || layout.misplacedContent || layout.narrowCode ||
+        layout.navHeights.some((height) => height < 44) || layout.contentWidths.some((value) => value < 160)) {
+        throw new Error(`Responsive install layout failed: ${JSON.stringify({ width, theme, layout })}`);
+      }
+      siteRecords.push({ width, theme, ...layout });
+      if (captureExtensionUiScreenshots && width === 390 && theme === "light") {
+        await sitePage.locator("#install").scrollIntoViewIfNeeded();
+        const siteShot = path.join(artifactsPath, "site-install-mobile-light-390.png");
+        await sitePage.screenshot({ path: siteShot, fullPage: false });
+        siteResponsiveEvidence = { records: siteRecords, screenshot: await screenshotRecord(siteShot) };
+      }
+    }
+  }
+  siteResponsiveEvidence ??= { records: siteRecords, screenshot: null };
+  await sitePage.close();
   const setup = context.pages().find((candidate) => candidate.url().includes("/setup.html")) ?? await context.newPage();
+  for (let attempt = 0; attempt < 40 && !contextMenuRegistered; attempt += 1) {
+    contextMenuRegistered = await worker.evaluate((id) => new Promise((resolve) => {
+      chrome.contextMenus.update(id, { visible: true }, () => resolve(!chrome.runtime.lastError));
+    }), "seroslop-choose-image");
+    if (!contextMenuRegistered) await setup.waitForTimeout(50);
+  }
+  if (!contextMenuRegistered) throw new Error("Image context menu was not registered");
   stage("model setup");
   if (!setup.url().includes("/setup.html")) await setup.goto(`chrome-extension://${extensionId}/setup.html`);
   await setup.getByRole("progressbar", { name: "Model preparation progress" }).waitFor({ timeout: 30_000 });
@@ -606,6 +676,68 @@ try {
   pickerHostileImageCountBounded = true;
   await page.locator("#picker-initially-below-fold").evaluate((element) => element.remove());
   await page.locator("#picker-hostile-image-count").evaluate((element) => element.remove());
+
+  await setMode("all");
+  const contextSourceUrl = await page.locator("#normal").evaluate((element) => element.currentSrc || element.src);
+  await page.locator("#normal").click({ button: "right" });
+  await page.keyboard.press("Escape");
+  const mismatchResult = await worker.evaluate(async ({ id, expectedUrl, sourceUrl }) => ({
+    response: await chrome.tabs.sendMessage(id, {
+      type: "PL_ANALYZE_CONTEXT_IMAGE",
+      expectedUrl,
+      sourceUrl: `${sourceUrl}#mismatch`,
+    }, { frameId: 0 }),
+    stored: await chrome.storage.local.get("scanMode"),
+  }), { id: tabId, expectedUrl: page.url(), sourceUrl: contextSourceUrl });
+  if (mismatchResult.response?.started !== false || mismatchResult.stored.scanMode !== "all") {
+    throw new Error(`Mismatched image context action did not fail closed: ${JSON.stringify(mismatchResult)}`);
+  }
+  contextImageMismatchRejected = true;
+  await page.evaluate((source) => {
+    const image = document.createElement("img");
+    image.id = "context-stale-target";
+    image.alt = "stale context target";
+    image.width = 320;
+    image.height = 240;
+    image.src = source;
+    document.body.append(image);
+  }, fixtureA);
+  await page.locator("#context-stale-target").waitFor();
+  const staleSourceUrl = await page.locator("#context-stale-target").evaluate((element) => element.currentSrc || element.src);
+  await page.locator("#context-stale-target").click({ button: "right" });
+  await page.keyboard.press("Escape");
+  await page.locator("#context-stale-target").evaluate((element) => element.remove());
+  const staleResult = await worker.evaluate(async ({ id, expectedUrl, sourceUrl }) => ({
+    response: await chrome.tabs.sendMessage(id, {
+      type: "PL_ANALYZE_CONTEXT_IMAGE",
+      expectedUrl,
+      sourceUrl,
+    }, { frameId: 0 }),
+    stored: await chrome.storage.local.get("scanMode"),
+  }), { id: tabId, expectedUrl: page.url(), sourceUrl: staleSourceUrl });
+  if (staleResult.response?.started !== false || staleResult.stored.scanMode !== "all") {
+    throw new Error(`Stale image context action did not fail closed: ${JSON.stringify(staleResult)}`);
+  }
+  contextImageStaleTargetRejected = true;
+  await page.locator("#normal").click({ button: "right" });
+  await page.keyboard.press("Escape");
+  const contextResult = await worker.evaluate(async ({ id, expectedUrl, sourceUrl }) => {
+    const response = await chrome.tabs.sendMessage(id, {
+      type: "PL_ANALYZE_CONTEXT_IMAGE",
+      expectedUrl,
+      sourceUrl,
+    }, { frameId: 0 });
+    if (response?.started) await chrome.storage.local.set({ scanMode: "pick" });
+    return { response, stored: await chrome.storage.local.get("scanMode") };
+  }, { id: tabId, expectedUrl: page.url(), sourceUrl: contextSourceUrl });
+  if (contextResult.response?.started !== true || contextResult.stored.scanMode !== "pick") {
+    throw new Error(`Image context action did not start exact-image analysis: ${JSON.stringify(contextResult)}`);
+  }
+  await waitForEvaluation(statusPage, async (id) => {
+    const snapshot = await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" });
+    return snapshot.scanMode === "pick" && snapshot.recordCount === 1 && snapshot.badges[0]?.elementId === "normal";
+  }, tabId, { timeout: 30_000, label: "right-click exact image" });
+  contextImageExactOneTarget = true;
 
   await setMode("main");
   await waitForEvaluation(statusPage, async (id) => {
@@ -1575,6 +1707,11 @@ try {
     pickerHostileImageCountBounded,
     mainModeScoped,
     allModePersisted,
+    contextMenuRegistered,
+    contextImageExactOneTarget,
+    contextImageMismatchRejected,
+    contextImageStaleTargetRejected,
+    siteResponsiveEvidence,
     targetSpecificAccessibleNames: true,
     reducedMotionSuppressed: raceStarted.animationName === "none",
     targets: { total: badges.length, complete: completed.length, unavailable: unavailable.length },

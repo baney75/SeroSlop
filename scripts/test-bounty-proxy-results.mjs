@@ -25,8 +25,9 @@ const fetchRun = async (url) => {
   fetchedUrl = url;
   return liveRun;
 };
+const verify = (root) => verifyPacket(root, { fetchRun, requireCurrentArchive: false });
 
-const positive = await verifyPacket(source, { fetchRun });
+const positive = await verify(source);
 assert.equal(positive.rows, 1200);
 assert.equal(positive.balancedAccuracy, 0.8583333333333333);
 assert.equal(fetchedUrl, `https://api.github.com/repos/baney75/SeroSlop/actions/runs/${summary.publicCi.runId}`);
@@ -37,7 +38,7 @@ async function mutated(label, mutate, pattern) {
   try {
     await cp(source, root, { recursive: true });
     await mutate(root);
-    await assert.rejects(() => verifyPacket(root, { fetchRun }), pattern, label);
+    await assert.rejects(() => verify(root), pattern, label);
   } finally {
     await rm(parent, { force: true, recursive: true });
   }

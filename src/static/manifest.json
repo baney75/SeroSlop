@@ -10,7 +10,7 @@
     "128": "icons/seroslop-128.png"
   },
   "minimum_chrome_version": "121",
-  "permissions": ["offscreen", "storage", "unlimitedStorage"],
+  "permissions": ["contextMenus", "offscreen", "storage", "unlimitedStorage"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

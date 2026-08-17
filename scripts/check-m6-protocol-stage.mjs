@@ -127,6 +127,8 @@ import {
   M6_SUBMISSION_PROXY_RESULT_COMMIT, M6_SUBMISSION_PROXY_RESULT_TREE,
   M6_SUBMISSION_PROXY_RESULT_RECOVERY_STATUS, M6_SUBMISSION_PROXY_RESULT_RECOVERY_EXPECTED,
   M6_SUBMISSION_PROXY_RESULT_RECOVERY_ARTIFACT_SHA256,
+  M6_SUBMISSION_RELEASE_PARENT, M6_SUBMISSION_RELEASE_PARENT_TREE, M6_SUBMISSION_RELEASE_STATUS,
+  M6_SUBMISSION_RELEASE_EXPECTED, M6_SUBMISSION_RELEASE_ARTIFACT_SHA256, matchesM6SubmissionReleaseHead,
   matchesM6SubmissionProxyRHead, matchesM6SubmissionProxyR2Head, matchesM6SubmissionProxyR3Head,
   matchesM6SubmissionProxyResultHead, matchesM6SubmissionProxyResultRecoveryHead,
 } from "./m6-stage-policy.mjs";
@@ -143,6 +145,34 @@ const rowsOf = (commit) => git([
 const currentHead = git(["rev-parse", "HEAD"]);
 const currentParents = parentsOf(currentHead);
 const currentRows = rowsOf(currentHead).map(({ path, status }) => [path, status]);
+const isSubmissionRelease = currentParents.length === 1 && matchesM6SubmissionReleaseHead({
+  head: currentHead,
+  parent: currentParents[0],
+  rows: currentRows,
+});
+if (process.argv[2] === undefined && isSubmissionRelease) {
+  if (currentParents[0] !== M6_SUBMISSION_RELEASE_PARENT ||
+      git(["rev-parse", `${M6_SUBMISSION_RELEASE_PARENT}^{tree}`]) !== M6_SUBMISSION_RELEASE_PARENT_TREE ||
+      canonicalM6Json(currentRows) !== canonicalM6Json(M6_SUBMISSION_RELEASE_EXPECTED)) {
+    throw new Error("submission release lineage changed");
+  }
+  const pathMap = Object.fromEntries(Object.keys(M6_SUBMISSION_RELEASE_ARTIFACT_SHA256).map((path) => [
+    path,
+    digest(m5GitBytes(["show", `${currentHead}:${path}`])),
+  ]));
+  if (canonicalM6Json(pathMap) !== canonicalM6Json(M6_SUBMISSION_RELEASE_ARTIFACT_SHA256)) {
+    throw new Error("submission release artifact bytes changed");
+  }
+  console.log(JSON.stringify({
+    status: M6_SUBMISSION_RELEASE_STATUS,
+    head: currentHead,
+    parent: currentParents[0],
+    rows: currentRows,
+    historicalProxyBalancedAccuracy: 0.8583333333333333,
+    chromeWebStorePublished: false,
+  }));
+  process.exit(0);
+}
 const isSubmissionProxyR = currentParents.length === 1 && matchesM6SubmissionProxyRHead({
   head: currentHead,
   parent: currentParents[0],

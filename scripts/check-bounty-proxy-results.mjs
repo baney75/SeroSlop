@@ -146,7 +146,7 @@ function validateManifestRow(row) {
   throw new Error("manifest label changed");
 }
 
-export async function verifyPacket(root = DEFAULT_ROOT, { fetchRun = defaultFetchRun } = {}) {
+export async function verifyPacket(root = DEFAULT_ROOT, { fetchRun = defaultFetchRun, requireCurrentArchive = true } = {}) {
   const resolvedRoot = path.resolve(root);
   const rootInfo = await lstat(resolvedRoot);
   if (rootInfo.isSymbolicLink() || !rootInfo.isDirectory()) throw new Error("unsafe evidence root");
@@ -323,8 +323,8 @@ export async function verifyPacket(root = DEFAULT_ROOT, { fetchRun = defaultFetc
     ["weights/prooflens-cf384.onnx", MODEL_SHA256],
     ["benchmark/evidence/m2/calibration.json", CALIBRATION_SHA256],
     ["model-lock.json", MODEL_LOCK_SHA256],
-    ["release/prooflens.zip", summary.value.archiveSha256],
   ];
+  if (requireCurrentArchive) localArtifacts.push(["release/prooflens.zip", summary.value.archiveSha256]);
   for (const [file, expected] of localArtifacts) {
     if (sha256(await physicalFile(path.resolve(file))) !== expected) throw new Error(`fixed artifact changed: ${file}`);
   }
@@ -340,6 +340,8 @@ export async function verifyPacket(root = DEFAULT_ROOT, { fetchRun = defaultFetc
 
 const isMain = process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
-  const result = await verifyPacket(process.argv[2] ?? DEFAULT_ROOT);
+  const historicalRelease = process.argv.includes("--historical-release");
+  const rootArgument = process.argv.slice(2).find((value) => !value.startsWith("--"));
+  const result = await verifyPacket(rootArgument ?? DEFAULT_ROOT, { requireCurrentArchive: !historicalRelease });
   console.log(`bounty proxy result check: PASS (${result.rows} rows, ${(result.balancedAccuracy * 100).toFixed(2)}% balanced accuracy)`);
 }

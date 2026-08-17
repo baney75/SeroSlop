@@ -174,6 +174,13 @@ let pickerTargetSnapshot: {
   controllerFocused: boolean;
 } | undefined;
 let lastPickerFocusRestored = false;
+let contextImageTarget: {
+  element: HTMLImageElement;
+  pageUrl: string;
+  sourceUrl: string;
+  capturedAt: number;
+} | undefined;
+const CONTEXT_IMAGE_TARGET_MAX_AGE_MS = 15_000;
 
 function pickerTargetName(element: HTMLElement): string {
   const raw = element instanceof HTMLImageElement
@@ -391,6 +398,37 @@ function descriptorsFor(element: HTMLElement): TargetDescriptor[] {
     }
   }
   return descriptors;
+}
+
+function rememberContextImage(event: MouseEvent): void {
+  if (!event.isTrusted) return;
+  const image = event.composedPath().find((target): target is HTMLImageElement => target instanceof HTMLImageElement);
+  if (!image || !pickerEligible(image)) {
+    contextImageTarget = undefined;
+    return;
+  }
+  const sourceUrl = image.currentSrc || image.src;
+  contextImageTarget = sourceUrl ? { element: image, pageUrl: location.href, sourceUrl, capturedAt: performance.now() } : undefined;
+}
+
+function analyzeRememberedContextImage(expectedUrl: string | undefined, sourceUrl: string | undefined): boolean {
+  const target = contextImageTarget;
+  contextImageTarget = undefined;
+  if (!enabled || !target || expectedUrl !== location.href || target.pageUrl !== location.href ||
+    sourceUrl !== target.sourceUrl || performance.now() - target.capturedAt > CONTEXT_IMAGE_TARGET_MAX_AGE_MS ||
+    !pickerEligible(target.element) || (target.element.currentSrc || target.element.src) !== target.sourceUrl) return false;
+  pickerCleanup?.();
+  scanMode = "pick";
+  pickedElement = target.element;
+  clearAllRecords();
+  const descriptor = descriptorsFor(target.element).find((value) => value.kind === "image");
+  if (!descriptor || descriptor.source !== target.sourceUrl) return false;
+  pickedDescriptorSlot = descriptor.slot;
+  syncElement(target.element, [descriptor]);
+  const record = recordsByElement.get(target.element)?.get(descriptor.slot);
+  if (!record) return false;
+  queueAnalysis(record);
+  return true;
 }
 
 function eligible(record: TargetRecord): boolean {
@@ -1305,7 +1343,7 @@ const mutationObserver = new MutationObserver((mutations) => {
 });
 
 chrome.runtime.onMessage.addListener((
-  message: { type: string; enabled?: boolean; visible?: boolean; expectedOrigin?: string; expectedDocumentToken?: string; scanMode?: ScanMode },
+  message: { type: string; enabled?: boolean; visible?: boolean; expectedOrigin?: string; expectedDocumentToken?: string; expectedUrl?: string; sourceUrl?: string; scanMode?: ScanMode },
   sender,
   sendResponse,
 ) => {
@@ -1332,6 +1370,11 @@ chrome.runtime.onMessage.addListener((
     pickerCleanup?.(); sendResponse({ cancelled: true }); return false;
   }
   if (message.type === "PL_GET_PICKER_STATE") { sendResponse({ active: Boolean(pickerCleanup) }); return false; }
+  if (message.type === "PL_ANALYZE_CONTEXT_IMAGE") {
+    const started = analyzeRememberedContextImage(message.expectedUrl, message.sourceUrl);
+    sendResponse({ started, pageChanged: message.expectedUrl !== location.href });
+    return false;
+  }
   if (message.type === "PL_GET_CONTENT_SNAPSHOT") {
     sendResponse({
       badges: [...records].map((record) => {
@@ -1480,6 +1523,8 @@ document.addEventListener(
   },
   true,
 );
+
+document.addEventListener("contextmenu", rememberContextImage, true);
 
 window.addEventListener("pagehide", () => {
   pickerCleanup?.();

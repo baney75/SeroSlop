@@ -2,6 +2,10 @@
 
 SeroSlop is a native Manifest V3 Chrome extension that shows a local AI-image model score beside images on ordinary webpages. It runs one packaged ONNX model inside the browser, without a detector API, localhost process, hash lookup, telemetry, or post-install model download.
 
+![SeroSlop scores attached to webpage images](docs/images/seroslop-results.png)
+
+Screenshot fixtures: [“Méduses, Oceanopolis, Brest”](https://www.flickr.com/photos/alainlm/3548073223/) by [alainlm](https://www.flickr.com/people/alainlm/), [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/); synthetic fixture from [Qwen/Qwen-Image-Bench](https://huggingface.co/datasets/Qwen/Qwen-Image-Bench), Apache-2.0. The screenshot demonstrates the interface, not model accuracy.
+
 The fixed decision rule is inclusive: **AI score ≥ 65.0/100 is flagged**. Every completed analysis shows a numeric model score; failures say **unavailable** instead of inventing one. The score is not a calibrated probability, and a badge is not proof of origin or authenticity. Historical repository paths and evidence identifiers retain `prooflens` so prior model and evaluation receipts remain reproducible; the installed extension and user-visible interface are SeroSlop.
 
 <!-- PROOFLENS_CURRENT_M2_START -->
@@ -30,7 +34,37 @@ The score-blind replacement packet was scored once from the public V3 freeze and
 
 Public repository evidence does not establish the bounty maintainer’s private score, acceptance decision, or payment.
 
-## Install from source
+## Install SeroSlop
+
+### Stable release
+
+1. Download the latest `seroslop-*.zip` from [GitHub Releases](https://github.com/baney75/SeroSlop/releases/latest).
+2. Unzip it to a folder you will keep.
+3. In desktop Chrome 121 or newer, open `chrome://extensions` and turn on **Developer mode**.
+4. Choose **Load unpacked**, then select the unzipped folder.
+5. Leave the setup tab open until it says **Offline ready**, then choose a scanning mode.
+
+Chrome on iPhone and Android cannot load unpacked extensions. A Chrome Web Store listing is being prepared but is not published yet.
+
+### Nightly builds
+
+[Nightly releases](https://github.com/baney75/SeroSlop/releases) contain the newest tested `main` build for developers. They may change between releases and must also be loaded unpacked. Stable and nightly GitHub builds do not update themselves: download the newer ZIP, replace the old folder, then choose **Reload** on `chrome://extensions`.
+
+Chrome Web Store installations use Chrome's signed automatic update system after a listing is published. GitHub ZIPs deliberately do not imitate that mechanism. See Chrome's [extension update lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/extensions-update-lifecycle).
+
+![Choose one image, main images, or every visible image](docs/images/seroslop-modes.png)
+
+### Use it
+
+The three modes are available after setup:
+
+- **Choose an image** waits for you. Press the extension button and choose an image, or right-click an image and select **Analyze this image with SeroSlop**.
+- **Main images** scans supported images in the main content, excluding headers, navigation, sidebars, and footers.
+- **Every image** scans every supported visible image on the page.
+
+Each result stays attached to the image it describes. A result is a model score, not proof of origin.
+
+### Build from source
 
 Requirements: Node.js 20.9 or newer, Python 3.10 or newer, `npm`, `zip`, and Chrome 121 or newer.
 
@@ -42,20 +76,17 @@ python -m pip install -r benchmark/verify-requirements.txt
 npm ci && npm run verify:static
 ```
 
-Then:
+Then load the generated build:
 
 1. Open `chrome://extensions`, then enable **Developer mode** using the toggle in its upper-right corner.
 2. Select **Load unpacked** and choose the generated `dist/` directory.
 3. Keep the setup tab open until it says **Offline ready**. The model is already in the package; setup verifies its SHA-256 and prepares local storage.
-4. Choose a scan mode. No mode is selected for you:
-   - **Choose an image** waits until you press the extension button, then outlines the exact image you select.
-   - **Main images** scans images inside the page’s main content and leaves navigation, sidebars, and footers alone.
-   - **Every image** scans every supported image target on the page.
-5. Open the extension to run the chosen action or change modes. In image-picking mode, use the pointer or move with Tab, press Enter to analyze, and press Esc to cancel.
+4. Choose a scan mode. No mode is selected for you.
+5. Open the extension to run the chosen action or choose **Change mode**. In image-picking mode, use the pointer or move with Tab, press Enter to analyze, and press Esc to cancel.
 
 The reproducible archive is generated at `release/prooflens.zip`; its digest is recorded in `release/SHA256SUMS.txt`.
 
-## Update a developer build
+## Update a source build
 
 Developer-loaded extensions do not update themselves. From the repository directory:
 

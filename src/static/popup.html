@@ -73,7 +73,7 @@
     <main>
       <section id="summary-view" aria-label="Page scan controls">
         <p id="site-context" class="context" title="">No supported site selected</p>
-        <div class="mode-row"><div><span class="mode-label">Mode</span><span id="mode-summary">Choose a mode</span></div><button id="change-mode" class="text-button" type="button">Change</button></div>
+        <div class="mode-row"><div><span class="mode-label">Mode</span><span id="mode-summary">Choose a mode</span></div><button id="change-mode" class="text-button" type="button">Change mode</button></div>
         <p id="page-summary" class="summary">Reading this page…</p>
         <p id="control-feedback" class="feedback" role="status" aria-live="polite"></p>
         <button id="primary-action" class="primary" type="button" disabled>This page can’t be scanned</button>
@@ -82,9 +82,9 @@
         <div class="sheet-head"><h2 id="mode-sheet-heading">Scanning mode</h2><button id="mode-back" class="text-button" type="button">Back</button></div>
         <fieldset>
           <legend class="sr-only">Scanning mode</legend>
-          <label class="mode-option"><input type="radio" name="popup-mode" value="pick"><span><strong>Choose an image</strong><small>Pick one image when you want a score.</small></span></label>
-          <label class="mode-option"><input type="radio" name="popup-mode" value="main"><span><strong>Main images</strong><small>Scan images in the page’s main content.</small></span></label>
-          <label class="mode-option"><input type="radio" name="popup-mode" value="all"><span><strong>Every image</strong><small>Scan all supported page images.</small></span></label>
+          <label class="mode-option"><input type="radio" name="popup-mode" value="pick"><span><strong>Choose an image</strong><small>Select one visible supported image. Nothing scans until you choose it.</small></span></label>
+          <label class="mode-option"><input type="radio" name="popup-mode" value="main"><span><strong>Main images</strong><small>Scan supported images in the main content. Headers, navigation, sidebars, and footers are excluded.</small></span></label>
+          <label class="mode-option"><input type="radio" name="popup-mode" value="all"><span><strong>Every image</strong><small>Scan every supported visible image on this page.</small></span></label>
         </fieldset>
         <p id="mode-error" class="feedback" role="status" aria-live="polite"></p>
         <button id="save-mode" class="primary" type="button" disabled>Save mode</button>

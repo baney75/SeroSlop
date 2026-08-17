@@ -1,0 +1,9 @@
+{
+  "files": [
+    "screenshot-modes-1280x800.png",
+    "small-promo-440x280.png",
+    "marquee-1400x560.png"
+  ],
+  "sourceScreenshot": "docs/images/seroslop-modes.png",
+  "sourceLogo": "src/static/seroslop.svg"
+}
