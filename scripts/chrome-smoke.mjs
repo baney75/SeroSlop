@@ -18,6 +18,10 @@ import {
 
 const extensionPath = path.resolve("dist");
 const expectedProvider = process.env.PROOFLENS_E2E_PROVIDER === "webgpu" ? "webgpu" : "wasm";
+// GitHub's Chromium/Xvfb screenshot encoder hangs on extension pages. Public
+// CI still runs every DOM/layout/accessibility assertion; fixed-head local
+// runs retain the PNG evidence used for visual review.
+const captureExtensionUiScreenshots = process.env.CI !== "true";
 const profilePath = await mkdtemp(path.join(os.tmpdir(), "prooflens-chrome-"));
 const artifactsPath = path.resolve("artifacts");
 await mkdir(artifactsPath, { recursive: true });
@@ -113,15 +117,17 @@ async function captureUiMatrix(page, surface) {
   // GitHub's Chromium/Xvfb runner even after fonts are ready. The evidence
   // viewport is already a fixed 900 CSS pixels tall, so capture that exact
   // surface through Chrome's DevTools protocol without full-page stitching.
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Page.enable");
+  const cdp = captureExtensionUiScreenshots ? await page.context().newCDPSession(page) : undefined;
+  if (cdp) await cdp.send("Page.enable");
   const capture = async (file) => {
+    if (!cdp) return undefined;
     const result = await cdp.send("Page.captureScreenshot", {
       captureBeyondViewport: false,
       format: "png",
       fromSurface: true,
     });
     await writeFile(file, Buffer.from(result.data, "base64"));
+    return screenshotRecord(file);
   };
   try {
     for (const theme of ["light", "dark"]) {
@@ -161,12 +167,18 @@ async function captureUiMatrix(page, surface) {
           throw new Error(`${surface} ${theme} ${width}px UI contract failed: ${JSON.stringify(layout)}`);
         }
         const file = path.join(artifactsPath, `${surface}-${expectedProvider}-${theme}-${width}.png`);
-        await capture(file);
-        records.push({ theme, width, ...layout, screenshot: await screenshotRecord(file) });
+        const screenshot = await capture(file);
+        records.push({
+          theme,
+          width,
+          ...layout,
+          screenshot: screenshot ?? null,
+          screenshotMode: screenshot ? "png" : "dom-only-ci",
+        });
       }
     }
   } finally {
-    await cdp.detach();
+    if (cdp) await cdp.detach();
   }
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await page.setViewportSize(originalViewport);
@@ -346,7 +358,9 @@ try {
   if (!setupProgressAdvanced || !/MB$/u.test(setupPreparingState.visibleText ?? "")) {
     throw new Error(`Setup did not expose determinate progress: ${JSON.stringify(setupPreparingState)}`);
   }
-  await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}-preparing.png`), fullPage: true });
+  if (captureExtensionUiScreenshots) {
+    await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}-preparing.png`), fullPage: true });
+  }
   await setup.getByRole("heading", { name: "Offline ready" }).waitFor({ timeout: 300_000 });
   // A fresh install must not silently choose a scan mode. Select one explicitly
   // before restart so the persistence check below exercises the real onboarding path.
@@ -372,10 +386,12 @@ try {
   // Reuse its 375px light image for the legacy artifact name instead of asking
   // Chromium/Xvfb to encode a redundant full-page frame before the viewport is
   // initialized for visual evidence.
-  await copyFile(
-    path.join(artifactsPath, `setup-${expectedProvider}-light-375.png`),
-    path.join(artifactsPath, `setup-${expectedProvider}.png`),
-  );
+  if (captureExtensionUiScreenshots) {
+    await copyFile(
+      path.join(artifactsPath, `setup-${expectedProvider}-light-375.png`),
+      path.join(artifactsPath, `setup-${expectedProvider}.png`),
+    );
+  }
   stage("setup initial-status failure recovery");
   const failureSetup = await context.newPage();
   await failureSetup.addInitScript(() => {
@@ -396,7 +412,9 @@ try {
   await failureSetup.getByRole("heading", { name: "Setup failed" }).waitFor({ timeout: 30_000 });
   const retryVerification = failureSetup.getByRole("button", { name: "Retry verification" });
   if (await retryVerification.isDisabled()) throw new Error("Initial setup failure did not enable recovery");
-  await failureSetup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}-failure.png`), fullPage: true });
+  if (captureExtensionUiScreenshots) {
+    await failureSetup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}-failure.png`), fullPage: true });
+  }
   await retryVerification.click();
   await failureSetup.getByRole("heading", { name: "Offline ready" }).waitFor({ timeout: 300_000 });
   setupInitialFailureRecovered = true;
@@ -432,7 +450,9 @@ try {
   }
   const restartedMode = await worker.evaluate(() => chrome.storage.local.get("scanMode"));
   if (restartedMode.scanMode !== "all") throw new Error(`Setup mode did not persist across restart: ${JSON.stringify(restartedMode)}`);
-  await statusPage.screenshot({ path: path.join(artifactsPath, `popup-${expectedProvider}.png`), fullPage: true });
+  if (captureExtensionUiScreenshots) {
+    await statusPage.screenshot({ path: path.join(artifactsPath, `popup-${expectedProvider}.png`), fullPage: true });
+  }
   popupUnsupportedVisualEvidence = await captureUiMatrix(statusPage, "popup-unsupported");
   await worker.evaluate(() => chrome.storage.local.set({ disabledOrigins: [], scanMode: "all" }));
   const page = await context.newPage();
@@ -486,7 +506,14 @@ try {
 
   stage("mode-save failure recovery");
   await statusPage.getByRole("button", { name: "Change" }).click();
-  await statusPage.locator('input[name="popup-mode"][value="main"]').check();
+  const unsavedMainMode = statusPage.locator('input[name="popup-mode"][value="main"]');
+  await unsavedMainMode.check();
+  // Cross the 500 ms page-state refresh boundary before Save. A background
+  // refresh must not erase the person's draft selection or disable its action.
+  await statusPage.waitForTimeout(750);
+  if (!await unsavedMainMode.isChecked() || await statusPage.getByRole("button", { name: "Save mode" }).isDisabled()) {
+    throw new Error("Periodic page refresh erased the unsaved mode choice");
+  }
   await statusPage.evaluate(() => {
     const original = chrome.runtime.sendMessage.bind(chrome.runtime);
     Object.defineProperty(chrome.runtime, "sendMessage", {
@@ -728,10 +755,12 @@ try {
   }
 
   stage("supported-page popup interactions");
-  await statusPage.screenshot({
-    path: path.join(artifactsPath, `popup-${expectedProvider}-supported.png`),
-    fullPage: true,
-  });
+  if (captureExtensionUiScreenshots) {
+    await statusPage.screenshot({
+      path: path.join(artifactsPath, `popup-${expectedProvider}-supported.png`),
+      fullPage: true,
+    });
+  }
   popupSupportedVisualEvidence = await captureUiMatrix(statusPage, "popup-supported");
   await statusPage.getByRole("button", { name: "Change" }).click();
   popupModeSheetVisualEvidence = await captureUiMatrix(statusPage, "popup-mode-sheet");
@@ -742,10 +771,12 @@ try {
   const scanningAgain = statusPage.getByRole("button", { name: "Scanning again…" });
   await scanningAgain.waitFor();
   if (!await scanningAgain.isDisabled()) throw new Error("Re-scan feedback did not expose a disabled busy state");
-  await statusPage.screenshot({
-    path: path.join(artifactsPath, `popup-${expectedProvider}-supported-scanning.png`),
-    fullPage: true,
-  });
+  if (captureExtensionUiScreenshots) {
+    await statusPage.screenshot({
+      path: path.join(artifactsPath, `popup-${expectedProvider}-supported-scanning.png`),
+      fullPage: true,
+    });
+  }
   await statusPage.getByRole("button", { name: "Re-scan every image" }).waitFor({ timeout: 10_000 });
   let rescannedNormal;
   for (let attempt = 0; attempt < 480; attempt += 1) {
@@ -1516,6 +1547,7 @@ try {
     browserOfflineBeforeAnalysis: true,
     postCutoffNetworkRequests,
     provider: expectedProvider,
+    extensionUiScreenshotMode: captureExtensionUiScreenshots ? "png" : "dom-only-ci",
     setupProgressAccessibleName,
     setupProgressAdvanced,
     setupPreparingState,

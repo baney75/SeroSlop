@@ -256,6 +256,20 @@ export const M6_BETA1_RECOVERY4_ARTIFACT_SHA256 = Object.freeze({
   ...M6_BETA1_ARTIFACT_SHA256,
   "scripts/chrome-smoke.mjs": "34d456e683cb24bdc8618e2ea16f38bef6ea1b0580cc9ce1246ca6a911e93784",
 });
+export const M6_BETA1_RECOVERY4_COMMIT = "caecc4a788c9a79704b45900030dde8bc5dd357d";
+export const M6_BETA1_RECOVERY4_TREE = "64349f9ea3c4dac3026b21e334f671dcb7a96c33";
+export const M6_BETA1_RECOVERY5_EXPECTED = Object.freeze([
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/chrome-smoke.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+  ["src/popup.ts", "M"],
+]);
+export const M6_BETA1_RECOVERY5_ARTIFACT_SHA256 = Object.freeze({
+  ...M6_BETA1_ARTIFACT_SHA256,
+  "scripts/chrome-smoke.mjs": "0939b28d4c5366d7a847dd4edafd010e51a6594db4498f0d16e8f72f93208fec",
+  "src/popup.ts": "fb56ae35b05fa26ffaecac00618a9ca73a183060163dbabc237c50972106d802",
+});
 export function validateM6P5Artifacts(artifactBytes = {}, expectedDigests = M6_P5_ARTIFACT_SHA256) {
   const expectedPaths = Object.keys(expectedDigests).sort();
   if (JSON.stringify(Object.keys(artifactBytes).sort()) !== JSON.stringify(expectedPaths)) throw new Error("M6 P5 artifact inventory changed");
@@ -325,6 +339,12 @@ export function matchesM6Beta1Recovery4Head({ head, parent, rows = [] } = {}) {
   return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent &&
     parent === M6_BETA1_RECOVERY3_COMMIT &&
     JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_BETA1_RECOVERY4_EXPECTED));
+}
+
+export function matchesM6Beta1Recovery5Head({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent &&
+    parent === M6_BETA1_RECOVERY4_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_BETA1_RECOVERY5_EXPECTED));
 }
 
 function canonicalM6Value(value) {
@@ -468,6 +488,7 @@ export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [
     matchesM6Beta1Recovery2Head({ head, parent, rows }) ||
     matchesM6Beta1Recovery3Head({ head, parent, rows }) ||
     matchesM6Beta1Recovery4Head({ head, parent, rows }) ||
+    matchesM6Beta1Recovery5Head({ head, parent, rows }) ||
     matchesM6Beta1AuthorizationHead({ head, parent, rows }) ||
     matchesM6ProtocolRecovery({ head, parent, rows }) ||
     matchesM6MaterializerRecovery({ head, parent, rows }) ||

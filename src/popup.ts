@@ -129,7 +129,12 @@ function renderPrimaryAction(): void {
 function renderMode(): void {
   modeSummary.textContent = scanMode ? SCAN_MODE_COPY[scanMode].title : "Choose a mode";
   changeModeButton.disabled = savePending || !modelReady;
-  for (const input of modeInputs) input.checked = input.value === scanMode;
+  // The 500 ms page-state refresh must not erase a person's in-progress
+  // choice while the mode sheet is open. Success hides the sheet before the
+  // next render; the failure path restores the previous choice explicitly.
+  if (modeSheet.hidden) {
+    for (const input of modeInputs) input.checked = input.value === scanMode;
+  }
   renderPrimaryAction();
 }
 
