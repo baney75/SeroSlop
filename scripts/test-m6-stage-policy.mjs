@@ -1,18 +1,23 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   classifyM6Stage,
   isM6ProtocolHead,
   isM6ProtocolLineageHead,
   M6_BASE_COMMIT,
+  M6_CI_RECOVERY_EXPECTED,
   M6_P_COMMIT,
   M6_P2_COMMIT,
+  M6_P3_COMMIT,
   M6_MATERIALIZER_RECOVERY_EXPECTED,
   M6_PROTOCOL_PATHS,
   M6_PROTOCOL_RECOVERY_EXPECTED,
+  matchesM6CiRecovery,
   matchesM6MaterializerRecovery,
   matchesM6ProtocolRecovery,
   matchesProspectiveP,
   parseM6Recipe,
+  validateM6VerifyRequirements,
 } from "./m6-stage-policy.mjs";
 const recipe = parseM6Recipe();
 assert.equal(recipe.baseCommit, M6_BASE_COMMIT);
@@ -42,4 +47,17 @@ assert.equal(matchesM6MaterializerRecovery({ head: "d".repeat(40), parent: M6_P_
 assert.equal(matchesM6MaterializerRecovery({ head: "d".repeat(40), parent: M6_P2_COMMIT, rows: materializerRows.slice(1) }), false);
 assert.equal(matchesM6MaterializerRecovery({ head: "d".repeat(40), parent: M6_P2_COMMIT, rows: [...materializerRows, ["extra", "A"]] }), false);
 assert.equal(isM6ProtocolLineageHead({ head: "d".repeat(40), parent: M6_P2_COMMIT, treePaths: paths, rows: materializerRows }), true);
+const ciRows = M6_CI_RECOVERY_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6CiRecovery({ head: "e".repeat(40), parent: M6_P3_COMMIT, rows: ciRows }), true);
+assert.equal(matchesM6CiRecovery({ head: "e".repeat(40), parent: M6_P2_COMMIT, rows: ciRows }), false);
+assert.equal(matchesM6CiRecovery({ head: "e".repeat(40), parent: M6_P3_COMMIT, rows: ciRows.slice(1) }), false);
+assert.equal(matchesM6CiRecovery({ head: "e".repeat(40), parent: M6_P3_COMMIT, rows: [...ciRows, ["extra", "M"]] }), false);
+assert.equal(isM6ProtocolLineageHead({ head: "e".repeat(40), parent: M6_P3_COMMIT, treePaths: paths, rows: ciRows }), true);
+const requirements = readFileSync("benchmark/verify-requirements.txt");
+assert.equal(validateM6VerifyRequirements(requirements), true);
+const requirementsText = requirements.toString("utf8");
+assert.throws(() => validateM6VerifyRequirements(Buffer.from(requirementsText.replace("pyarrow==20.0.0\n", ""))), /bytes changed/);
+assert.throws(() => validateM6VerifyRequirements(Buffer.from(requirementsText.replace("numpy==2.2.6", "numpy==0.0.0"))), /bytes changed/);
+assert.throws(() => validateM6VerifyRequirements(Buffer.from(requirementsText + "requests==2.0.0\n")), /bytes changed/);
+assert.throws(() => validateM6VerifyRequirements(Buffer.from(requirementsText + "pyarrow==20.0.0\n")), /bytes changed/);
 console.log("M6 stage policy PASS");

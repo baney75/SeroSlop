@@ -9,6 +9,16 @@ The immutable public P commit is
 child corrects one P wording error and supplies the deterministic metadata
 source-lock core. It does not rewrite P history and is not S authorization.
 
+Public materializer recovery P3 is
+`fa9f002a2f9805b59d7955bf4c4f9992bbfb22ce`. Its first quality run was red
+only because the generic GitHub verification environment did not install
+`pyarrow`, so four Parquet fixture tests could not import their declared test
+dependency. The direct append-only CI recovery adds `pyarrow==20.0.0` to that
+verification environment and changes no recipe, source inventory,
+materializer, model, data, threshold, or evaluation behavior. P3 remains
+immutable history; paid or pixel work still requires the recovery child itself
+to be exact-head public-green.
+
 P records the source-reported
 SET shard census (train 19 shards/10,447,263,801 bytes; validation 47
 shards/37,645,535,846 bytes) and OOD test census (19 shards/16,521,804,450
