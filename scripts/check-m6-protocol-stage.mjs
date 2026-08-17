@@ -1,5 +1,7 @@
+/* global fetch, AbortSignal */
 import { createHash } from "node:crypto";
-import { m5Git, m5GitBytes } from "./m5-safe-git.mjs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { assertM5WorktreeExact, m5Git, m5GitBytes } from "./m5-safe-git.mjs";
 import {
   M6_BASE_COMMIT,
   M6_BASE_TREE,
@@ -71,6 +73,15 @@ import {
   validateM6P5Artifacts,
   M6_P6_PARENT_TREE,
   M6_P6_CHECK_STATUS,
+  M6_P6_S_COMMIT,
+  M6_P6_PARENT,
+  M6_P6_S_TREE,
+  M6_P6_R_STATUS,
+  M6_P6_AUTHORIZATION_PATH,
+  M6_P6_S_ARTIFACT_SHA256,
+  matchesM6P6RHead,
+  validateM6P6Authorization,
+  canonicalM6Json,
   M6_P6_ARTIFACT_SHA256,
   matchesM6P6Head,
   validateM6P6Artifacts,
@@ -86,6 +97,45 @@ const rowsOf = (commit) => git([
   const [status, path] = line.split("\t");
   return { path, status };
 });
+async function githubJson(url) {
+  const response = await fetch(url, { headers: { Accept: "application/vnd.github+json", "User-Agent": "prooflens-p6-verifier" }, signal: AbortSignal.timeout(10000) });
+  if (!response.ok) throw new Error(`GitHub API ${response.status}: ${url}`);
+  return response.json();
+}
+async function fetchPublicCiRun(runId, expectedHead) {
+  if (!Number.isSafeInteger(runId) || runId <= 0) throw new Error("public CI runId must be positive");
+  const run = await githubJson(`https://api.github.com/repos/baney75/prooflens/actions/runs/${runId}`);
+  const proof = { conclusion: run.conclusion, event: run.event, headSha: run.head_sha, runId: run.id, status: run.status, url: run.html_url, workflowPath: run.path };
+  if (proof.headSha !== expectedHead || proof.status !== "completed" || proof.conclusion !== "success" || proof.event !== "push" || proof.workflowPath !== ".github/workflows/quality.yml" || proof.url !== `https://github.com/baney75/prooflens/actions/runs/${runId}`) throw new Error("public CI run is not exact successful verifier run");
+  return proof;
+}
+async function fetchPublicCiForCurrentMain(head) {
+  const ref = await githubJson("https://api.github.com/repos/baney75/prooflens/git/ref/heads/main");
+  if (ref.object?.sha !== head) throw new Error("public main does not equal verifier head");
+  const runs = await githubJson(`https://api.github.com/repos/baney75/prooflens/actions/runs?head_sha=${head}&event=push&per_page=100`);
+  const candidate = (runs.workflow_runs ?? []).find((run) => run.name === "Quality" || run.path === ".github/workflows/quality.yml");
+  if (!candidate || !Number.isSafeInteger(candidate.id) || candidate.status !== "completed" || candidate.conclusion !== "success" || candidate.head_sha !== head) throw new Error("no exact successful public quality run");
+  return fetchPublicCiRun(candidate.id, head);
+}
+
+if (process.argv[2] === "authorize-p6") {
+  const head = git(["rev-parse", "HEAD"]); const parents = parentsOf(head); const rows = rowsOf(head).map(({ path, status }) => [path, status]);
+  const tree = git(["rev-parse", `${head}^{tree}`]);
+  assertM5WorktreeExact();
+  if (parents.length !== 1 || !matchesM6P6RHead({ head, parent: parents[0], rows })) throw new Error("P6 authorization requires exact R head");
+  if (tree === M6_P6_S_TREE) throw new Error("P6 authorization requires R tree");
+  const sourcePathMap = Object.fromEntries(Object.keys(M6_P6_S_ARTIFACT_SHA256).map((path) => [path, digest(m5GitBytes(["show", `${parents[0]}:${path}`]))]));
+  if (JSON.stringify(sourcePathMap) !== JSON.stringify(M6_P6_S_ARTIFACT_SHA256)) throw new Error("P6 S blob map changed");
+  if (parents[0] !== M6_P6_S_COMMIT || git(["rev-parse", `${parents[0]}^{tree}`]) !== M6_P6_S_TREE) throw new Error("P6 S lineage changed");
+  const publicCi = await fetchPublicCiForCurrentMain(head);
+  const sourceRows = rowsOf(parents[0]).map(({ path, status }) => [path, status]);
+  const value = { acceptanceEligible: false, authorizationPath: M6_P6_AUTHORIZATION_PATH, commercialRightsClearanceClaimed: false, h3PixelsRead: false, independentOriginProofClaimed: false, metadataOnly: true, publisherAssertionOnly: true, schemaVersion: 1, protocolCommit: parents[0], protocolParent: M6_P6_PARENT, protocolPathMap: sourcePathMap, protocolRows: sourceRows, protocolTree: M6_P6_S_TREE, sourceLockAuthorized: false, status: "m6-p6-protocol-verified", trainingAuthorized: false, verifierCommit: head, verifierTree: tree, verifierRows: rows, verifierPublicCi: publicCi };
+  validateM6P6Authorization(Buffer.from(canonicalM6Json(value)), { sourceCommit: M6_P6_S_COMMIT, sourceTree: M6_P6_S_TREE, sourceParent: M6_P6_PARENT, sourceRows, sourcePathMap, verifierCommit: head, verifierTree: tree, verifierRows: rows, publicCi });
+  if (publicCi.headSha !== head || publicCi.status !== "completed" || publicCi.conclusion !== "success" || publicCi.event !== "push" || publicCi.workflowPath !== ".github/workflows/quality.yml") throw new Error("P6 public CI is not exact R success");
+  if (existsSync(M6_P6_AUTHORIZATION_PATH)) throw new Error("P6 authorization already exists");
+  mkdirSync("benchmark/evidence/m6", { recursive: true }); writeFileSync(M6_P6_AUTHORIZATION_PATH, canonicalM6Json(value), { flag: "wx" });
+  console.log(JSON.stringify({ status: "m6-p6-authorization-created", head, tree, path: M6_P6_AUTHORIZATION_PATH })); process.exit(0);
+}
 
 if (git(["rev-parse", `${M6_BASE_COMMIT}^{tree}`]) !== M6_BASE_TREE) {
   throw new Error("M6 base tree changed");
@@ -206,6 +256,24 @@ const head = git(["rev-parse", "HEAD"]);
 const headParents = parentsOf(head);
 const headRows = rowsOf(head).map(({ path, status }) => [path, status]);
 const headTreePaths = git(["ls-tree", "-r", "--name-only", head]).split("\n").filter(Boolean);
+if (headParents.length === 1 && JSON.stringify(headRows) === JSON.stringify([[M6_P6_AUTHORIZATION_PATH, "A"]])) {
+  const sourceCommit = headParents[0]; const sourceParent = parentsOf(sourceCommit); const sourceRows = rowsOf(sourceCommit).map(({ path, status }) => [path, status]);
+  if (sourceParent.length !== 1 || !matchesM6P6RHead({ head: sourceCommit, parent: sourceParent[0], rows: sourceRows })) throw new Error("M6 P6 authorization source is not exact R");
+  const sourceTree = git(["rev-parse", `${sourceParent[0]}^{tree}`]);
+  const verifierTree = git(["rev-parse", `${sourceCommit}^{tree}`]);
+  const sourcePathMap = Object.fromEntries(Object.keys(M6_P6_S_ARTIFACT_SHA256).map((path) => [path, digest(m5GitBytes(["show", `${sourceParent[0]}:${path}`]))]));
+  const authorization = validateM6P6Authorization(m5GitBytes(["show", `${head}:${M6_P6_AUTHORIZATION_PATH}`]), { sourceCommit: sourceParent[0], sourceTree, sourceRows: rowsOf(sourceParent[0]).map(({ path, status }) => [path, status]), sourcePathMap, verifierCommit: sourceCommit, verifierTree, verifierRows: sourceRows, publicCi: JSON.parse(m5GitBytes(["show", `${head}:${M6_P6_AUTHORIZATION_PATH}`]).toString("utf8")).verifierPublicCi });
+  const liveCi = await fetchPublicCiRun(authorization.verifierPublicCi.runId, authorization.verifierCommit);
+  if (JSON.stringify(liveCi) !== JSON.stringify(authorization.verifierPublicCi)) throw new Error("P6 authorization CI receipt does not match live public run");
+  console.log(JSON.stringify({ status: "m6-p6-protocol-verified", head, sourceCommit, sourceTree, rows: headRows })); process.exit(0);
+}
+if (headParents.length === 1 && matchesM6P6RHead({ head, parent: headParents[0], rows: headRows })) {
+  if (git(["rev-parse", `${headParents[0]}^{tree}`]) !== M6_P6_S_TREE) throw new Error("M6 P6 S tree changed");
+  const sourceBytes = Object.fromEntries(Object.keys(M6_P6_S_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${headParents[0]}:${path}`])]));
+  if (JSON.stringify(Object.fromEntries(Object.entries(sourceBytes).map(([path, bytes]) => [path, digest(bytes)]))) !== JSON.stringify(M6_P6_S_ARTIFACT_SHA256)) throw new Error("M6 P6 S blob map changed");
+  console.log(JSON.stringify({ status: M6_P6_R_STATUS, head, parent: headParents[0], rows: headRows }));
+  process.exit(0);
+}
 if (headParents.length === 1 && matchesM6P6Head({ head, parent: headParents[0], rows: headRows, treePaths: headTreePaths })) {
   if (git(["rev-parse", `${headParents[0]}^{tree}`]) !== M6_P6_PARENT_TREE) throw new Error("M6 P6 parent tree changed");
   const bytes = Object.fromEntries(Object.keys(M6_P6_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])]));

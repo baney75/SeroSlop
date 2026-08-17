@@ -35,6 +35,14 @@ import {
   M6_BETA1_EXPECTED,
   M6_P6_PARENT,
   M6_P6_CHECK_STATUS,
+  M6_P6_S_COMMIT,
+  M6_P6_S_TREE,
+  M6_P6_R_EXPECTED,
+  M6_P6_R_STATUS,
+  M6_P6_AUTHORIZATION_PATH,
+  M6_P6_S_ARTIFACT_SHA256,
+  matchesM6P6RHead,
+  validateM6P6Authorization,
   M6_P6_EXPECTED,
   M6_P6_ARTIFACT_SHA256,
   matchesM6P6Head,
@@ -227,5 +235,26 @@ assert.equal(validateM6P6Artifacts(p6Artifacts), true);
 assert.throws(() => validateM6P6Artifacts({ ...p6Artifacts, "package.json": Buffer.from("mutated") }), /bytes changed/);
 assert.equal(validateM6P6Inventory(p6Artifacts["benchmark/m6/p6-frontier-inventory.json"]).status, "metadata-only; no acquisition or materialization");
 assert.equal(M6_P6_CHECK_STATUS, "m6-p6-metadata-only-unverified-pass");
+const rRows = M6_P6_R_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6P6RHead({ head: "a".repeat(40), parent: M6_P6_S_COMMIT, rows: rRows }), true);
+assert.equal(matchesM6P6RHead({ head: "a".repeat(40), parent: "0".repeat(40), rows: rRows }), false);
+assert.equal(matchesM6P6RHead({ head: "a".repeat(40), parent: M6_P6_S_COMMIT, rows: [...rRows, ["extra", "M"]] }), false);
+assert.equal(M6_P6_R_STATUS, "m6-p6-verifier-ready");
+const checkerSource = readFileSync("scripts/check-m6-protocol-stage.mjs", "utf8");
+assert.equal(checkerSource.includes('status: "m6-p6-authorization-created"'), true);
+assert.equal(checkerSource.includes('status: "m6-p6-authorization-created", head'), true);
+const ciProof = { conclusion: "success", event: "push", headSha: "a".repeat(40), runId: 123, status: "completed", url: "https://github.com/baney75/prooflens/actions/runs/123", workflowPath: ".github/workflows/quality.yml" };
+const auth = { acceptanceEligible: false, authorizationPath: M6_P6_AUTHORIZATION_PATH, commercialRightsClearanceClaimed: false, h3PixelsRead: false, independentOriginProofClaimed: false, metadataOnly: true, publisherAssertionOnly: true, schemaVersion: 1, protocolCommit: M6_P6_S_COMMIT, protocolParent: M6_P6_PARENT, protocolPathMap: M6_P6_S_ARTIFACT_SHA256, protocolRows: p6Rows, protocolTree: M6_P6_S_TREE, sourceLockAuthorized: false, status: "m6-p6-protocol-verified", trainingAuthorized: false, verifierCommit: "a".repeat(40), verifierTree: "u".repeat(40), verifierRows: rRows, verifierPublicCi: ciProof };
+assert.equal(validateM6P6Authorization(Buffer.from(canonicalM6Json(auth)), { sourceCommit: auth.protocolCommit, sourceTree: auth.protocolTree, sourceRows: p6Rows, sourcePathMap: M6_P6_S_ARTIFACT_SHA256, verifierCommit: auth.verifierCommit, verifierTree: auth.verifierTree, verifierRows: rRows, publicCi: ciProof }).status, "m6-p6-protocol-verified");
+const authArgs = { sourceCommit: auth.protocolCommit, sourceTree: auth.protocolTree, sourceRows: p6Rows, sourcePathMap: M6_P6_S_ARTIFACT_SHA256, verifierCommit: auth.verifierCommit, verifierTree: auth.verifierTree, verifierRows: rRows, publicCi: ciProof };
+assert.throws(() => validateM6P6Authorization(Buffer.from(canonicalM6Json({ ...auth, trainingAuthorized: true })), authArgs), /boundary/);
+assert.throws(() => validateM6P6Authorization(Buffer.from(canonicalM6Json({ ...auth, verifierTree: "v".repeat(40) })), authArgs), /source binding/);
+assert.throws(() => validateM6P6Authorization(Buffer.from(canonicalM6Json({ ...auth, verifierCommit: "b".repeat(40) })), authArgs), /source binding/);
+assert.throws(() => validateM6P6Authorization(Buffer.from(canonicalM6Json({ ...auth, protocolRows: rRows })), authArgs), /source binding/);
+const zeroRunCi = { ...ciProof, runId: 0, url: "https://github.com/baney75/prooflens/actions/runs/0" };
+assert.throws(() => validateM6P6Authorization(Buffer.from(canonicalM6Json({ ...auth, verifierPublicCi: zeroRunCi })), { ...authArgs, publicCi: zeroRunCi }), /CI schema/);
+const duplicateAuth = canonicalM6Json(auth).replace('{"acceptanceEligible":false', '{"acceptanceEligible":false,"acceptanceEligible":false');
+assert.throws(() => validateM6P6Authorization(Buffer.from(duplicateAuth), authArgs), /duplicate/);
+assert.throws(() => validateM6P6Authorization(Buffer.from(`${canonicalM6Json(auth).trim()}\n\n`), authArgs), /canonical/);
 assert.throws(() => validateM6P6Inventory(Buffer.from(`${readFileSync("benchmark/m6/p6-frontier-inventory.json", "utf8").trim()}\n\n`)), /canonical/);
 console.log("M6 stage policy PASS");

@@ -94,6 +94,30 @@ export const M6_P5_RECOVERY_ARTIFACT_SHA256 = Object.freeze({
 export const M6_P6_PARENT = "20154cb1bceda64aa74bbf1020f0a8ae8b2a513f";
 export const M6_P6_PARENT_TREE = "8469c2609db99096695bf9d9f4ee88b54cc09d0b";
 export const M6_P6_CHECK_STATUS = "m6-p6-metadata-only-unverified-pass";
+export const M6_P6_S_COMMIT = "5efcd49f70ee4956770cc05f17a7e16e6f80d15a";
+export const M6_P6_S_TREE = "0dacf4d6811138a73fec404de93a5236cc3cbab9";
+export const M6_P6_R_EXPECTED = Object.freeze([
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/run-static-verification.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+]);
+export const M6_P6_S_ARTIFACT_SHA256 = Object.freeze({
+  "benchmark/m6/p6-frontier-inventory.json": "9b3a2a75b5d6ce1262ca3c39a100dbca801f0a09dcf939be5478f740989bcf74",
+  "benchmark/m6/p6_frontier_inventory.py": "5e52a074aac595b6bfae808adc47d1f53adaa64b609091cf50db07a4ae6d74ab",
+  "benchmark/m6/test_p6_frontier_inventory.py": "e68bd93b3ce4668ab829330e589994d2fa0d0a916122993a9eceec27a7c180a5",
+  "benchmark/m6/source-cards/aigenimages2026.README.md": "53d6bbd13bdeb16c6da0f4d7a780fca4b411422e26debf61450ec758847a6ff0",
+  "benchmark/m6/source-cards/x-aigd.README.md": "e0121b9772a42b5953b68d26e99c4b0d6be29b7995156e13494a67b6dde99484",
+  "benchmark/m6/source-cards/taste.README.md": "a602cf5bf11e67ab3e89f4fe3853326ae2978a8312f8d1633b1f2a9d3d1c562b",
+  "benchmark/m6/source-cards/nano-banana.README.md": "d7f5f97cea4776c0a0c1ed97ba5139afda4f94dc42d5aec5dff2dd2c459f875c",
+  "package.json": "d6e064d8c9df1e65e8359e8ca24c5cdf1f03356bb59fdab15af967d4e40d4450",
+  "scripts/check-m6-protocol-stage.mjs": "26052bbefe0d6dfee7f6d6eb38c520e8fba0b14cf02b77ea6b2088a2e6b52310",
+  "scripts/m6-stage-policy.mjs": "53d547570846b4b54b94b4553a7fd94b5c6738cd03a4effebf9b7fc5ad833225",
+  "scripts/run-static-verification.mjs": "be653f9a20665a606c36a39000f88f68d6882fa505de75596f6caf10af800b68",
+  "scripts/test-m6-stage-policy.mjs": "0533e414094938c5e7a931b7f8a3f83890f67ad6964f5c156b8f31dc48694fda",
+});
+export const M6_P6_R_STATUS = "m6-p6-verifier-ready";
+export const M6_P6_AUTHORIZATION_PATH = "benchmark/evidence/m6/p6-protocol-authorization.json";
 export const M6_P6_EXPECTED = Object.freeze([
   ["benchmark/m6/p6-frontier-inventory.json", "A"],
   ["benchmark/m6/p6_frontier_inventory.py", "A"],
@@ -143,6 +167,29 @@ export function validateM6P6Inventory(bytes) {
   if (value.quotaCorrection?.aigenimages2026TrainAdmittedRows !== 4879 || value.quotaCorrection?.omniSetTrainSynthetic !== 43783 || value.quotaCorrection?.rightsClaimed !== false) throw new Error("M6 P6 quota correction changed");
   const sources = value.sources ?? {};
   for (const source of Object.values(sources)) if (source.publisherAssertionOnly !== true || source.independentOriginProofClaimed !== false || source.labelEvidenceScope !== "publisherAssertionOnly") throw new Error("M6 P6 source boundary changed");
+  return value;
+}
+export function matchesM6P6RHead({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent && parent === M6_P6_S_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_P6_R_EXPECTED));
+}
+export function matchesM6P6AuthorizationHead({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && parent !== M6_P6_S_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify([[M6_P6_AUTHORIZATION_PATH, "A"]]);
+}
+export function validateM6P6Authorization(bytes, { sourceCommit, sourceTree, sourceRows, sourcePathMap, sourceParent = M6_P6_PARENT, publicCi, verifierCommit, verifierTree, verifierRows } = {}) {
+  const raw = Buffer.from(bytes); const text = raw.toString("utf8");
+  if (!text.endsWith("\n") || Buffer.from(text).compare(raw) !== 0) throw new Error("P6 authorization must be canonical UTF-8 JSON");
+  rejectDuplicateKeys(text); const value = JSON.parse(text);
+  if (text !== canonicalM6Json(value)) throw new Error("P6 authorization bytes are not canonical");
+  const keys = ["acceptanceEligible", "authorizationPath", "commercialRightsClearanceClaimed", "h3PixelsRead", "independentOriginProofClaimed", "metadataOnly", "publisherAssertionOnly", "schemaVersion", "protocolCommit", "protocolParent", "protocolPathMap", "protocolRows", "protocolTree", "sourceLockAuthorized", "status", "trainingAuthorized", "verifierCommit", "verifierTree", "verifierRows", "verifierPublicCi"].sort();
+  if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(keys)) throw new Error("P6 authorization schema changed");
+  if (value.authorizationPath !== M6_P6_AUTHORIZATION_PATH || value.schemaVersion !== 1 || value.status !== "m6-p6-protocol-verified" || value.protocolCommit !== sourceCommit || value.protocolTree !== sourceTree || value.protocolParent !== sourceParent || value.metadataOnly !== true || value.publisherAssertionOnly !== true || value.independentOriginProofClaimed !== false || value.commercialRightsClearanceClaimed !== false || value.sourceLockAuthorized !== false || value.trainingAuthorized !== false || value.acceptanceEligible !== false || value.h3PixelsRead !== false) throw new Error("P6 authorization boundary changed");
+  if (canonicalM6Json(normalizedRows(value.protocolRows)) !== canonicalM6Json(normalizedRows(sourceRows)) || canonicalM6Json(value.protocolPathMap) !== canonicalM6Json(sourcePathMap) || value.verifierCommit !== verifierCommit || value.verifierTree !== verifierTree || canonicalM6Json(normalizedRows(value.verifierRows)) !== canonicalM6Json(normalizedRows(verifierRows))) throw new Error("P6 authorization source binding changed");
+  const ci = value.verifierPublicCi; const expectedCi = publicCi ?? {};
+  const ciKeys = ["conclusion", "event", "headSha", "runId", "status", "url", "workflowPath"].sort();
+  if (!ci || JSON.stringify(Object.keys(ci).sort()) !== JSON.stringify(ciKeys) || !Number.isSafeInteger(ci.runId) || ci.runId <= 0) throw new Error("P6 authorization CI schema changed");
+  if (!ci || ci.status !== "completed" || ci.conclusion !== "success" || ci.event !== "push" || ci.workflowPath !== ".github/workflows/quality.yml" || ci.headSha !== value.verifierCommit || ci.url !== `https://github.com/baney75/prooflens/actions/runs/${ci.runId}` || JSON.stringify(ci) !== JSON.stringify(expectedCi)) throw new Error("P6 authorization CI proof changed");
   return value;
 }
 export const M6_SUBMISSION_UI_EXPECTED = Object.freeze([
@@ -534,7 +581,7 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 }
 
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
-  return matchesM6P6Head({ head, parent, rows, treePaths }) ||
+  return matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
     isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||
