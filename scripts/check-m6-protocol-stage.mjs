@@ -113,6 +113,12 @@ import {
   validateM6P8Protocol,
   M6_P8_S_COMMIT, M6_P8_S_TREE, M6_P8_S_ROWS, M6_P8_S_ARTIFACT_SHA256, M6_P8_R_STATUS, M6_P8_A_STATUS, M6_P8_AUTHORIZATION_PATH,
   matchesM6P8RHead, matchesM6P8AuthorizationHead, validateM6P8Authorization,
+  M6_P8_R_COMMIT, M6_P8_R_TREE, M6_P8_A_TREE, M6_P8_A_RECEIPT_SHA256,
+  M6_SUBMISSION_PAGES_COMMIT, M6_SUBMISSION_PAGES_TREE, M6_SUBMISSION_PAGES_PARENT,
+  M6_SUBMISSION_PAGES_ROWS, M6_SUBMISSION_PAGES_ARTIFACT_SHA256,
+  M6_SUBMISSION_PROXY_LOCK_STATUS, M6_SUBMISSION_PROXY_S_COMMIT, M6_SUBMISSION_PROXY_S_TREE,
+  M6_SUBMISSION_PROXY_S_ROWS, M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256, M6_SUBMISSION_PROXY_R_STATUS,
+  matchesM6SubmissionProxyRHead,
 } from "./m6-stage-policy.mjs";
 
 const git = (args) => m5Git(args);
@@ -127,6 +133,104 @@ const rowsOf = (commit) => git([
 const currentHead = git(["rev-parse", "HEAD"]);
 const currentParents = parentsOf(currentHead);
 const currentRows = rowsOf(currentHead).map(({ path, status }) => [path, status]);
+if (process.argv[2] === undefined && currentParents.length === 1 && matchesM6SubmissionProxyRHead({
+  head: currentHead,
+  parent: currentParents[0],
+  rows: currentRows,
+})) {
+  if (currentParents[0] !== M6_SUBMISSION_PROXY_S_COMMIT ||
+      git(["rev-parse", `${M6_SUBMISSION_PROXY_S_COMMIT}^{tree}`]) !== M6_SUBMISSION_PROXY_S_TREE ||
+      parentsOf(M6_SUBMISSION_PROXY_S_COMMIT).length !== 1 ||
+      parentsOf(M6_SUBMISSION_PROXY_S_COMMIT)[0] !== M6_SUBMISSION_PAGES_COMMIT ||
+      canonicalM6Json(rowsOf(M6_SUBMISSION_PROXY_S_COMMIT).map(({ path, status }) => [path, status])) !== canonicalM6Json(M6_SUBMISSION_PROXY_S_ROWS) ||
+      git(["rev-parse", `${M6_SUBMISSION_PAGES_COMMIT}^{tree}`]) !== M6_SUBMISSION_PAGES_TREE ||
+      parentsOf(M6_SUBMISSION_PAGES_COMMIT).length !== 1 ||
+      parentsOf(M6_SUBMISSION_PAGES_COMMIT)[0] !== M6_SUBMISSION_PAGES_PARENT ||
+      canonicalM6Json(rowsOf(M6_SUBMISSION_PAGES_COMMIT).map(({ path, status }) => [path, status])) !== canonicalM6Json(M6_SUBMISSION_PAGES_ROWS)) {
+    throw new Error("submission Pages lineage changed");
+  }
+  const pagesPathMap = Object.fromEntries(Object.keys(M6_SUBMISSION_PAGES_ARTIFACT_SHA256).map((path) => [
+    path,
+    digest(m5GitBytes(["show", `${M6_SUBMISSION_PAGES_COMMIT}:${path}`])),
+  ]));
+  if (canonicalM6Json(pagesPathMap) !== canonicalM6Json(M6_SUBMISSION_PAGES_ARTIFACT_SHA256)) {
+    throw new Error("submission Pages artifacts changed");
+  }
+  if (git(["rev-parse", `${M6_SUBMISSION_PAGES_PARENT}^{tree}`]) !== M6_P8_A_TREE ||
+      parentsOf(M6_SUBMISSION_PAGES_PARENT).length !== 1 ||
+      parentsOf(M6_SUBMISSION_PAGES_PARENT)[0] !== M6_P8_R_COMMIT ||
+      !matchesM6P8AuthorizationHead({
+        head: M6_SUBMISSION_PAGES_PARENT,
+        parent: M6_P8_R_COMMIT,
+        rows: rowsOf(M6_SUBMISSION_PAGES_PARENT).map(({ path, status }) => [path, status]),
+      })) {
+    throw new Error("submission Pages parent is not exact P8 authorization");
+  }
+  if (git(["rev-parse", `${M6_P8_R_COMMIT}^{tree}`]) !== M6_P8_R_TREE ||
+      parentsOf(M6_P8_R_COMMIT).length !== 1 ||
+      !matchesM6P8RHead({
+        head: M6_P8_R_COMMIT,
+        parent: parentsOf(M6_P8_R_COMMIT)[0],
+        rows: rowsOf(M6_P8_R_COMMIT).map(({ path, status }) => [path, status]),
+      })) {
+    throw new Error("P8 verifier lineage changed");
+  }
+  const p8Receipt = m5GitBytes(["show", `${M6_SUBMISSION_PAGES_PARENT}:${M6_P8_AUTHORIZATION_PATH}`]);
+  if (digest(p8Receipt) !== M6_P8_A_RECEIPT_SHA256) throw new Error("P8 authorization receipt changed");
+  const p8Value = JSON.parse(p8Receipt.toString("utf8"));
+  const p8SourcePathMap = Object.fromEntries(Object.keys(M6_P8_S_ARTIFACT_SHA256).map((path) => [
+    path,
+    digest(m5GitBytes(["show", `${M6_P8_S_COMMIT}:${path}`])),
+  ]));
+  validateM6P8Authorization(p8Receipt, {
+    sourceCommit: M6_P8_S_COMMIT,
+    sourceTree: M6_P8_S_TREE,
+    sourceParent: M6_P8_PARENT,
+    sourceRows: M6_P8_S_ROWS,
+    sourcePathMap: p8SourcePathMap,
+    verifierCommit: M6_P8_R_COMMIT,
+    verifierTree: M6_P8_R_TREE,
+    verifierRows: rowsOf(M6_P8_R_COMMIT).map(({ path, status }) => [path, status]),
+    publicCi: p8Value.verifierPublicCi,
+  });
+  const proxyPathMap = Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256).map((path) => [
+    path,
+    digest(m5GitBytes(["show", `${M6_SUBMISSION_PROXY_S_COMMIT}:${path}`])),
+  ]));
+  if (canonicalM6Json(proxyPathMap) !== canonicalM6Json(M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256)) {
+    throw new Error("submission proxy artifacts changed");
+  }
+  const sourceLockBytes = m5GitBytes(["show", `${M6_SUBMISSION_PROXY_S_COMMIT}:benchmark/evidence/bounty-proxy-m2-v1/frozen/source-lock.json`]);
+  const sourceLockText = sourceLockBytes.toString("utf8");
+  const sourceLock = JSON.parse(sourceLockText);
+  if (sourceLockText !== canonicalM6Json(sourceLock) || sourceLock.status !== M6_SUBMISSION_PROXY_LOCK_STATUS ||
+      sourceLock.schemaVersion !== 1 || sourceLock.rows !== 1200 || sourceLock.classCounts?.real !== 600 ||
+      sourceLock.classCounts?.synthetic !== 600 || sourceLock.decision?.displayThreshold !== 0.65 ||
+      sourceLock.decision?.inclusive !== true || sourceLock.pixelsReadAtFreeze !== false ||
+      sourceLock.inferenceRun !== false || sourceLock.bountyAcceptanceClaimed !== false ||
+      sourceLock.model?.sha256 !== "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47") {
+    throw new Error("submission proxy source-lock boundary changed");
+  }
+  const manifestBytes = m5GitBytes(["show", `${M6_SUBMISSION_PROXY_S_COMMIT}:benchmark/evidence/bounty-proxy-m2-v1/frozen/manifest.jsonl`]);
+  if (digest(manifestBytes) !== sourceLock.manifestSha256) throw new Error("submission proxy manifest digest changed");
+  const manifestRows = manifestBytes.toString("utf8").trimEnd().split("\n").map((line) => JSON.parse(line));
+  if (manifestRows.length !== 1200 || manifestRows.filter((row) => row.label === 0).length !== 600 ||
+      manifestRows.filter((row) => row.label === 1).length !== 600 ||
+      manifestRows.some((row) => "score" in row || "displayScore" in row || "probability" in row || "prediction" in row)) {
+    throw new Error("submission proxy manifest is not score-blind and balanced");
+  }
+  console.log(JSON.stringify({
+    status: M6_SUBMISSION_PROXY_R_STATUS,
+    head: currentHead,
+    sourceCommit: M6_SUBMISSION_PROXY_S_COMMIT,
+    sourceTree: M6_SUBMISSION_PROXY_S_TREE,
+    rows: currentRows,
+    pixelsReadAtFreeze: false,
+    inferenceRun: false,
+    bountyAcceptanceClaimed: false,
+  }));
+  process.exit(0);
+}
 const p8RecoveryRows = rowsOf(currentHead).map(({path,status})=>[path,status]);
 if (process.argv[2] === undefined && currentParents.length === 1 && matchesM6P8AuthorizationHead({head:currentHead,parent:currentParents[0],rows:p8RecoveryRows})) {
   const sourceCommit=currentParents[0], sourceParents=parentsOf(sourceCommit), sourceRows=rowsOf(sourceCommit).map(({path,status})=>[path,status]);

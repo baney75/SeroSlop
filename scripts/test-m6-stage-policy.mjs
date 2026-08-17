@@ -65,6 +65,11 @@ import {
   validateM6P7Authorization,
   M6_P8_PARENT, M6_P8_EXPECTED, M6_P8_PROTOCOL_SHA256,
   matchesM6P8Head, validateM6P8Protocol, M6_P8_S_COMMIT, M6_P8_S_TREE, M6_P8_S_ROWS, M6_P8_S_ARTIFACT_SHA256, M6_P8_R_EXPECTED, M6_P8_R_STATUS, M6_P8_A_STATUS, M6_P8_AUTHORIZATION_PATH, matchesM6P8RHead, matchesM6P8AuthorizationHead, validateM6P8Authorization,
+  M6_SUBMISSION_PAGES_COMMIT, M6_SUBMISSION_PAGES_TREE, M6_SUBMISSION_PAGES_PARENT,
+  M6_SUBMISSION_PAGES_ROWS, M6_SUBMISSION_PAGES_ARTIFACT_SHA256,
+  M6_SUBMISSION_PROXY_LOCK_STATUS, M6_SUBMISSION_PROXY_S_COMMIT, M6_SUBMISSION_PROXY_S_TREE,
+  M6_SUBMISSION_PROXY_S_ROWS, M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256,
+  M6_SUBMISSION_PROXY_R_EXPECTED, M6_SUBMISSION_PROXY_R_STATUS, matchesM6SubmissionProxyRHead,
   M6_P6_EXPECTED,
   M6_P6_ARTIFACT_SHA256,
   matchesM6P6Head,
@@ -350,5 +355,39 @@ assert.throws(()=>validateM6P8Authorization(Buffer.from(p8Duplicate),p8Args),/du
 assert.throws(()=>validateM6P8Authorization(Buffer.from(`${canonicalM6Json(p8Auth).trim()}\n\n`),p8Args),/canonical/);
 assert.equal(checkerSource.includes("authorize-p8"),true);
 assert.equal(checkerSource.includes('process.argv[2] === undefined && currentParents.length === 1 && matchesM6P8RHead'),true);
+assert.equal(m5GitBytes(["rev-parse", `${M6_SUBMISSION_PAGES_COMMIT}^{tree}`]).toString("utf8").trim(), M6_SUBMISSION_PAGES_TREE);
+assert.equal(m5GitBytes(["rev-parse", `${M6_SUBMISSION_PAGES_COMMIT}^`]).toString("utf8").trim(), M6_SUBMISSION_PAGES_PARENT);
+assert.deepEqual(Object.fromEntries(Object.keys(M6_SUBMISSION_PAGES_ARTIFACT_SHA256).map((path) => [
+  path,
+  createHash("sha256").update(m5GitBytes(["show", `${M6_SUBMISSION_PAGES_COMMIT}:${path}`])).digest("hex"),
+])), M6_SUBMISSION_PAGES_ARTIFACT_SHA256);
+assert.equal(M6_SUBMISSION_PAGES_ROWS.length, 7);
+assert.equal(m5GitBytes(["rev-parse", `${M6_SUBMISSION_PROXY_S_COMMIT}^{tree}`]).toString("utf8").trim(), M6_SUBMISSION_PROXY_S_TREE);
+assert.equal(m5GitBytes(["rev-parse", `${M6_SUBMISSION_PROXY_S_COMMIT}^`]).toString("utf8").trim(), M6_SUBMISSION_PAGES_COMMIT);
+assert.deepEqual(m5GitBytes(["diff-tree", "--root", "--no-renames", "--name-status", "--format=", "-r", M6_SUBMISSION_PROXY_S_COMMIT]).toString("utf8").trim().split("\n").map((line) => {
+  const [status, path] = line.split("\t"); return [path, status];
+}), M6_SUBMISSION_PROXY_S_ROWS);
+const submissionProxyRows = M6_SUBMISSION_PROXY_R_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(M6_SUBMISSION_PROXY_R_STATUS, "m2-bounty-proxy-verifier-ready");
+assert.equal(matchesM6SubmissionProxyRHead({ head: "d".repeat(40), parent: M6_SUBMISSION_PROXY_S_COMMIT, rows: submissionProxyRows }), true);
+assert.equal(matchesM6SubmissionProxyRHead({ head: "d".repeat(40), parent: M6_SUBMISSION_PAGES_COMMIT, rows: submissionProxyRows }), false);
+assert.equal(matchesM6SubmissionProxyRHead({ head: "d".repeat(40), parent: M6_SUBMISSION_PROXY_S_COMMIT, rows: submissionProxyRows.slice(1) }), false);
+assert.equal(matchesM6SubmissionProxyRHead({ head: "d".repeat(40), parent: M6_SUBMISSION_PROXY_S_COMMIT, rows: [...submissionProxyRows, ["extra", "A"]] }), false);
+assert.equal(matchesM6SubmissionProxyRHead({ head: "d".repeat(40), parent: M6_SUBMISSION_PROXY_S_COMMIT, rows: submissionProxyRows.map(([path, status], index) => [path, index === 0 ? "A" : status]) }), false);
+assert.equal(isM6ProtocolLineageHead({ head: "d".repeat(40), parent: M6_SUBMISSION_PROXY_S_COMMIT, rows: submissionProxyRows }), true);
+assert.deepEqual(Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256).map((path) => [
+  path,
+  createHash("sha256").update(m5GitBytes(["show", `${M6_SUBMISSION_PROXY_S_COMMIT}:${path}`])).digest("hex"),
+])), M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256);
+const submissionLock = JSON.parse(m5GitBytes(["show", `${M6_SUBMISSION_PROXY_S_COMMIT}:benchmark/evidence/bounty-proxy-m2-v1/frozen/source-lock.json`]).toString("utf8"));
+assert.equal(submissionLock.status, M6_SUBMISSION_PROXY_LOCK_STATUS);
+assert.equal(submissionLock.pixelsReadAtFreeze, false);
+assert.equal(submissionLock.inferenceRun, false);
+assert.equal(submissionLock.bountyAcceptanceClaimed, false);
+assert.equal(m5GitBytes(["show", `${M6_SUBMISSION_PROXY_S_COMMIT}:benchmark/evidence/bounty-proxy-m2-v1/frozen/manifest.jsonl`]).toString("utf8").trimEnd().split("\n").length, 1200);
+assert.equal(checkerSource.includes("submission proxy manifest is not score-blind and balanced"), true);
+const staticRouter = readFileSync("scripts/run-static-verification.mjs", "utf8");
+assert.equal(staticRouter.includes("matchesM6SubmissionProxyRHead"), true);
+assert.equal(staticRouter.includes('npm", ["run", "verify:submission-proxy"]'), true);
 assert.equal(m5GitBytes(["rev-parse", "285bc3eefcaff35a6ae8a6cc9b23b2d0abdd4f90^{tree}"]).toString("utf8").trim(), "2457bb455d05fcef86aee07fb0c38cccd6ba289e");
 console.log("M6 stage policy PASS");

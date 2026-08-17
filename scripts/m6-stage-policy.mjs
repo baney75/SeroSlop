@@ -100,6 +100,66 @@ export function validateM6P8Authorization(bytes,{sourceCommit,sourceTree,sourceP
   if(canonicalM6Json(normalizedRows(value.protocolRows))!==canonicalM6Json(normalizedRows(sourceRows))||canonicalM6Json(value.protocolPathMap)!==canonicalM6Json(sourcePathMap)||value.verifierCommit!==verifierCommit||value.verifierTree!==verifierTree||canonicalM6Json(normalizedRows(value.verifierRows))!==canonicalM6Json(normalizedRows(verifierRows))) throw new Error("P8 authorization source binding changed");
   const ci=value.verifierPublicCi, expected=publicCi??{}; const ciKeys=["conclusion","event","headSha","runId","status","url","workflowPath"].sort(); if(!ci||JSON.stringify(Object.keys(ci).sort())!==JSON.stringify(ciKeys)||!Number.isSafeInteger(ci.runId)||ci.runId<=0||ci.status!=="completed"||ci.conclusion!=="success"||ci.event!=="push"||ci.workflowPath!==".github/workflows/quality.yml"||ci.headSha!==verifierCommit||ci.url!==`https://github.com/baney75/prooflens/actions/runs/${ci.runId}`||JSON.stringify(ci)!==JSON.stringify(expected)) throw new Error("P8 authorization CI proof changed"); return value;
 }
+export const M6_SUBMISSION_PAGES_COMMIT = "896429fdef327106704b01f7ea3b4772db4cea42";
+export const M6_SUBMISSION_PAGES_TREE = "555081e194ab15a90cdc6815ebd270f69226ae97";
+export const M6_SUBMISSION_PAGES_PARENT = "c4d71abfef2809125d21ad9797d13e9534d54860";
+export const M6_P8_R_COMMIT = "c6ec48cfb5fe2c27971d1aa22746e91e11e3c025";
+export const M6_P8_R_TREE = "aa2e54f22a114fb731b1489fa67ecfeb20e961f6";
+export const M6_P8_A_TREE = "88268ef8003fadd467ae0158ba17222b627609de";
+export const M6_P8_A_RECEIPT_SHA256 = "fd1cb09cf9407f58423fc5248bcd38caf336438566d28b919004b04f38dcb09d";
+export const M6_SUBMISSION_PAGES_ROWS = Object.freeze([
+  [".github/workflows/pages.yml", "A"],
+  ["README.md", "M"],
+  ["package.json", "M"],
+  ["scripts/check-site.mjs", "A"],
+  ["site/assets/seroslop.svg", "A"],
+  ["site/index.html", "A"],
+  ["site/styles.css", "A"],
+]);
+export const M6_SUBMISSION_PAGES_ARTIFACT_SHA256 = Object.freeze({
+  ".github/workflows/pages.yml": "fa0d8d530376747a3b41753f03763b68bc4eda3e1df4e6ba3fa1ac3e2f1fc3f5",
+  "README.md": "e1af63fc654ff9c1641370eda8b347619697c89f3ffa5c7624c867de0d41e1cb",
+  "package.json": "49b9893e93bc5cf97f3edbc13e040f6265a3873d855efdd7dfd6e6dd8f599f83",
+  "scripts/check-site.mjs": "c889861fe457fcd2c2e18e07be7931583be8363dff65ff2551ac645ac4c45081",
+  "site/assets/seroslop.svg": "3305b345c480a6ea2f3ed7e7ae907c7ff2ebbffa9dd221342070cbe294ab9c9f",
+  "site/index.html": "9f58e66bfa4f3b6c2995314fab69244964fd59a537b5c125b40eed3c61ae552b",
+  "site/styles.css": "a0ad46eceb862790e6f1faf6c32f35f5439874cf3ae44703a022545b69fa0fc1",
+});
+export const M6_SUBMISSION_PROXY_LOCK_STATUS = "m2-bounty-proxy-pre-score-locked";
+export const M6_SUBMISSION_PROXY_S_COMMIT = "b5bce594dba3b14bcfd279d5ccb4ad0af2dc9df0";
+export const M6_SUBMISSION_PROXY_S_TREE = "cbd512770b2327dfea32ec88f6719a61ca0468cd";
+export const M6_SUBMISSION_PROXY_S_ROWS = Object.freeze([
+  ["benchmark/bounty_proxy_m2.py", "A"],
+  ["benchmark/evidence/bounty-proxy-m2-v1/README.md", "A"],
+  ["benchmark/evidence/bounty-proxy-m2-v1/frozen/manifest.jsonl", "A"],
+  ["benchmark/evidence/bounty-proxy-m2-v1/frozen/source-lock.json", "A"],
+  ["benchmark/test_bounty_proxy_m2.py", "A"],
+  ["package.json", "M"],
+  ["scripts/bounty-proxy-browser.mjs", "A"],
+  ["scripts/test-bounty-proxy-browser.mjs", "A"],
+]);
+export const M6_SUBMISSION_PROXY_S_ARTIFACT_SHA256 = Object.freeze({
+  "benchmark/bounty_proxy_m2.py": "7ff36769220508e5aa1392f7d9f33e55944f09927d431ef080be8b01cbf2077b",
+  "benchmark/evidence/bounty-proxy-m2-v1/README.md": "bc4e9ad0d9daaf34f96ee44ed904080d728907fa5bb7c750630868781fb7de2b",
+  "benchmark/evidence/bounty-proxy-m2-v1/frozen/manifest.jsonl": "2f713788a8813c185fdea450db46fa4d5243467fd3cd405953a3130bf06b62a5",
+  "benchmark/evidence/bounty-proxy-m2-v1/frozen/source-lock.json": "fe49a561efc95618411931188668fa0180797a2b1afac22985475dc6fb24dd48",
+  "benchmark/test_bounty_proxy_m2.py": "e212ea7c2f2a86d5bf6b02c81096a6362b976024cd3dcae18c226b75d6fb6be3",
+  "package.json": "42e95ad85235ed48b4947733907c3d2eecb6df0e7919cf6330706c81a3981c9d",
+  "scripts/bounty-proxy-browser.mjs": "91ec043179b7a7c25141ced0cb39d389684cb4b39570970b4c364c36ef1cc1fa",
+  "scripts/test-bounty-proxy-browser.mjs": "d39eeb6182252a8f564ac6f7462dcc12924e2377493cb536e7372612a10439d7",
+});
+export const M6_SUBMISSION_PROXY_R_STATUS = "m2-bounty-proxy-verifier-ready";
+export const M6_SUBMISSION_PROXY_R_EXPECTED = Object.freeze([
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/run-static-verification.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+]);
+export function matchesM6SubmissionProxyRHead({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent &&
+    parent === M6_SUBMISSION_PROXY_S_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_SUBMISSION_PROXY_R_EXPECTED));
+}
 export const M6_PROTOCOL_RECOVERY_EXPECTED = Object.freeze([
   ["benchmark/m6/README.md", "M"],
   ["benchmark/m6/contracts.py", "M"],
@@ -666,7 +726,7 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 }
 
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
-  return matchesM6P8AuthorizationHead({ head, parent, rows }) || matchesM6P8RHead({ head, parent, rows }) || matchesM6P8Head({ head, parent, rows }) || matchesM6P7AuthorizationHead({ head, parent, rows }) || matchesM6P7RHead({ head, parent, rows }) || matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
+  return matchesM6SubmissionProxyRHead({ head, parent, rows }) || matchesM6P8AuthorizationHead({ head, parent, rows }) || matchesM6P8RHead({ head, parent, rows }) || matchesM6P8Head({ head, parent, rows }) || matchesM6P7AuthorizationHead({ head, parent, rows }) || matchesM6P7RHead({ head, parent, rows }) || matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
     isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||
