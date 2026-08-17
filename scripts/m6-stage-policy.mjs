@@ -24,6 +24,25 @@ export const M6_PROTOCOL_PATHS = Object.freeze([
   "benchmark/m6/README.md", "benchmark/m6/THIRD_PARTY_NOTICES.md", "benchmark/m6/__init__.py", "benchmark/m6/census-evidence.json", "benchmark/m6/contracts.py", "benchmark/m6/preflight.py", "benchmark/m6/prepare.py", "benchmark/m6/recipe.json", "benchmark/m6/test_contracts.py",
   "package.json", "scripts/check-m6-protocol-stage.mjs", "scripts/m6-stage-policy.mjs", "scripts/run-static-verification.mjs", "scripts/test-m6-stage-policy.mjs",
 ]);
+export const M6_P7_PARENT = "e6412f90736d39985332ef009a360614865306d2";
+export const M6_P7_PARENT_TREE = "b99608de8093fcdd70d7f3520ebfbce3344dfcb5";
+export const M6_P7_STATUS = "p7-phase1-taste-unverified";
+export const M6_P7_PROTOCOL_SHA256 = "f05deaba1e8d7f056b33ee4ce80c4846259d8425b273dc8a5ccdfd41abeddb95";
+export const M6_P7_EXPECTED = Object.freeze([
+  ["benchmark/m6/README.md", "M"], ["benchmark/m6/p7-protocol.json", "A"], ["benchmark/m6/p7_operational.py", "A"], ["benchmark/m6/test_p7_operational.py", "A"], ["package.json", "M"],
+  ["scripts/check-m6-protocol-stage.mjs", "M"], ["scripts/m6-stage-policy.mjs", "M"], ["scripts/run-static-verification.mjs", "M"], ["scripts/test-m6-stage-policy.mjs", "M"],
+]);
+export function matchesM6P7Head({ head, parent, rows = [], treePaths = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent && parent === M6_P7_PARENT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_P7_EXPECTED)) && M6_P7_EXPECTED.every(([path]) => treePaths.includes(path));
+}
+export function validateM6P7Protocol(bytes) {
+  const text = Buffer.from(bytes).toString("utf8"); const value = JSON.parse(text);
+  if (createHash("sha256").update(Buffer.from(bytes)).digest("hex") !== M6_P7_PROTOCOL_SHA256) throw new Error("P7 protocol bytes changed");
+  if (!text.endsWith("\n") || /\n\s*\n/.test(text)) throw new Error("P7 protocol bytes are not canonical");
+  if (value.schemaVersion !== 1 || value.status !== "p7-phase1-taste-unverified" || value.parentCommit !== M6_P7_PARENT || value.parentTree !== M6_P7_PARENT_TREE || value.claims?.trainingAuthorized !== false || value.claims?.acceptanceEligible !== false) throw new Error("P7 protocol semantics changed");
+  return true;
+}
 export const M6_PROTOCOL_RECOVERY_EXPECTED = Object.freeze([
   ["benchmark/m6/README.md", "M"],
   ["benchmark/m6/contracts.py", "M"],
@@ -590,7 +609,7 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 }
 
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
-  return matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
+  return matchesM6P7Head({ head, parent, rows, treePaths }) || matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
     isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||

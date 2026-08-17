@@ -47,6 +47,10 @@ import {
   M6_P6_R_COMMIT,
   M6_P6_R2_STATUS,
   matchesM6P6R2Head,
+  matchesM6P7Head,
+  M6_P7_PARENT,
+  M6_P7_EXPECTED,
+  validateM6P7Protocol,
   M6_P6_EXPECTED,
   M6_P6_ARTIFACT_SHA256,
   matchesM6P6Head,
@@ -234,7 +238,7 @@ const p6Rows = M6_P6_EXPECTED.map(([path, status]) => [path, status]);
 assert.equal(matchesM6P6Head({ head: "f".repeat(40), parent: M6_P6_PARENT, rows: p6Rows, treePaths: p6Rows.map(([path]) => path) }), true);
 assert.equal(matchesM6P6Head({ head: "f".repeat(40), parent: "0".repeat(40), rows: p6Rows, treePaths: p6Rows.map(([path]) => path) }), false);
 assert.equal(matchesM6P6Head({ head: "f".repeat(40), parent: M6_P6_PARENT, rows: [...p6Rows, ["extra", "A"]], treePaths: p6Rows.map(([path]) => path) }), false);
-const p6Artifacts = Object.fromEntries(Object.keys(M6_P6_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+const p6Artifacts = Object.fromEntries(Object.keys(M6_P6_ARTIFACT_SHA256).map((path) => [path, path === "package.json" ? m5GitBytes(["show", `${M6_P6_A_COMMIT}:${path}`]) : readFileSync(path)]));
 assert.equal(validateM6P6Artifacts(p6Artifacts), true);
 assert.throws(() => validateM6P6Artifacts({ ...p6Artifacts, "package.json": Buffer.from("mutated") }), /bytes changed/);
 assert.equal(validateM6P6Inventory(p6Artifacts["benchmark/m6/p6-frontier-inventory.json"]).status, "metadata-only; no acquisition or materialization");
@@ -267,5 +271,11 @@ assert.equal(M6_P6_R_COMMIT, "9d04c7fb49d79dae572007adbd917510daf26001");
 assert.equal(matchesM6P6R2Head({ head: "c".repeat(40), parent: "0".repeat(40), rows: r2Rows }), false);
 assert.equal(matchesM6P6R2Head({ head: "c".repeat(40), parent: M6_P6_A_COMMIT, rows: [...r2Rows, ["extra", "M"]] }), false);
 assert.equal(M6_P6_R2_STATUS, "m6-p6-protocol-ci-recovery-ready");
+const p7Rows = M6_P7_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6P7Head({ head: "d".repeat(40), parent: M6_P7_PARENT, rows: p7Rows, treePaths: p7Rows.map(([path]) => path) }), true);
+assert.equal(matchesM6P7Head({ head: "d".repeat(40), parent: "0".repeat(40), rows: p7Rows, treePaths: p7Rows.map(([path]) => path) }), false);
+const p7Protocol = readFileSync("benchmark/m6/p7-protocol.json");
+assert.equal(validateM6P7Protocol(p7Protocol), true);
+assert.throws(() => validateM6P7Protocol(Buffer.from(p7Protocol.toString().replace("p7-phase1-taste-unverified", "forged"))), /bytes changed/);
 assert.equal(m5GitBytes(["rev-parse", "285bc3eefcaff35a6ae8a6cc9b23b2d0abdd4f90^{tree}"]).toString("utf8").trim(), "2457bb455d05fcef86aee07fb0c38cccd6ba289e");
 console.log("M6 stage policy PASS");

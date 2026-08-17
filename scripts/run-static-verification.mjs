@@ -111,7 +111,7 @@ const scripts = new Map([
   ["pre-score", "verify:pre-score"],
 ]);
 if (m6ProtocolExists) {
-  // Route P6 S, R, A, and R2 frontier states through the protocol checker before any release stage.
+  // Route P6 S/R/A/R2 and prospective P7 frontier states through the protocol checker.
   const result = spawnSync("npm", ["run", "verify:m6-protocol"], { stdio: "inherit" });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);

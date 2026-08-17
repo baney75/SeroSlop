@@ -92,6 +92,10 @@ import {
   matchesM6P6Head,
   validateM6P6Artifacts,
   validateM6P6Inventory,
+  M6_P7_PARENT,
+  M6_P7_STATUS,
+  matchesM6P7Head,
+  validateM6P7Protocol,
 } from "./m6-stage-policy.mjs";
 
 const git = (args) => m5Git(args);
@@ -381,6 +385,12 @@ if (head === M6_P3_COMMIT) {
 }
 
 const recoveryRows = rowsOf(head);
+if (headParents.length === 1 && matchesM6P7Head({ head, parent: headParents[0], rows: recoveryRows.map(({ path, status }) => [path, status]), treePaths: git(["ls-tree", "-r", "--name-only", head]).split("\n") })) {
+  if (headParents[0] !== M6_P7_PARENT) throw new Error("P7 parent changed");
+  validateM6P7Protocol(m5GitBytes(["show", `${head}:benchmark/m6/p7-protocol.json`]));
+  console.log(JSON.stringify({ status: M6_P7_STATUS, head, parent: headParents[0], rows: recoveryRows }));
+  process.exit(0);
+}
 if (headParents.length !== 1 || !matchesM6CiRecovery({
   head,
   parent: headParents[0],

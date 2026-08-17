@@ -1,5 +1,13 @@
 # M6 score-blind protocol
 
+## P7 Phase 1 + TASTE verification
+
+P7 currently provides Phase 1 input verification and a real TASTE byte-rederiving adapter. AIGen, X-AIGD, Nano Banana, source-lock, training, and acceptance remain disabled. It does not assert independent origin or rights clearance. Run with a verified local cache:
+
+```bash
+PYTHONNOUSERSITE=1 benchmark/.venv/bin/python -m benchmark.m6.p7_operational --phase materialize-frontier --source taste --cache-root benchmark/data/m6-frontier-cache/taste --output /tmp/p7-taste-receipts
+```
+
 M6 is a fresh RunPod-only experiment, starting from terminal M5 HEAD
 `76d0a807dcf240245830b8510e623d838e43cd4c`. It preserves the local 384px
 FP32 ONNX contract and does not alter M5 artifacts.

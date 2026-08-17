@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "status": "p7-phase1-taste-unverified",
+  "parentCommit": "e6412f90736d39985332ef009a360614865306d2",
+  "parentTree": "b99608de8093fcdd70d7f3520ebfbce3344dfcb5",
+  "materialization": "byte-rederiving; source-preserving quarantine; atomic receipts",
+  "frontierSources": ["aigenimages2026-train", "aigenimages2026-test", "x-aigd", "taste", "nano-banana"],
+  "allocation": {"train": {"real": 48662, "syntheticOmni": 43783, "syntheticAigen": 4879}, "selector": {"real": 2000, "synthetic": 2000}, "syntheticPanel": {"set": 58228, "ood": 28693, "frontier": 13079}, "realPanel": {"set": 5000, "ood": 5000}},
+  "claims": {"h3PixelsRead": false, "publisherAssertionOnly": true, "independentOriginProof": false, "rightsClearance": false, "trainingAuthorized": false, "acceptanceEligible": false}
+}
