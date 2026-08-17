@@ -109,13 +109,34 @@ const UI_EVIDENCE_WIDTHS = Object.freeze([320, 375, 414, 768]);
 async function captureUiMatrix(page, surface) {
   const originalViewport = page.viewportSize() ?? { width: 1280, height: 720 };
   const records = [];
-  for (const theme of ["light", "dark"]) {
-    await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
-    for (const width of UI_EVIDENCE_WIDTHS) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.evaluate(() => { document.body.tabIndex = -1; document.body.focus(); });
-      await page.keyboard.press("Tab");
-      const layout = await page.evaluate(() => {
+  // Playwright's page.screenshot() can hang indefinitely under GitHub's
+  // Chromium/Xvfb runner even after fonts are ready. Capture through Chrome's
+  // DevTools protocol instead; the DOM/layout assertions below remain the
+  // source of truth and the resulting PNGs retain the full-page evidence.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Page.enable");
+  const capture = async (file) => {
+    const metrics = await cdp.send("Page.getLayoutMetrics");
+    const size = metrics.cssContentSize ?? metrics.contentSize;
+    if (!size || !Number.isFinite(size.width) || !Number.isFinite(size.height) || size.width <= 0 || size.height <= 0) {
+      throw new Error(`${surface} screenshot layout metrics were invalid`);
+    }
+    const result = await cdp.send("Page.captureScreenshot", {
+      captureBeyondViewport: true,
+      clip: { x: 0, y: 0, width: Math.ceil(size.width), height: Math.ceil(size.height), scale: 1 },
+      format: "png",
+      fromSurface: true,
+    });
+    await writeFile(file, Buffer.from(result.data, "base64"));
+  };
+  try {
+    for (const theme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+      for (const width of UI_EVIDENCE_WIDTHS) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.evaluate(() => { document.body.tabIndex = -1; document.body.focus(); });
+        await page.keyboard.press("Tab");
+        const layout = await page.evaluate(() => {
         const controls = [...document.querySelectorAll("button, a, summary, label.mode-option")]
           .filter((element) => {
             const rect = element.getBoundingClientRect();
@@ -140,15 +161,18 @@ async function captureUiMatrix(page, surface) {
           focusOutlineWidth: Math.max(activeOutline, labelOutline),
           focusOutlineStyle: focusStyle?.outlineStyle ?? "none",
         };
-      });
-      if (layout.horizontalOverflow || layout.clippedControlCount !== 0 || layout.minimumControlHeight < 44 ||
-        layout.focusOutlineWidth < 2 || layout.focusOutlineStyle === "none") {
-        throw new Error(`${surface} ${theme} ${width}px UI contract failed: ${JSON.stringify(layout)}`);
+        });
+        if (layout.horizontalOverflow || layout.clippedControlCount !== 0 || layout.minimumControlHeight < 44 ||
+          layout.focusOutlineWidth < 2 || layout.focusOutlineStyle === "none") {
+          throw new Error(`${surface} ${theme} ${width}px UI contract failed: ${JSON.stringify(layout)}`);
+        }
+        const file = path.join(artifactsPath, `${surface}-${expectedProvider}-${theme}-${width}.png`);
+        await capture(file);
+        records.push({ theme, width, ...layout, screenshot: await screenshotRecord(file) });
       }
-      const file = path.join(artifactsPath, `${surface}-${expectedProvider}-${theme}-${width}.png`);
-      await page.screenshot({ path: file, fullPage: true });
-      records.push({ theme, width, ...layout, screenshot: await screenshotRecord(file) });
     }
+  } finally {
+    await cdp.detach();
   }
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await page.setViewportSize(originalViewport);
