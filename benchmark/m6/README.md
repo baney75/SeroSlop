@@ -94,3 +94,20 @@ anchors are forbidden.
 Dataset cards report CC-BY-4.0, but this protocol makes no independent
 constituent-rights warranty. Dataset pixels are not shipped and no endorsement
 or comparative/best-in-class claim is made. Freshness claims are item-level.
+
+## P5 public-green recovery packet
+
+P5 freezes admission, identity, source-round-robin allocation, seven-view
+transform seeds, Platt calibration, the score-65-inclusive decision, ranking,
+acceptance, provenance, and paid-receipt contracts in `p5_protocol.py` and
+`p5-protocol.json`. It is metadata-only: no candidate payload is downloaded or
+materialized, and selector, inference, training, and provisioning remain
+forbidden. Every production allocation, scoring, training, acceptance, and
+paid-receipt entry point deliberately hard-stops in P5. P6 must pin its exact
+public commit/tree and independently validated admission ledger, historical
+receipt, overlap manifest, allocation receipt, and source-lock receipt before
+wrapping the deterministic P5 cores. The X-AIGD labeled-test member is pinned to
+`f86630ae51ef1103de204c879ad74d70bacaeca258489f2c32102851344a5c75`.
+The quota census in `p5-quota-census.json` supersedes the provisional panel:
+SET validation synthetic 58,228 and OOD synthetic 28,693, yielding exactly
+100,000 synthetic items after overlap quarantine.
