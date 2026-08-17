@@ -43,6 +43,10 @@ import {
   M6_P6_S_ARTIFACT_SHA256,
   matchesM6P6RHead,
   validateM6P6Authorization,
+  M6_P6_A_COMMIT,
+  M6_P6_R_COMMIT,
+  M6_P6_R2_STATUS,
+  matchesM6P6R2Head,
   M6_P6_EXPECTED,
   M6_P6_ARTIFACT_SHA256,
   matchesM6P6Head,
@@ -257,4 +261,11 @@ const duplicateAuth = canonicalM6Json(auth).replace('{"acceptanceEligible":false
 assert.throws(() => validateM6P6Authorization(Buffer.from(duplicateAuth), authArgs), /duplicate/);
 assert.throws(() => validateM6P6Authorization(Buffer.from(`${canonicalM6Json(auth).trim()}\n\n`), authArgs), /canonical/);
 assert.throws(() => validateM6P6Inventory(Buffer.from(`${readFileSync("benchmark/m6/p6-frontier-inventory.json", "utf8").trim()}\n\n`)), /canonical/);
+const r2Rows = M6_P6_R_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6P6R2Head({ head: "c".repeat(40), parent: M6_P6_A_COMMIT, rows: r2Rows }), true);
+assert.equal(M6_P6_R_COMMIT, "9d04c7fb49d79dae572007adbd917510daf26001");
+assert.equal(matchesM6P6R2Head({ head: "c".repeat(40), parent: "0".repeat(40), rows: r2Rows }), false);
+assert.equal(matchesM6P6R2Head({ head: "c".repeat(40), parent: M6_P6_A_COMMIT, rows: [...r2Rows, ["extra", "M"]] }), false);
+assert.equal(M6_P6_R2_STATUS, "m6-p6-protocol-ci-recovery-ready");
+assert.equal(m5GitBytes(["rev-parse", "285bc3eefcaff35a6ae8a6cc9b23b2d0abdd4f90^{tree}"]).toString("utf8").trim(), "2457bb455d05fcef86aee07fb0c38cccd6ba289e");
 console.log("M6 stage policy PASS");

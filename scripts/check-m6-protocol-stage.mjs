@@ -77,6 +77,12 @@ import {
   M6_P6_PARENT,
   M6_P6_S_TREE,
   M6_P6_R_STATUS,
+  M6_P6_A_TREE,
+  M6_P6_A_COMMIT,
+  M6_P6_A_RECEIPT_SHA256,
+  M6_P6_R_COMMIT,
+  M6_P6_R2_STATUS,
+  matchesM6P6R2Head,
   M6_P6_AUTHORIZATION_PATH,
   M6_P6_S_ARTIFACT_SHA256,
   matchesM6P6RHead,
@@ -256,6 +262,20 @@ const head = git(["rev-parse", "HEAD"]);
 const headParents = parentsOf(head);
 const headRows = rowsOf(head).map(({ path, status }) => [path, status]);
 const headTreePaths = git(["ls-tree", "-r", "--name-only", head]).split("\n").filter(Boolean);
+if (headParents.length === 1 && matchesM6P6R2Head({ head, parent: headParents[0], rows: headRows })) {
+  const aCommit = headParents[0];
+  if (aCommit !== M6_P6_A_COMMIT || git(["rev-parse", `${aCommit}^{tree}`]) !== M6_P6_A_TREE) throw new Error("M6 P6 A tree changed");
+  const receipt = m5GitBytes(["show", `${aCommit}:${M6_P6_AUTHORIZATION_PATH}`]);
+  if (digest(receipt) !== M6_P6_A_RECEIPT_SHA256) throw new Error("M6 P6 authorization receipt bytes changed");
+  const aParents = parentsOf(aCommit); if (aParents.length !== 1 || aParents[0] !== M6_P6_R_COMMIT) throw new Error("M6 P6 R parent changed");
+  const rCommit = aParents[0]; const rTree = git(["rev-parse", `${rCommit}^{tree}`]); const rRows = rowsOf(rCommit).map(({ path, status }) => [path, status]);
+  const protocolRows = rowsOf(M6_P6_S_COMMIT).map(({ path, status }) => [path, status]);
+  const protocolPathMap = Object.fromEntries(Object.keys(M6_P6_S_ARTIFACT_SHA256).map((path) => [path, digest(m5GitBytes(["show", `${M6_P6_S_COMMIT}:${path}`]))]));
+  const authorization = validateM6P6Authorization(receipt, { sourceCommit: M6_P6_S_COMMIT, sourceTree: M6_P6_S_TREE, sourceParent: M6_P6_PARENT, sourceRows: protocolRows, sourcePathMap: protocolPathMap, verifierCommit: rCommit, verifierTree: rTree, verifierRows: rRows, publicCi: JSON.parse(receipt.toString("utf8")).verifierPublicCi });
+  const liveContext = process.env.GITHUB_ACTIONS === "true" && process.env.GITHUB_EVENT_NAME === "push" && process.env.GITHUB_SHA === head && process.env.GITHUB_REPOSITORY === "baney75/prooflens";
+  if (!liveContext) await fetchPublicCiRun(authorization.verifierPublicCi.runId, rCommit);
+  console.log(JSON.stringify({ status: M6_P6_R2_STATUS, head, parent: headParents[0], deferredToExternal: liveContext, rows: headRows })); process.exit(0);
+}
 if (headParents.length === 1 && JSON.stringify(headRows) === JSON.stringify([[M6_P6_AUTHORIZATION_PATH, "A"]])) {
   const sourceCommit = headParents[0]; const sourceParent = parentsOf(sourceCommit); const sourceRows = rowsOf(sourceCommit).map(({ path, status }) => [path, status]);
   if (sourceParent.length !== 1 || !matchesM6P6RHead({ head: sourceCommit, parent: sourceParent[0], rows: sourceRows })) throw new Error("M6 P6 authorization source is not exact R");

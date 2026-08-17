@@ -118,6 +118,12 @@ export const M6_P6_S_ARTIFACT_SHA256 = Object.freeze({
 });
 export const M6_P6_R_STATUS = "m6-p6-verifier-ready";
 export const M6_P6_AUTHORIZATION_PATH = "benchmark/evidence/m6/p6-protocol-authorization.json";
+export const M6_P6_A_COMMIT = "285bc3eefcaff35a6ae8a6cc9b23b2d0abdd4f90";
+export const M6_P6_R_COMMIT = "9d04c7fb49d79dae572007adbd917510daf26001";
+export const M6_P6_A_TREE = "2457bb455d05fcef86aee07fb0c38cccd6ba289e";
+export const M6_P6_A_RECEIPT_SHA256 = "c848f6581a73d4420248c55ae1f15cbfb7c1ceb5fcf2cd33171b06531781eede";
+export const M6_P6_R2_EXPECTED = Object.freeze(M6_P6_R_EXPECTED);
+export const M6_P6_R2_STATUS = "m6-p6-protocol-ci-recovery-ready";
 export const M6_P6_EXPECTED = Object.freeze([
   ["benchmark/m6/p6-frontier-inventory.json", "A"],
   ["benchmark/m6/p6_frontier_inventory.py", "A"],
@@ -176,6 +182,9 @@ export function matchesM6P6RHead({ head, parent, rows = [] } = {}) {
 export function matchesM6P6AuthorizationHead({ head, parent, rows = [] } = {}) {
   return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && parent !== M6_P6_S_COMMIT &&
     JSON.stringify(normalizedRows(rows)) === JSON.stringify([[M6_P6_AUTHORIZATION_PATH, "A"]]);
+}
+export function matchesM6P6R2Head({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent && parent === M6_P6_A_COMMIT && JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_P6_R2_EXPECTED));
 }
 export function validateM6P6Authorization(bytes, { sourceCommit, sourceTree, sourceRows, sourcePathMap, sourceParent = M6_P6_PARENT, publicCi, verifierCommit, verifierTree, verifierRows } = {}) {
   const raw = Buffer.from(bytes); const text = raw.toString("utf8");
@@ -581,7 +590,7 @@ export function matchesM6CiRecovery({ head, parent, rows = [] } = {}) {
 }
 
 export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [] } = {}) {
-  return matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
+  return matchesM6P6R2Head({ head, parent, rows }) || matchesM6P6AuthorizationHead({ head, parent, rows }) || matchesM6P6RHead({ head, parent, rows }) || matchesM6P6Head({ head, parent, rows, treePaths }) ||
     isM6ProtocolHead({ head, parent, treePaths }) ||
     matchesM6P5Head({ head, parent, rows, treePaths }) ||
     matchesM6P5CiRecovery({ head, parent, rows }) ||
