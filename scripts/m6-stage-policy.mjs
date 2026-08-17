@@ -63,6 +63,8 @@ export const M6_P5_CI_RECOVERY_COMMIT = "57beb67fbfd9a140565b3b83436ba2893fd0fd8
 export const M6_P5_CI_RECOVERY_TREE = "bd75e0203f3b7156ee4cd3e870d22f1787d60b05";
 export const M6_SUBMISSION_UI_COMMIT = "d3b712513e91d89c9de2ac7d958b1d24ca844b1a";
 export const M6_SUBMISSION_UI_TREE = "25c896193faa5e26520c5ea4334e922e3a3ee74f";
+export const M6_NO_SLOP_UI_COMMIT = "d4bc2fb9299534e821f05914d51cab0d41e7a030";
+export const M6_NO_SLOP_UI_TREE = "347d36e24363215fd43e72d321ddf5260d007a32";
 export const M6_P5_PROTOCOL_PATHS = Object.freeze(["benchmark/m6/DATA_PROVENANCE.md", "benchmark/m6/p5-protocol.json", "benchmark/m6/p5-quota-census.json", "benchmark/m6/p5_protocol.py", "benchmark/m6/p5_transform_fixture.py", "benchmark/m6/test_p5_protocol.py", "benchmark/m6/README.md", "benchmark/m6/THIRD_PARTY_NOTICES.md", "package.json", "scripts/m6-stage-policy.mjs", "scripts/check-m6-protocol-stage.mjs", "scripts/test-m6-stage-policy.mjs", "scripts/run-static-verification.mjs"]);
 export const M6_P5_ARTIFACT_SHA256 = Object.freeze({
   "benchmark/m6/DATA_PROVENANCE.md": "858f02abaf94445387f1cbd91f8495b0f0e179bfc3fd63e6f678e32f6fa90523",
@@ -141,6 +143,71 @@ export const M6_NO_SLOP_UI_ARTIFACT_SHA256 = Object.freeze({
   "src/static/setup.html": "bc3ddc345d5e3b1c26c1114856822f091d4034247e43501047457e60f645c00b",
   "tests/manifest.test.ts": "1292cb527a577f1b78ee4ad41019c4368cf4321b1ee19ab60026f011a32823ed",
 });
+export const M6_BETA1_EXPECTED = Object.freeze([
+  [".github/workflows/quality.yml", "M"],
+  [".gitignore", "M"],
+  ["DESIGN.md", "M"],
+  ["README.md", "M"],
+  ["contributor/DATA_POLICY.md", "A"],
+  ["contributor/PRIVACY.md", "A"],
+  ["contributor/README.md", "A"],
+  ["contributor/background.js", "A"],
+  ["contributor/content.js", "A"],
+  ["contributor/manifest.json", "A"],
+  ["contributor/popup.css", "A"],
+  ["contributor/popup.html", "A"],
+  ["contributor/popup.js", "A"],
+  ["contributor/test.mjs", "A"],
+  ["package.json", "M"],
+  ["scripts/build-contributor.mjs", "A"],
+  ["scripts/check-benchmark-evidence.mjs", "M"],
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/chrome-smoke.mjs", "M"],
+  ["scripts/contributor-chrome-smoke.mjs", "A"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+  ["src/background.ts", "M"],
+  ["src/content.ts", "M"],
+  ["src/popup.ts", "M"],
+  ["src/setup.ts", "M"],
+  ["src/shared/contracts.ts", "M"],
+  ["src/shared/scan-mode.ts", "A"],
+  ["src/static/popup.html", "M"],
+  ["src/static/setup.html", "M"],
+  ["tests/scan-mode.test.ts", "A"],
+]);
+export const M6_BETA1_ARTIFACT_SHA256 = Object.freeze({
+  ".github/workflows/quality.yml": "3f61aafcc66b581cf60c89304dc1262b7532d138582e1c70378813f7a4e3511e",
+  ".gitignore": "06b0704026e84cedc17383d15f8eddbb388ebdba72eb25e64d29d375b8342f87",
+  "DESIGN.md": "38553cec88be787f627215c3cac0616b6c2a324db1b193c29bb27b48f02200ce",
+  "README.md": "9664aa2401f5bc1dd1c31708ee278fbcaa3f539c4466aafb014cc6cde190e6b9",
+  "contributor/DATA_POLICY.md": "0ac90532a1b2b2952cf7d1eb6018bef8a7f6d8a000adb37aa5c5dad0257e0bda",
+  "contributor/PRIVACY.md": "bd5ab24c2b1c5a12f1853a2694a3521e55787ea1b6f87472c474b95f3ef940f1",
+  "contributor/README.md": "158ca2a6c94e819ccd814fe5e355373f07c9371fec2d1b2457af674f907b28b9",
+  "contributor/background.js": "cf32d508fedca15bcec16c6eec089f6b882198fc172dace487854330c39cf26c",
+  "contributor/content.js": "a351f818606becd869c95afe22443ab0ff50dca6a7577863a44150c474092282",
+  "contributor/manifest.json": "0f36a700497ecb77c7c6b182f671135f64c47002f7faed3786052dd0e0914845",
+  "contributor/popup.css": "e475c4d0bd3f99cd7194e9131d0e5a6581a6a1cbe83c40a436c22d889a7bf7e2",
+  "contributor/popup.html": "4243ce10222adb20cbd67053c3ac1382dbc4146b8809ffba46573a47352aabab",
+  "contributor/popup.js": "c03c20db9d986708ea0f4feb95abbdb2c54d5d980afda3fde90a3615f6d77e0a",
+  "contributor/test.mjs": "b3843a95813bc584aca1343be1bf08a9e03ecd15423e4b7fd1f85f40ac16c800",
+  "package.json": "b6a15c2b71fc38b97b3c63d6360bf90d95775c8ec644b490766ca60a4d6ae994",
+  "scripts/build-contributor.mjs": "deb69e2d03b589bff22d9cfee715c398af79930efe1274064d7e190f80d1b41d",
+  "scripts/check-benchmark-evidence.mjs": "3e6f28237dda205b45674a427add9827185c3ecbcfbed2fa2574d5bd05627bbc",
+  "scripts/chrome-smoke.mjs": "c84e02f692813b11364830b0268534766eb0c4f72b3e28d3605eec3196cffebe",
+  "scripts/contributor-chrome-smoke.mjs": "9db59f642e577862d004783d0509b46427866025ebc23c27690857c9b3b5859a",
+  "src/background.ts": "c455ce7387e53dd07928ef70cced113ab2f36604f1620f3c45c020bbd63e3ce4",
+  "src/content.ts": "6f057d3dc247317d5808edaf51d54d483a45db5ff90c518cd8edce70e9eeb49b",
+  "src/popup.ts": "a80771b3ca847d3ada28f5c11f70d03a12fd603bada78a425a4485506459f7bc",
+  "src/setup.ts": "3acad049128a4a8881f74cdc5231cfc36990c0b9769609e128d0a8d49fabf61e",
+  "src/shared/contracts.ts": "edc85a3c8bd9fad9113b5c3cc0b8f4bbbd2b3dfc31776cdb3e9ae8d23fd59120",
+  "src/shared/scan-mode.ts": "11970df19a508fe8790b142f296d98c47df3083dd2dad4b3703610848c53df5c",
+  "src/static/popup.html": "8b704d63de87f739b842aa9dd6c3464fcd835f005d5085e26a45ba0bfedde321",
+  "src/static/setup.html": "531317dacd3af7d911ed7097b4a011aa50cbfa87d1eb020e8826822f861cf359",
+  "tests/scan-mode.test.ts": "ace8ae5877b4294bb0dc370280783f0d61c8750d6f56e4231b77fecd8af2f865",
+});
+export const M6_BETA1_AUTHORIZATION_PATH = "benchmark/evidence/m6/beta1-authorization.json";
+export const M6_BETA1_AUTHORIZATION_STATUS = "m6-beta1-source-authorized";
 export function validateM6P5Artifacts(artifactBytes = {}, expectedDigests = M6_P5_ARTIFACT_SHA256) {
   const expectedPaths = Object.keys(expectedDigests).sort();
   if (JSON.stringify(Object.keys(artifactBytes).sort()) !== JSON.stringify(expectedPaths)) throw new Error("M6 P5 artifact inventory changed");
@@ -175,6 +242,55 @@ export function matchesM6NoSlopUiHead({ head, parent, rows = [] } = {}) {
   return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== M6_SUBMISSION_UI_COMMIT &&
     parent === M6_SUBMISSION_UI_COMMIT &&
     JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_NO_SLOP_UI_EXPECTED));
+}
+
+export function matchesM6Beta1Head({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== M6_NO_SLOP_UI_COMMIT &&
+    parent === M6_NO_SLOP_UI_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_BETA1_EXPECTED));
+}
+
+export function matchesM6Beta1AuthorizationHead({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && typeof parent === "string" && /^[0-9a-f]{40}$/.test(parent) &&
+    head !== parent && JSON.stringify(normalizedRows(rows)) === JSON.stringify([[M6_BETA1_AUTHORIZATION_PATH, "A"]]);
+}
+
+function canonicalM6Value(value) {
+  if (Array.isArray(value)) return value.map(canonicalM6Value);
+  if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalM6Value(value[key])]));
+  return value;
+}
+
+export function canonicalM6Json(value) {
+  return `${JSON.stringify(canonicalM6Value(value))}\n`;
+}
+
+export function validateM6Beta1Authorization(bytes, { sourceCommit, sourceTree, sourcePathMap } = {}) {
+  const valueBytes = Buffer.from(bytes);
+  const text = valueBytes.toString("utf8");
+  if (Buffer.from(text, "utf8").compare(valueBytes) !== 0 || !text.endsWith("\n")) throw new Error("M6 Beta1 authorization must be canonical UTF-8 JSON");
+  rejectDuplicateKeys(text);
+  const value = JSON.parse(text);
+  if (text !== canonicalM6Json(value)) throw new Error("M6 Beta1 authorization bytes are not canonical");
+  const keys = ["authorizationPath", "benchmarkAcceptanceEligible", "contributorUploadEnabled", "h3PixelsRead", "modelSha256", "schemaVersion", "sourceCommit", "sourcePathMap", "sourcePublicCi", "sourceTree", "status"].sort();
+  if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(keys)) throw new Error("M6 Beta1 authorization schema changed");
+  if (value.schemaVersion !== 1 || value.status !== M6_BETA1_AUTHORIZATION_STATUS || value.authorizationPath !== M6_BETA1_AUTHORIZATION_PATH ||
+    value.sourceCommit !== sourceCommit || value.sourceTree !== sourceTree || value.modelSha256 !== "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47" ||
+    value.benchmarkAcceptanceEligible !== false || value.contributorUploadEnabled !== false || value.h3PixelsRead !== false) {
+    throw new Error("M6 Beta1 authorization boundary changed");
+  }
+  const expectedPaths = M6_BETA1_EXPECTED.map(([path]) => path).sort();
+  if (JSON.stringify(Object.keys(value.sourcePathMap ?? {}).sort()) !== JSON.stringify(expectedPaths) ||
+    JSON.stringify(value.sourcePathMap) !== JSON.stringify(sourcePathMap)) throw new Error("M6 Beta1 authorization source map changed");
+  if (Object.values(value.sourcePathMap).some((digest) => typeof digest !== "string" || !/^[0-9a-f]{64}$/.test(digest))) throw new Error("M6 Beta1 authorization source digest changed");
+  const ci = value.sourcePublicCi;
+  const ciKeys = ["conclusion", "event", "headSha", "runId", "status", "url", "workflowPath"].sort();
+  if (!ci || JSON.stringify(Object.keys(ci).sort()) !== JSON.stringify(ciKeys) || !Number.isSafeInteger(ci.runId) || ci.runId <= 0 ||
+    ci.status !== "completed" || ci.conclusion !== "success" || ci.event !== "push" || ci.headSha !== sourceCommit ||
+    ci.workflowPath !== ".github/workflows/quality.yml" || ci.url !== `https://github.com/baney75/prooflens/actions/runs/${ci.runId}`) {
+    throw new Error("M6 Beta1 source CI proof changed");
+  }
+  return value;
 }
 
 function rejectDuplicateKeys(text) {
@@ -275,6 +391,8 @@ export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [
     matchesM6P5CiRecovery({ head, parent, rows }) ||
     matchesM6SubmissionUiHead({ head, parent, rows }) ||
     matchesM6NoSlopUiHead({ head, parent, rows }) ||
+    matchesM6Beta1Head({ head, parent, rows }) ||
+    matchesM6Beta1AuthorizationHead({ head, parent, rows }) ||
     matchesM6ProtocolRecovery({ head, parent, rows }) ||
     matchesM6MaterializerRecovery({ head, parent, rows }) ||
     matchesM6CiRecovery({ head, parent, rows });

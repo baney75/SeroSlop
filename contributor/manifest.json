@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "SeroSlop Contributor Review",
+  "version": "0.1.0",
+  "description": "Prepare one reviewed image label for SeroSlop maintainers.",
+  "action": { "default_popup": "popup.html", "default_title": "SeroSlop contributor review" },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["activeTab", "alarms", "scripting", "storage", "downloads"],
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; img-src 'self' data:; connect-src 'none'" }
+}

@@ -36,10 +36,18 @@ import {
   M6_P5_RECOVERY_ARTIFACT_SHA256,
   M6_SUBMISSION_UI_ARTIFACT_SHA256,
   M6_NO_SLOP_UI_ARTIFACT_SHA256,
+  M6_NO_SLOP_UI_COMMIT,
+  M6_NO_SLOP_UI_TREE,
+  M6_BETA1_ARTIFACT_SHA256,
+  M6_BETA1_AUTHORIZATION_PATH,
+  M6_BETA1_EXPECTED,
   matchesM6P5Head,
   matchesM6P5CiRecovery,
   matchesM6SubmissionUiHead,
   matchesM6NoSlopUiHead,
+  matchesM6Beta1Head,
+  matchesM6Beta1AuthorizationHead,
+  validateM6Beta1Authorization,
   validateM6P5Artifacts,
 } from "./m6-stage-policy.mjs";
 
@@ -132,10 +140,30 @@ const submissionUiRows = rowsOf(M6_SUBMISSION_UI_COMMIT).map(({ path, status }) 
 if (submissionUiParents.length !== 1 || !matchesM6SubmissionUiHead({ head: M6_SUBMISSION_UI_COMMIT, parent: submissionUiParents[0], rows: submissionUiRows })) throw new Error("M6 immutable submission UI lineage/path map changed");
 validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_SUBMISSION_UI_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_SUBMISSION_UI_COMMIT}:${path}`])])), M6_SUBMISSION_UI_ARTIFACT_SHA256);
 
+if (git(["rev-parse", `${M6_NO_SLOP_UI_COMMIT}^{tree}`]) !== M6_NO_SLOP_UI_TREE) throw new Error("M6 immutable no-slop UI tree changed");
+const noSlopUiParents = parentsOf(M6_NO_SLOP_UI_COMMIT);
+const noSlopUiRows = rowsOf(M6_NO_SLOP_UI_COMMIT).map(({ path, status }) => [path, status]);
+if (noSlopUiParents.length !== 1 || !matchesM6NoSlopUiHead({ head: M6_NO_SLOP_UI_COMMIT, parent: noSlopUiParents[0], rows: noSlopUiRows })) throw new Error("M6 immutable no-slop UI lineage/path map changed");
+validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_NO_SLOP_UI_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_NO_SLOP_UI_COMMIT}:${path}`])])), M6_NO_SLOP_UI_ARTIFACT_SHA256);
+
 const head = git(["rev-parse", "HEAD"]);
 const headParents = parentsOf(head);
 const headRows = rowsOf(head).map(({ path, status }) => [path, status]);
 const headTreePaths = git(["ls-tree", "-r", "--name-only", head]).split("\n").filter(Boolean);
+if (headParents.length === 1 && matchesM6Beta1AuthorizationHead({ head, parent: headParents[0], rows: headRows })) {
+  const sourceCommit = headParents[0];
+  const sourceParents = parentsOf(sourceCommit);
+  const sourceRows = rowsOf(sourceCommit).map(({ path, status }) => [path, status]);
+  if (sourceParents.length !== 1 || !matchesM6Beta1Head({ head: sourceCommit, parent: sourceParents[0], rows: sourceRows })) {
+    throw new Error("M6 Beta1 authorization source lineage changed");
+  }
+  const sourceTree = git(["rev-parse", `${sourceCommit}^{tree}`]);
+  const sourcePathMap = Object.fromEntries(M6_BETA1_EXPECTED.map(([path]) => [path, digest(m5GitBytes(["show", `${sourceCommit}:${path}`]))]));
+  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${sourceCommit}:${path}`])])), M6_BETA1_ARTIFACT_SHA256);
+  validateM6Beta1Authorization(m5GitBytes(["show", `${head}:${M6_BETA1_AUTHORIZATION_PATH}`]), { sourceCommit, sourceTree, sourcePathMap });
+  console.log(JSON.stringify({ status: "m6-beta1-authorized-pass", head, sourceCommit, sourceTree, rows: headRows }));
+  process.exit(0);
+}
 if (headParents.length === 1 && headParents[0] === M6_P5_PARENT && matchesM6P5Head({ head, parent: headParents[0], rows: headRows, treePaths: headTreePaths })) {
   validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_P5_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])));
   console.log(JSON.stringify({ status: "m6-p5-protocol-pass", head, parent: headParents[0], rows: headRows }));
@@ -154,6 +182,11 @@ if (headParents.length === 1 && matchesM6SubmissionUiHead({ head, parent: headPa
 if (headParents.length === 1 && matchesM6NoSlopUiHead({ head, parent: headParents[0], rows: headRows })) {
   validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_NO_SLOP_UI_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])), M6_NO_SLOP_UI_ARTIFACT_SHA256);
   console.log(JSON.stringify({ status: "m6-no-slop-ui-pass", head, parent: headParents[0], rows: headRows }));
+  process.exit(0);
+}
+if (headParents.length === 1 && matchesM6Beta1Head({ head, parent: headParents[0], rows: headRows })) {
+  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])), M6_BETA1_ARTIFACT_SHA256);
+  console.log(JSON.stringify({ status: "m6-beta1-pass", head, parent: headParents[0], rows: headRows }));
   process.exit(0);
 }
 if (head === M6_P_COMMIT) {

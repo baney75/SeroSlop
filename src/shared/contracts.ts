@@ -1,3 +1,5 @@
+import type { ScanMode } from "./scan-mode";
+
 export const AI_THRESHOLD = 0.65;
 
 export function classifyLikelihood(value: number): "likely-ai" | "not-flagged" {
@@ -71,7 +73,9 @@ export type UiToBackgroundMessage =
   | { type: "PL_GET_MODEL_STATUS" }
   | { type: "PL_PREPARE_MODEL" }
   | { type: "PL_GET_TAB_SUMMARY"; tabId: number }
-  | { type: "PL_SET_SITE_STATE"; origin: string; enabled: boolean };
+  | { type: "PL_SET_SITE_STATE"; origin: string; enabled: boolean }
+  | { type: "PL_GET_SCAN_MODE" }
+  | { type: "PL_SET_SCAN_MODE"; scanMode: ScanMode };
 
 export type BackgroundToOffscreenMessage =
   | { type: "PL_OFFSCREEN_STATUS" }
@@ -89,6 +93,7 @@ export interface InferenceResponse {
 
 export interface SiteStateResponse {
   enabled: boolean;
+  scanMode?: ScanMode;
 }
 
 export interface TabSummaryResponse {

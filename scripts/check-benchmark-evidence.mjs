@@ -442,17 +442,27 @@ requireCondition(parity.schemaVersion === 2 && parity.modelSha256 === modelLock.
 const browserEvidence = {};
 for (const [provider, file] of Object.entries(CHROME_E2E)) {
   const report = JSON.parse(await readFile(file, "utf8"));
-  requireCondition(report.schemaVersion === 6 && report.modelSha256 === modelLock.sha256 &&
+  const validateUiMatrix = (rows) => Array.isArray(rows) && rows.length === 8 &&
+    rows.every((row) => ["light", "dark"].includes(row.theme) && [320, 375, 414, 768].includes(row.width) &&
+      row.horizontalOverflow === false && row.clippedControlCount === 0 && row.minimumControlHeight >= 44 &&
+      row.focusOutlineWidth >= 2 && row.focusOutlineStyle !== "none" && /^[a-f0-9]{64}$/u.test(row.screenshot?.sha256));
+  requireCondition(report.schemaVersion === 7 && report.modelSha256 === modelLock.sha256 &&
     report.provider === provider && report.cleanProfile === true && report.persistedModelAfterRestart === true &&
     report.serverStoppedBeforeAnalysis === true && report.browserOfflineBeforeAnalysis === true &&
     jsonEqual(report.postCutoffNetworkRequests, []) && report.setupProgressAccessibleName === true &&
     report.setupProgressAdvanced === true && report.popupCaveatVisible === false &&
-    report.setupInitialFailureRecovered === true && report.popupUnsupportedGuard === true &&
-    report.popupSupportedPageControls === true && report.popupTemporaryLabelsReset === true &&
-    report.popupSavedSiteStatePersisted === true && report.popupRescanFeedback === true &&
+    report.setupInitialFailureRecovered === true && report.setupExplicitModeSelected === true &&
+    validateUiMatrix(report.visualEvidence?.setup) && validateUiMatrix(report.visualEvidence?.popupUnsupported) &&
+    validateUiMatrix(report.visualEvidence?.popupError) && validateUiMatrix(report.visualEvidence?.popupPick) &&
+    validateUiMatrix(report.visualEvidence?.popupSupported) && validateUiMatrix(report.visualEvidence?.popupModeSheet) &&
+    report.popupUnsupportedGuard === true && report.popupSupportedPageControls === true &&
+    report.modeSaveFailureTruthful === true && report.sameOriginNavigationRejected === true &&
+    report.pickModeNoAutomaticAnalysis === true && report.pickerTargetOutlined === true &&
+    report.pickerEscapeCancelled === true && report.pickerExactOneTarget === true &&
+    report.pickerHostileImageCountBounded === true &&
+    report.mainModeScoped === true && report.allModePersisted === true && report.popupRescanFeedback === true &&
     report.popupRescanWork?.acceptedAfter > report.popupRescanWork?.acceptedBefore &&
-    report.popupFailureStateTruthful === true && report.popupCrossOriginMutationRejected === true &&
-    report.popupInitializationNavigationRejected === true && report.numericScore === true &&
+    report.numericScore === true &&
     report.modelStateFixtures?.likelyAi?.classification === "likely-ai" &&
     report.modelStateFixtures?.belowThreshold?.classification === "not-flagged" &&
     report.reducedMotionSuppressed === true && report.closedShadowRoot === true &&

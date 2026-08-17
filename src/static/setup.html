@@ -63,6 +63,18 @@
         overflow: hidden;
       }
       .status-panel { padding: 32px; }
+      .mode-panel { border-top: 1px solid var(--border); padding: 0 32px 32px; }
+      .mode-panel h2 { font-size: 18px; letter-spacing: -.02em; margin: 0 0 4px; }
+      .mode-intro { color: var(--text-muted); margin: 0 0 16px; }
+      fieldset { border: 0; margin: 0; padding: 0; }
+      legend { font-weight: 750; margin-bottom: 8px; }
+      .mode-option { align-items: flex-start; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; display: flex; gap: 12px; margin-top: 10px; min-height: 64px; padding: 12px 14px; }
+      .mode-option:has(input:checked) { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border: 2px solid var(--accent); padding: 11px 13px; }
+      .mode-option input { margin: 4px 0 0; }
+      .mode-option strong, .mode-option small { display: block; }
+      .mode-option small { color: var(--text-muted); margin-top: 2px; }
+      .mode-feedback { color: var(--text-muted); font-size: 13px; min-height: 20px; margin: 10px 0 0; }
+      .mode-feedback[data-state="error"] { color: var(--error); }
       .status-heading {
         align-items: center;
         display: flex;
@@ -126,6 +138,8 @@
       }
       button:hover:not(:disabled) { background: #2a3140; }
       button:focus-visible, summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 35%, transparent); outline-offset: 3px; }
+      .mode-option:has(input:focus-visible) { outline: 3px solid color-mix(in srgb, var(--focus) 35%, transparent); outline-offset: 3px; }
+      .mode-option input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
       button:disabled { cursor: default; opacity: .5; }
       [hidden] { display: none !important; }
       .sr-only {
@@ -177,6 +191,7 @@
         main { align-items: flex-start; padding: 24px 16px; }
         .brand { margin-left: 2px; }
         .status-panel { padding: 26px 22px; }
+        .mode-panel { padding: 0 22px 26px; }
         summary { padding-inline: 22px; }
         .model-details { padding-inline: 22px; }
         dl { grid-template-columns: 1fr; gap: 2px; }
@@ -205,6 +220,18 @@
             </div>
             <button id="prepare-model" type="button" disabled hidden>Verify model</button>
             <p id="setup-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+          </section>
+          <section id="mode-section" class="mode-panel" hidden aria-labelledby="mode-heading">
+            <h2 id="mode-heading">Choose how SeroSlop scans pages</h2>
+            <p id="mode-intro" class="mode-intro">You can change this anytime from the extension.</p>
+            <fieldset>
+              <legend class="sr-only">Scanning mode</legend>
+              <label class="mode-option"><input type="radio" name="scan-mode" value="pick"><span><strong>Choose an image</strong><small>Pick one image when you want a score.</small></span></label>
+              <label class="mode-option"><input type="radio" name="scan-mode" value="main"><span><strong>Main images</strong><small>Scan images in the page’s main content.</small></span></label>
+              <label class="mode-option"><input type="radio" name="scan-mode" value="all"><span><strong>Every image</strong><small>Scan all supported page images.</small></span></label>
+            </fieldset>
+            <p id="mode-feedback" class="mode-feedback" role="status" aria-live="polite"></p>
+            <button id="save-mode" type="button" disabled>Choose a mode</button>
           </section>
           <details>
             <summary>Model details</summary>

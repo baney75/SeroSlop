@@ -1,4 +1,5 @@
-import type { ModelStatus, SiteStateResponse, TabSummaryResponse } from "./shared/contracts";
+import type { ModelStatus, TabSummaryResponse } from "./shared/contracts";
+import { isScanMode, SCAN_MODE_COPY, type ScanMode } from "./shared/scan-mode";
 
 function requireElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -10,29 +11,42 @@ const statusElement = requireElement<HTMLElement>("#model-status");
 const pageElement = requireElement<HTMLElement>("#page-summary");
 const feedbackElement = requireElement<HTMLElement>("#control-feedback");
 const siteContextElement = requireElement<HTMLElement>("#site-context");
-const siteToggle = requireElement<HTMLInputElement>("#site-enabled");
-const labelToggle = requireElement<HTMLInputElement>("#labels-visible");
-const rescanButton = requireElement<HTMLButtonElement>("#rescan");
+const summaryView = requireElement<HTMLElement>("#summary-view");
+const modeSummary = requireElement<HTMLElement>("#mode-summary");
+const modeSheet = requireElement<HTMLElement>("#mode-sheet");
+const changeModeButton = requireElement<HTMLButtonElement>("#change-mode");
+const modeBackButton = requireElement<HTMLButtonElement>("#mode-back");
+const saveModeButton = requireElement<HTMLButtonElement>("#save-mode");
+const modeError = requireElement<HTMLElement>("#mode-error");
+const modeInputs = [...document.querySelectorAll<HTMLInputElement>('input[name="popup-mode"]')];
+const primaryAction = requireElement<HTMLButtonElement>("#primary-action");
 const setupLink = requireElement<HTMLAnchorElement>("#open-setup");
 
 let activeTab: chrome.tabs.Tab | undefined;
 let origin = "";
-let summaryTimer: number | undefined;
-let refreshPending = false;
+let modelReady = false;
+let scanMode: ScanMode | undefined;
 let contentAvailable = false;
-let siteMutationPending = false;
-let labelMutationPending = false;
-let rescanPending = false;
+let pickerActive = false;
+let pickResultExists = false;
 let targetInvalidated = false;
+let refreshPending = false;
+let actionPending = false;
+let savePending = false;
+let summaryTimer: number | undefined;
 
 interface ContentSnapshot {
-  labelsVisible?: boolean;
-  enabled?: boolean;
+  pickerActive?: boolean;
+  scanMode?: ScanMode;
+  documentToken?: string;
+  recordCount?: number;
 }
 
-interface TargetContext {
-  tabId: number;
-  origin: string;
+let documentToken = "";
+
+function supportedOrigin(url: string | undefined): string {
+  if (!url || !/^https?:/u.test(url)) return "";
+  try { return new URL(url).origin; } catch { return ""; }
 }
 
 function setFeedback(message: string, state: "info" | "error" = "info"): void {
@@ -43,7 +57,7 @@ function setFeedback(message: string, state: "info" | "error" = "info"): void {
 function describeModel(status: ModelStatus): string {
   if (status.state === "ready") return "Offline ready";
   if (status.state === "preparing") return "Verifying model…";
-  if (status.state === "error") return `Setup error: ${status.error ?? "unknown error"}`;
+  if (status.state === "error") return "Setup required";
   return "Setup required";
 }
 
@@ -56,270 +70,254 @@ function describePage(stats: TabSummaryResponse["stats"]): string {
   return progress ? `${progress} · ${settled}` : settled;
 }
 
-function supportedOrigin(url: string | undefined): string {
-  if (!url || !/^https?:/u.test(url)) return "";
-  try {
-    return new URL(url).origin;
-  } catch {
-    return "";
-  }
-}
-
-function exposeChangedPage(message = "The page changed. Reopen SeroSlop to use its controls."): void {
+function exposeChangedPage(): void {
   targetInvalidated = true;
   contentAvailable = false;
+  pickerActive = false;
   pageElement.textContent = "Page changed · reopen SeroSlop";
   siteContextElement.textContent = "The selected page changed";
-  siteToggle.disabled = true;
-  labelToggle.disabled = true;
-  rescanButton.disabled = true;
-  rescanButton.textContent = "Reopen SeroSlop to scan";
-  setFeedback(message, "error");
+  setFeedback("The page changed. Reopen SeroSlop to use its controls.", "error");
+  renderPrimaryAction();
 }
 
-async function requireCurrentTarget(): Promise<TargetContext | undefined> {
-  if (targetInvalidated || !origin || activeTab?.id === undefined) return undefined;
+async function requireCurrentTarget(): Promise<{ tabId: number; origin: string } | undefined> {
+  if (targetInvalidated || activeTab?.id === undefined || !origin) return undefined;
   const [current] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (current?.id !== activeTab.id || supportedOrigin(current.url) !== origin) {
     exposeChangedPage();
     return undefined;
   }
+  if (documentToken) {
+    const confirmed = await chrome.tabs.sendMessage(activeTab.id, {
+      type: "PL_CONFIRM_DOCUMENT",
+      expectedOrigin: origin,
+      expectedDocumentToken: documentToken,
+    }).catch(() => undefined) as { documentToken?: string } | undefined;
+    if (confirmed?.documentToken !== documentToken) {
+      exposeChangedPage();
+      return undefined;
+    }
+  }
   return { tabId: activeTab.id, origin };
 }
 
+function renderPrimaryAction(): void {
+  if (actionPending) return;
+  if (targetInvalidated) {
+    primaryAction.textContent = "Reopen SeroSlop to scan";
+    primaryAction.disabled = true;
+    return;
+  }
+  if (!modelReady || !scanMode) {
+    primaryAction.textContent = "Finish setup";
+    primaryAction.disabled = false;
+    return;
+  }
+  if (!contentAvailable) {
+    primaryAction.textContent = "This page can’t be scanned";
+    primaryAction.disabled = true;
+    return;
+  }
+  primaryAction.textContent = scanMode === "pick" && pickerActive
+    ? "Cancel picker"
+    : scanMode === "pick" && pickResultExists
+      ? "Choose another image"
+      : SCAN_MODE_COPY[scanMode].action;
+  primaryAction.disabled = false;
+}
+
+function renderMode(): void {
+  modeSummary.textContent = scanMode ? SCAN_MODE_COPY[scanMode].title : "Choose a mode";
+  changeModeButton.disabled = savePending || !modelReady;
+  for (const input of modeInputs) input.checked = input.value === scanMode;
+  renderPrimaryAction();
+}
+
 async function refreshPageState(): Promise<void> {
-  if (activeTab?.id === undefined || refreshPending) return;
+  if (refreshPending || activeTab?.id === undefined || !origin) return;
   refreshPending = true;
   try {
     const target = await requireCurrentTarget();
     if (!target) return;
-    const summary = (await chrome.runtime.sendMessage({
-      type: "PL_GET_TAB_SUMMARY",
-      tabId: target.tabId,
-    })) as TabSummaryResponse;
+    const summary = await chrome.runtime.sendMessage({ type: "PL_GET_TAB_SUMMARY", tabId: target.tabId }) as TabSummaryResponse;
     pageElement.textContent = describePage(summary.stats);
-    const content = await chrome.tabs.sendMessage(target.tabId, { type: "PL_GET_CONTENT_SNAPSHOT" }).catch(() => undefined) as
-      | ContentSnapshot
-      | undefined;
-    if (typeof content?.labelsVisible === "boolean") {
-      contentAvailable = true;
-      if (!labelMutationPending) {
-        labelToggle.checked = content.labelsVisible;
-        labelToggle.disabled = false;
-        labelToggle.removeAttribute("aria-busy");
-      }
-      if (!rescanPending) {
-        rescanButton.disabled = false;
-        rescanButton.textContent = "Re-scan page";
-        rescanButton.removeAttribute("aria-busy");
-      }
-    } else {
-      contentAvailable = false;
-      if (!labelMutationPending) labelToggle.disabled = true;
-      if (!rescanPending) {
-        rescanButton.disabled = true;
-        rescanButton.textContent = "This page can’t be scanned";
-      }
+    const snapshot = await chrome.tabs.sendMessage(target.tabId, { type: "PL_GET_CONTENT_SNAPSHOT" }).catch(() => undefined) as ContentSnapshot | undefined;
+    if (documentToken && snapshot?.documentToken !== documentToken) {
+      exposeChangedPage();
+      return;
     }
+    if (snapshot?.documentToken) documentToken = snapshot.documentToken;
+    contentAvailable = Boolean(snapshot);
+    pickerActive = snapshot?.pickerActive === true;
+    if (isScanMode(snapshot?.scanMode) && snapshot.scanMode !== scanMode) scanMode = snapshot.scanMode;
+    pickResultExists = scanMode === "pick" && Number(snapshot?.recordCount ?? 0) > 0;
   } catch {
     contentAvailable = false;
+    pickerActive = false;
     pageElement.textContent = "Page state unavailable";
-    labelToggle.disabled = true;
-    rescanButton.disabled = true;
-    rescanButton.textContent = "This page can’t be scanned";
   } finally {
     refreshPending = false;
+    renderMode();
   }
 }
 
+function openSetup(): void {
+  void chrome.tabs.create({ url: chrome.runtime.getURL("setup.html") });
+}
+
 async function initialize(): Promise<void> {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  activeTab = tabs[0];
+  [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   origin = supportedOrigin(activeTab?.url);
   if (origin && activeTab?.url) {
-    siteContextElement.textContent = `Automatic analysis on ${new URL(activeTab.url).hostname}`;
+    const host = new URL(activeTab.url).hostname;
+    siteContextElement.textContent = host;
+    siteContextElement.title = host;
+    siteContextElement.setAttribute("aria-label", `Current site: ${host}`);
+  } else {
+    siteContextElement.textContent = "No supported site selected";
+    pageElement.textContent = "No supported page is active";
   }
 
-  const model = (await chrome.runtime.sendMessage({ type: "PL_GET_MODEL_STATUS" })) as ModelStatus | null;
-  if (model && typeof model.state === "string") {
-    statusElement.textContent = describeModel(model);
-    statusElement.dataset.state = model.state;
-  } else {
-    statusElement.textContent = "Setup status unavailable";
-    statusElement.dataset.state = "error";
-  }
+  const model = await chrome.runtime.sendMessage({ type: "PL_GET_MODEL_STATUS" }).catch(() => undefined) as ModelStatus | undefined;
+  modelReady = model?.state === "ready";
+  statusElement.textContent = model ? describeModel(model) : "Setup status unavailable";
+  statusElement.dataset.state = modelReady ? "ready" : "error";
+
+  const modeResponse = await chrome.runtime.sendMessage({ type: "PL_GET_SCAN_MODE" }).catch(() => undefined) as { scanMode?: ScanMode } | undefined;
+  scanMode = isScanMode(modeResponse?.scanMode) ? modeResponse.scanMode : undefined;
+  renderMode();
 
   if (activeTab?.id !== undefined && origin) {
     await refreshPageState();
     summaryTimer = window.setInterval(() => void refreshPageState(), 500);
   } else {
-    pageElement.textContent = "No supported page is active";
-    siteContextElement.textContent = "No supported site selected";
-  }
-
-  if (origin) {
-    try {
-      const siteState = (await chrome.runtime.sendMessage({
-        type: "PL_GET_SITE_STATE",
-        origin,
-      })) as SiteStateResponse;
-      if (typeof siteState?.enabled !== "boolean") throw new Error("Saved site state was not available");
-      if (!await requireCurrentTarget()) return;
-      siteToggle.checked = siteState.enabled;
-      siteToggle.disabled = false;
-    } catch {
-      siteToggle.disabled = true;
-      if (!targetInvalidated) {
-        setFeedback("Saved site setting unavailable. Reopen SeroSlop to retry.", "error");
-      }
-    }
-  } else {
-    siteToggle.disabled = true;
+    contentAvailable = false;
+    renderPrimaryAction();
   }
 }
 
-siteToggle.addEventListener("change", () => {
+function showModeSheet(): void {
+  summaryView.hidden = true;
+  modeSheet.hidden = false;
+  modeError.textContent = "";
+  delete modeError.dataset.state;
+  for (const input of modeInputs) input.checked = input.value === scanMode;
+  saveModeButton.disabled = true;
+  (modeInputs.find((input) => input.checked) ?? modeInputs[0])?.focus();
+}
+
+function hideModeSheet(): void {
+  modeSheet.hidden = true;
+  summaryView.hidden = false;
+  changeModeButton.focus();
+}
+
+changeModeButton.addEventListener("click", showModeSheet);
+modeBackButton.addEventListener("click", hideModeSheet);
+for (const input of modeInputs) {
+  input.addEventListener("change", () => {
+    modeError.textContent = "";
+    delete modeError.dataset.state;
+    saveModeButton.disabled = !isScanMode(input.value) || input.value === scanMode;
+  });
+}
+
+saveModeButton.addEventListener("click", () => {
   void (async () => {
-    if (!origin || activeTab?.id === undefined || siteMutationPending) return;
-    const desired = siteToggle.checked;
-    siteMutationPending = true;
-    siteToggle.disabled = true;
-    siteToggle.setAttribute("aria-busy", "true");
-    setFeedback("Saving this site setting…");
+    if (savePending) return;
+    const selected = modeInputs.find((input) => input.checked)?.value;
+    if (!isScanMode(selected)) return;
+    const previous = scanMode;
+    savePending = true;
+    saveModeButton.disabled = true;
+    saveModeButton.textContent = "Saving mode…";
+    saveModeButton.setAttribute("aria-busy", "true");
+    modeInputs.forEach((input) => { input.disabled = true; });
+    modeError.textContent = "";
+    delete modeError.dataset.state;
     try {
-      const target = await requireCurrentTarget();
-      if (!target) {
-        siteToggle.checked = !desired;
-        return;
-      }
-      let stored: SiteStateResponse;
-      try {
-        stored = (await chrome.runtime.sendMessage({
-          type: "PL_SET_SITE_STATE",
-          origin: target.origin,
-          enabled: desired,
-        })) as SiteStateResponse;
-        if (typeof stored?.enabled !== "boolean" || stored.enabled !== desired) {
-          throw new Error("Saved site state was not confirmed");
+      const before = origin ? await requireCurrentTarget() : undefined;
+      if (origin && !before) throw new Error("page-changed");
+      const saved = await chrome.runtime.sendMessage({ type: "PL_SET_SCAN_MODE", scanMode: selected }) as { scanMode?: ScanMode };
+      if (saved?.scanMode !== selected) throw new Error("save-not-confirmed");
+      scanMode = selected;
+      if (before) {
+        const relayed = await chrome.tabs.sendMessage(before.tabId, {
+          type: "PL_SCAN_MODE_CHANGED",
+          scanMode: selected,
+          expectedOrigin: before.origin,
+          expectedDocumentToken: documentToken,
+        }).catch(() => undefined) as { scanMode?: ScanMode; pageChanged?: boolean } | undefined;
+        if (relayed?.scanMode !== selected) {
+          setFeedback("Mode saved. It will apply after reload.");
+        } else {
+          setFeedback(`Scanning mode: ${SCAN_MODE_COPY[selected].title}.`);
         }
-      } catch {
-        const current = await chrome.runtime.sendMessage({
-          type: "PL_GET_SITE_STATE",
-          origin: target.origin,
-        }).catch(() => undefined) as
-          | SiteStateResponse
-          | undefined;
-        siteToggle.checked = typeof current?.enabled === "boolean" ? current.enabled : !desired;
-        setFeedback("Couldn’t save this site setting. Try again.", "error");
-        return;
       }
-      siteToggle.checked = stored.enabled;
-      try {
-        const relayed = (await chrome.tabs.sendMessage(target.tabId, {
-          type: "PL_SITE_STATE_CHANGED",
-          enabled: stored.enabled,
-          expectedOrigin: target.origin,
-        })) as ContentSnapshot;
-        if (relayed?.enabled !== stored.enabled) throw new Error("Page did not confirm the saved site state");
-      } catch {
-        setFeedback("Saved. The current page changed; this setting will apply after reload.");
-        return;
-      }
-      setFeedback(stored.enabled ? "Analysis enabled for this site." : "Analysis disabled for this site.");
-    } finally {
-      siteMutationPending = false;
-      siteToggle.disabled = targetInvalidated || !origin;
-      siteToggle.removeAttribute("aria-busy");
-    }
-  })();
-});
-
-labelToggle.addEventListener("change", () => {
-  void (async () => {
-    if (activeTab?.id === undefined || labelMutationPending) return;
-    const desired = labelToggle.checked;
-    const previous = !desired;
-    labelMutationPending = true;
-    labelToggle.disabled = true;
-    labelToggle.setAttribute("aria-busy", "true");
-    setFeedback("Updating labels on this page…");
-    try {
-      const target = await requireCurrentTarget();
-      if (!target) {
-        labelToggle.checked = previous;
-        return;
-      }
-      const relayed = (await chrome.tabs.sendMessage(target.tabId, {
-        type: "PL_LABEL_VISIBILITY",
-        visible: desired,
-        expectedOrigin: target.origin,
-      })) as ContentSnapshot;
-      if (relayed?.labelsVisible !== desired) throw new Error("Page did not confirm label visibility");
-      const snapshot = (await chrome.tabs.sendMessage(target.tabId, {
-        type: "PL_GET_CONTENT_SNAPSHOT",
-      })) as ContentSnapshot;
-      if (snapshot?.labelsVisible !== desired) throw new Error("Label visibility did not settle");
-      labelToggle.checked = desired;
-      setFeedback(desired ? "Labels shown on this page." : "Labels hidden on this page.");
+      hideModeSheet();
+      await refreshPageState();
     } catch {
-      const target = await requireCurrentTarget();
-      const snapshot = target ? await chrome.tabs.sendMessage(target.tabId, {
-        type: "PL_GET_CONTENT_SNAPSHOT",
-      }).catch(() => undefined) as ContentSnapshot | undefined : undefined;
-      labelToggle.checked = typeof snapshot?.labelsVisible === "boolean" ? snapshot.labelsVisible : previous;
-      if (!targetInvalidated) {
-        setFeedback("Couldn’t update labels because the page changed. Try again.", "error");
-      }
+      scanMode = previous;
+      for (const input of modeInputs) input.checked = input.value === previous;
+      modeError.textContent = "Couldn’t save your mode. Try again.";
+      modeError.dataset.state = "error";
+      (modeInputs.find((input) => input.value === selected) ?? modeInputs[0])?.focus();
     } finally {
-      labelMutationPending = false;
-      labelToggle.disabled = !contentAvailable || targetInvalidated;
-      labelToggle.removeAttribute("aria-busy");
+      savePending = false;
+      saveModeButton.textContent = "Save mode";
+      saveModeButton.removeAttribute("aria-busy");
+      modeInputs.forEach((input) => { input.disabled = false; });
+      renderMode();
     }
   })();
 });
 
-window.addEventListener("unload", () => {
-  if (summaryTimer !== undefined) window.clearInterval(summaryTimer);
-});
-
-rescanButton.addEventListener("click", async () => {
-  if (activeTab?.id === undefined || !contentAvailable || rescanPending) return;
-  rescanPending = true;
-  rescanButton.disabled = true;
-  rescanButton.setAttribute("aria-busy", "true");
-  rescanButton.textContent = "Scanning again…";
-  setFeedback("Starting a fresh scan…");
-  try {
+primaryAction.addEventListener("click", () => {
+  void (async () => {
+    if (actionPending) return;
+    if (!modelReady || !scanMode) { openSetup(); return; }
     const target = await requireCurrentTarget();
     if (!target) return;
-    const [response] = await Promise.all([
-      chrome.tabs.sendMessage(target.tabId, {
-        type: "PL_RESCAN",
-        expectedOrigin: target.origin,
-      }) as Promise<{ rescanned?: boolean }>,
-      new Promise((resolve) => window.setTimeout(resolve, 500)),
-    ]);
-    if (response?.rescanned !== true) throw new Error("Page did not confirm the re-scan");
-    pageElement.textContent = "Fresh scan queued";
-    setFeedback("Scan started.");
-    window.setTimeout(() => void refreshPageState(), 300);
-  } catch {
-    contentAvailable = false;
-    pageElement.textContent = "This page can’t be scanned";
-    setFeedback("Couldn’t re-scan because the page changed.", "error");
-  } finally {
-    rescanPending = false;
-    rescanButton.disabled = !contentAvailable || targetInvalidated;
-    rescanButton.removeAttribute("aria-busy");
-    rescanButton.textContent = targetInvalidated
-      ? "Reopen SeroSlop to scan"
-      : contentAvailable ? "Re-scan page" : "This page can’t be scanned";
-  }
+    actionPending = true;
+    primaryAction.disabled = true;
+    primaryAction.setAttribute("aria-busy", "true");
+    try {
+      if (scanMode === "pick") {
+        const type = pickerActive ? "PL_CANCEL_PICKER" : "PL_START_PICKER";
+        const response = await chrome.tabs.sendMessage(target.tabId, { type, expectedOrigin: target.origin, expectedDocumentToken: documentToken }) as { started?: boolean; cancelled?: boolean; noCandidates?: boolean };
+        if (response.noCandidates) {
+          setFeedback("No supported images are available on this page.", "error");
+          return;
+        }
+        if (type === "PL_START_PICKER" && response.started !== true) throw new Error("picker-not-started");
+        if (type === "PL_CANCEL_PICKER" && response.cancelled !== true) throw new Error("picker-not-cancelled");
+        pickerActive = type === "PL_START_PICKER";
+        pageElement.textContent = pickerActive ? "Choose one image on this page. Esc cancels." : "Image picker cancelled";
+        setFeedback(pickerActive ? "Choose an image on the page." : "Picker cancelled.");
+      } else {
+        primaryAction.textContent = "Scanning again…";
+        const [response] = await Promise.all([
+          chrome.tabs.sendMessage(target.tabId, { type: "PL_RESCAN", expectedOrigin: target.origin, expectedDocumentToken: documentToken }) as Promise<{ rescanned?: boolean }>,
+          new Promise((resolve) => window.setTimeout(resolve, 500)),
+        ]);
+        if (response.rescanned !== true) throw new Error("rescan-not-confirmed");
+        pageElement.textContent = "Fresh scan queued";
+        setFeedback("Scan started.");
+      }
+    } catch {
+      contentAvailable = false;
+      pageElement.textContent = "This page can’t be scanned";
+      setFeedback("The page changed. Reopen SeroSlop and try again.", "error");
+    } finally {
+      actionPending = false;
+      primaryAction.removeAttribute("aria-busy");
+      renderPrimaryAction();
+      window.setTimeout(() => void refreshPageState(), 250);
+    }
+  })();
 });
 
-setupLink.addEventListener("click", (event) => {
-  event.preventDefault();
-  void chrome.tabs.create({ url: chrome.runtime.getURL("setup.html") });
-});
+setupLink.addEventListener("click", (event) => { event.preventDefault(); openSetup(); });
+window.addEventListener("unload", () => { if (summaryTimer !== undefined) window.clearInterval(summaryTimer); });
 
 void initialize();

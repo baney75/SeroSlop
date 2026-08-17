@@ -10,6 +10,7 @@ import {
 import { MinimumIntervalGate } from "./shared/minimum-interval-gate";
 import { PageStatsStore } from "./shared/page-stats-store";
 import { captureForExactDocument } from "./shared/document-bound-capture";
+import { isScanMode, type ScanMode } from "./shared/scan-mode";
 
 const OFFSCREEN_PATH = "offscreen.html";
 const MAX_INFERENCE_REQUESTS = 8;
@@ -205,7 +206,8 @@ async function handleMessage(message: RuntimeMessage, sender: chrome.runtime.Mes
         throw new Error("Site origin does not match the sending frame");
       }
       const disabled = await disabledOrigins();
-      return { enabled: !disabled.includes(message.origin) } satisfies SiteStateResponse;
+      const stored = await chrome.storage.local.get(["scanMode"]);
+      return { enabled: !disabled.includes(message.origin), scanMode: isScanMode(stored.scanMode) ? stored.scanMode : undefined } as SiteStateResponse & { scanMode?: ScanMode };
     }
     case "PL_GET_MODEL_STATUS":
       if (!extensionPageSender(sender)) throw new Error("Model status request has an invalid sender");
@@ -227,6 +229,17 @@ async function handleMessage(message: RuntimeMessage, sender: chrome.runtime.Mes
       await chrome.storage.local.set({ disabledOrigins: [...disabled] });
       return { enabled: message.enabled } satisfies SiteStateResponse;
     }
+    case "PL_GET_SCAN_MODE": {
+      if (!extensionPageSender(sender) && !contentSender(sender)) throw new Error("Scan mode request has an invalid sender");
+      const stored = await chrome.storage.local.get("scanMode");
+      return { scanMode: isScanMode(stored.scanMode) ? stored.scanMode : undefined };
+    }
+    case "PL_SET_SCAN_MODE": {
+      if (!extensionPageSender(sender)) throw new Error("Scan mode mutation has an invalid sender");
+      if (!isScanMode(message.scanMode)) throw new Error("A scan mode must be selected");
+      await chrome.storage.local.set({ scanMode: message.scanMode });
+      return { scanMode: message.scanMode };
+    }
     case "PL_OFFSCREEN_STATUS":
     case "PL_OFFSCREEN_PREPARE_MODEL":
     case "PL_OFFSCREEN_INFER":
@@ -245,6 +258,8 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     "PL_PREPARE_MODEL",
     "PL_GET_TAB_SUMMARY",
     "PL_SET_SITE_STATE",
+    "PL_GET_SCAN_MODE",
+    "PL_SET_SCAN_MODE",
   ]);
   if (!knownTypes.has(message.type)) return false;
   void handleMessage(message as RuntimeMessage, sender)

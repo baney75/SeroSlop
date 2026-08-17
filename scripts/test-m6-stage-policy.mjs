@@ -31,11 +31,20 @@ import {
   M6_SUBMISSION_UI_ARTIFACT_SHA256,
   M6_NO_SLOP_UI_EXPECTED,
   M6_NO_SLOP_UI_ARTIFACT_SHA256,
+  M6_NO_SLOP_UI_COMMIT,
+  M6_BETA1_EXPECTED,
+  M6_BETA1_ARTIFACT_SHA256,
+  M6_BETA1_AUTHORIZATION_PATH,
+  M6_BETA1_AUTHORIZATION_STATUS,
+  canonicalM6Json,
   matchesProspectiveP5,
   matchesM6P5Head,
   matchesM6P5CiRecovery,
   matchesM6SubmissionUiHead,
   matchesM6NoSlopUiHead,
+  matchesM6Beta1Head,
+  matchesM6Beta1AuthorizationHead,
+  validateM6Beta1Authorization,
   validateM6P5Artifacts,
 } from "./m6-stage-policy.mjs";
 const recipe = parseM6Recipe();
@@ -56,7 +65,7 @@ assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_COMMIT,
 assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_PARENT, rows: p5RecoveryRows }), false);
 assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_COMMIT, rows: p5RecoveryRows.slice(1) }), false);
 assert.equal(matchesM6P5CiRecovery({ head: "1".repeat(40), parent: M6_P5_COMMIT, rows: [...p5RecoveryRows, ["extra", "M"]] }), false);
-const p5RecoveryArtifacts = Object.fromEntries(Object.keys(M6_P5_RECOVERY_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+const p5RecoveryArtifacts = Object.fromEntries(Object.keys(M6_P5_RECOVERY_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_P5_CI_RECOVERY_COMMIT}:${path}`])]));
 assert.equal(validateM6P5Artifacts(p5RecoveryArtifacts, M6_P5_RECOVERY_ARTIFACT_SHA256), true);
 const submissionUiRows = M6_SUBMISSION_UI_EXPECTED.map(([path, status]) => [path, status]);
 assert.equal(matchesM6SubmissionUiHead({ head: "2".repeat(40), parent: M6_P5_CI_RECOVERY_COMMIT, rows: submissionUiRows }), true);
@@ -71,9 +80,37 @@ assert.equal(matchesM6NoSlopUiHead({ head: "3".repeat(40), parent: M6_SUBMISSION
 assert.equal(matchesM6NoSlopUiHead({ head: "3".repeat(40), parent: M6_P5_CI_RECOVERY_COMMIT, rows: noSlopUiRows }), false);
 assert.equal(matchesM6NoSlopUiHead({ head: "3".repeat(40), parent: M6_SUBMISSION_UI_COMMIT, rows: noSlopUiRows.slice(1) }), false);
 assert.equal(matchesM6NoSlopUiHead({ head: "3".repeat(40), parent: M6_SUBMISSION_UI_COMMIT, rows: [...noSlopUiRows, ["extra", "M"]] }), false);
-const noSlopUiArtifacts = Object.fromEntries(Object.keys(M6_NO_SLOP_UI_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+const noSlopUiArtifacts = Object.fromEntries(Object.keys(M6_NO_SLOP_UI_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_NO_SLOP_UI_COMMIT}:${path}`])]));
 assert.equal(validateM6P5Artifacts(noSlopUiArtifacts, M6_NO_SLOP_UI_ARTIFACT_SHA256), true);
 assert.throws(() => validateM6P5Artifacts({ ...noSlopUiArtifacts, "src/static/setup.html": Buffer.from("bad") }, M6_NO_SLOP_UI_ARTIFACT_SHA256), /bytes changed/);
+const beta1Rows = M6_BETA1_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6Beta1Head({ head: "4".repeat(40), parent: M6_NO_SLOP_UI_COMMIT, rows: beta1Rows }), true);
+assert.equal(matchesM6Beta1Head({ head: "4".repeat(40), parent: M6_SUBMISSION_UI_COMMIT, rows: beta1Rows }), false);
+assert.equal(matchesM6Beta1Head({ head: "4".repeat(40), parent: M6_NO_SLOP_UI_COMMIT, rows: beta1Rows.slice(1) }), false);
+assert.equal(matchesM6Beta1Head({ head: "4".repeat(40), parent: M6_NO_SLOP_UI_COMMIT, rows: [...beta1Rows, ["extra", "M"]] }), false);
+assert.equal(matchesM6Beta1Head({ head: "4".repeat(40), parent: M6_NO_SLOP_UI_COMMIT, rows: beta1Rows.map(([path, status], index) => [path, index === 0 ? "A" : status]) }), false);
+const beta1Artifacts = Object.fromEntries(Object.keys(M6_BETA1_ARTIFACT_SHA256).map((path) => [path, readFileSync(path)]));
+assert.equal(validateM6P5Artifacts(beta1Artifacts, M6_BETA1_ARTIFACT_SHA256), true);
+assert.throws(() => validateM6P5Artifacts({ ...beta1Artifacts, "src/content.ts": Buffer.from("bad") }, M6_BETA1_ARTIFACT_SHA256), /bytes changed/);
+assert.equal(matchesM6Beta1AuthorizationHead({ head: "5".repeat(40), parent: "4".repeat(40), rows: [[M6_BETA1_AUTHORIZATION_PATH, "A"]] }), true);
+assert.equal(matchesM6Beta1AuthorizationHead({ head: "5".repeat(40), parent: "4".repeat(40), rows: [[M6_BETA1_AUTHORIZATION_PATH, "M"]] }), false);
+const beta1SourcePathMap = Object.fromEntries(M6_BETA1_EXPECTED.map(([path]) => [path, "a".repeat(64)]));
+const beta1Authorization = {
+  authorizationPath: M6_BETA1_AUTHORIZATION_PATH,
+  benchmarkAcceptanceEligible: false,
+  contributorUploadEnabled: false,
+  h3PixelsRead: false,
+  modelSha256: "a994b1bd4d0323909b2b308db848bf668fd00e2f02c8973ec546c400efe2dc47",
+  schemaVersion: 1,
+  sourceCommit: "4".repeat(40),
+  sourcePathMap: beta1SourcePathMap,
+  sourcePublicCi: { conclusion: "success", event: "push", headSha: "4".repeat(40), runId: 123, status: "completed", url: "https://github.com/baney75/prooflens/actions/runs/123", workflowPath: ".github/workflows/quality.yml" },
+  sourceTree: "6".repeat(40),
+  status: M6_BETA1_AUTHORIZATION_STATUS,
+};
+assert.equal(validateM6Beta1Authorization(Buffer.from(canonicalM6Json(beta1Authorization)), { sourceCommit: "4".repeat(40), sourceTree: "6".repeat(40), sourcePathMap: beta1SourcePathMap }).status, M6_BETA1_AUTHORIZATION_STATUS);
+assert.throws(() => validateM6Beta1Authorization(Buffer.from(`${JSON.stringify(beta1Authorization, null, 2)}\n`), { sourceCommit: "4".repeat(40), sourceTree: "6".repeat(40), sourcePathMap: beta1SourcePathMap }), /canonical/);
+assert.throws(() => validateM6Beta1Authorization(Buffer.from(canonicalM6Json({ ...beta1Authorization, benchmarkAcceptanceEligible: true })), { sourceCommit: "4".repeat(40), sourceTree: "6".repeat(40), sourcePathMap: beta1SourcePathMap }), /boundary/);
 const productCopy = ["src/content.ts", "src/popup.ts", "src/setup.ts", "src/static/manifest.json", "src/static/setup.html"]
   .map((path) => readFileSync(path, "utf8")).join("\n");
 for (const forbidden of ["Private by design", "Images never go to a detector service", "Runs offline after setup", "not proof", "No server is used"]) {

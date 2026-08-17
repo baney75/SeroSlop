@@ -1,6 +1,7 @@
 node_modules/
 .verify-venv/
 dist/
+contributor/dist/
 release/
 benchmark/data/
 benchmark/candidates/

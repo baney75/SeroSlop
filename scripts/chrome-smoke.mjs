@@ -1,4 +1,4 @@
-/* global clearInterval, clearTimeout, document, HTMLProgressElement, setInterval, setTimeout, window */
+/* global clearInterval, clearTimeout, document, getComputedStyle, HTMLProgressElement, setInterval, setTimeout, window */
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -105,6 +105,56 @@ async function screenshotRecord(file) {
   };
 }
 
+const UI_EVIDENCE_WIDTHS = Object.freeze([320, 375, 414, 768]);
+async function captureUiMatrix(page, surface) {
+  const originalViewport = page.viewportSize() ?? { width: 1280, height: 720 };
+  const records = [];
+  for (const theme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+    for (const width of UI_EVIDENCE_WIDTHS) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.evaluate(() => { document.body.tabIndex = -1; document.body.focus(); });
+      await page.keyboard.press("Tab");
+      const layout = await page.evaluate(() => {
+        const controls = [...document.querySelectorAll("button, a, summary, label.mode-option")]
+          .filter((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+          });
+        const clipped = controls.filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.left < -1 || rect.right > document.documentElement.clientWidth + 1;
+        });
+        const active = document.activeElement;
+        const activeStyle = active ? getComputedStyle(active) : undefined;
+        const labelStyle = active?.matches?.('input[type="radio"]') && active.closest("label")
+          ? getComputedStyle(active.closest("label")) : undefined;
+        const activeOutline = Number.parseFloat(activeStyle?.outlineWidth ?? "0");
+        const labelOutline = Number.parseFloat(labelStyle?.outlineWidth ?? "0");
+        const focusStyle = labelOutline > activeOutline ? labelStyle : activeStyle;
+        return {
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+          clippedControlCount: clipped.length,
+          minimumControlHeight: controls.length ? Math.min(...controls.map((element) => element.getBoundingClientRect().height)) : 0,
+          focusOutlineWidth: Math.max(activeOutline, labelOutline),
+          focusOutlineStyle: focusStyle?.outlineStyle ?? "none",
+        };
+      });
+      if (layout.horizontalOverflow || layout.clippedControlCount !== 0 || layout.minimumControlHeight < 44 ||
+        layout.focusOutlineWidth < 2 || layout.focusOutlineStyle === "none") {
+        throw new Error(`${surface} ${theme} ${width}px UI contract failed: ${JSON.stringify(layout)}`);
+      }
+      const file = path.join(artifactsPath, `${surface}-${expectedProvider}-${theme}-${width}.png`);
+      await page.screenshot({ path: file, fullPage: true });
+      records.push({ theme, width, ...layout, screenshot: await screenshotRecord(file) });
+    }
+  }
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  await page.setViewportSize(originalViewport);
+  return records;
+}
+
 function svgData(background, accent, label) {
   const source = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="${background}"/><circle cx="205" cy="190" r="115" fill="${accent}"/><path d="M0 430L170 285l130 105 100-90 240 130" fill="#263552"/><text x="22" y="42" font-family="sans-serif" font-size="24" fill="white">${label}</text></svg>`;
   return `data:image/svg+xml,${encodeURIComponent(source)}`;
@@ -135,36 +185,29 @@ const html = `<!doctype html>
 const controlsHtml = "<!doctype html><html><head><meta charset=utf-8><title>SeroSlop controls fixture</title></head><body><h1>Controls fixture</h1><p>No eligible images are present on this page.</p></body></html>";
 
 function fixtureRequestHandler(request, response) {
-  if (request.url === "/" || request.url === "/controls") {
+  const pathname = request.url?.split("?", 1)[0];
+  if (pathname === "/" || pathname === "/controls") {
     response.writeHead(200, {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
       connection: "close",
     });
-    response.end(request.url === "/controls" ? controlsHtml : html);
+    response.end(pathname === "/controls" ? controlsHtml : html);
     return;
   }
   response.writeHead(404, { connection: "close" }).end();
 }
 
 const server = createServer(fixtureRequestHandler);
-const crossOriginServer = createServer(fixtureRequestHandler);
-await Promise.all([
-  new Promise((resolve) => server.listen(0, "127.0.0.1", resolve)),
-  new Promise((resolve) => crossOriginServer.listen(0, "127.0.0.1", resolve)),
-]);
+await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 let serverOpen = true;
-let crossOriginServerOpen = true;
 const address = server.address();
-const crossOriginAddress = crossOriginServer.address();
-if (!address || typeof address === "string" || !crossOriginAddress || typeof crossOriginAddress === "string") {
+if (!address || typeof address === "string") {
   throw new Error("Smoke servers did not start");
 }
 const pageUrl = `http://127.0.0.1:${address.port}/`;
 const controlsUrl = `http://127.0.0.1:${address.port}/controls`;
-const crossOriginControlsUrl = `http://127.0.0.1:${crossOriginAddress.port}/controls`;
 const pageOrigin = new URL(pageUrl).origin;
-const crossOrigin = new URL(crossOriginControlsUrl).origin;
 
 async function closeHttpServer(instance, label) {
   const closing = new Promise((resolve, reject) => {
@@ -179,10 +222,6 @@ async function closeServer() {
   if (serverOpen) {
     serverOpen = false;
     closings.push(closeHttpServer(server, "fixture server shutdown"));
-  }
-  if (crossOriginServerOpen) {
-    crossOriginServerOpen = false;
-    closings.push(closeHttpServer(crossOriginServer, "cross-origin fixture server shutdown"));
   }
   await Promise.all(closings);
 }
@@ -226,14 +265,25 @@ let setupProgressAccessibleName = false;
 let setupProgressAdvanced = false;
 let setupPreparingState;
 let setupInitialFailureRecovered = false;
+let setupExplicitModeSelected = false;
+let setupVisualEvidence;
+let popupUnsupportedVisualEvidence;
+let popupErrorVisualEvidence;
+let popupPickVisualEvidence;
+let popupSupportedVisualEvidence;
+let popupModeSheetVisualEvidence;
 let popupSupportedPageControls = false;
-let popupTemporaryLabelsReset = false;
-let popupSavedSiteStatePersisted = false;
 let popupRescanFeedback = false;
 let popupRescanWork;
-let popupFailureStateTruthful = false;
-let popupCrossOriginMutationRejected = false;
-let popupInitializationNavigationRejected = false;
+let modeSaveFailureTruthful = false;
+let sameOriginNavigationRejected = false;
+let pickModeNoAutomaticAnalysis = false;
+let pickerTargetOutlined = false;
+let pickerEscapeCancelled = false;
+let pickerExactOneTarget = false;
+let pickerHostileImageCountBounded = false;
+let mainModeScoped = false;
+let allModePersisted = false;
 let modelStateFixtures;
 let modelStateGeometryEvidence;
 let narrowGeometryEvidence;
@@ -280,6 +330,12 @@ try {
   }
   await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}-preparing.png`), fullPage: true });
   await setup.getByRole("heading", { name: "Offline ready" }).waitFor({ timeout: 300_000 });
+  // A fresh install must not silently choose a scan mode. Select one explicitly
+  // before restart so the persistence check below exercises the real onboarding path.
+  await setup.locator('input[name="scan-mode"][value="all"]').check();
+  await setup.getByRole("button", { name: "Save mode" }).click();
+  await setup.getByRole("status").filter({ hasText: "Saved: Every image" }).waitFor({ timeout: 10_000 });
+  setupExplicitModeSelected = true;
   if (await setup.locator("#prepare-model").isVisible()) throw new Error("Ready setup retained an inactive action button");
   const observedProgress = await progress.evaluate((element) => ({
     minimumBytes: Number(element.dataset.minimumObservedBytes),
@@ -294,6 +350,7 @@ try {
     throw new Error(`Setup progress history was not determinate: ${JSON.stringify(observedProgress)}`);
   }
   await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}.png`), fullPage: true });
+  setupVisualEvidence = await captureUiMatrix(setup, "setup");
   stage("setup initial-status failure recovery");
   const failureSetup = await context.newPage();
   await failureSetup.addInitScript(() => {
@@ -336,9 +393,7 @@ try {
   await statusPage.goto(`chrome-extension://${extensionId}/popup.html`);
   const popupCaveatVisible = await statusPage.locator(".caveat").count() > 0;
   const popupUnsupportedGuard = await statusPage.getByRole("button", { name: "This page can’t be scanned" }).isDisabled();
-  if (popupCaveatVisible || !popupUnsupportedGuard) {
-    throw new Error("Popup disclaimer was present or re-scan was not disabled on its unsupported tab");
-  }
+  if (popupCaveatVisible || !popupUnsupportedGuard) throw new Error("Popup retained the removed caveat or exposed an action on an unsupported page");
   stage("restart persistence check");
   try {
     await statusPage.locator("#model-status").filter({ hasText: "Offline ready" }).waitFor({ timeout: 60_000 });
@@ -350,8 +405,11 @@ try {
     ])).catch((statusError) => ({ state: "probe-error", error: String(statusError) }));
     throw new Error(`Restarted popup did not report Offline ready: ${JSON.stringify({ popupText, directStatus, popupDiagnostics })}`, { cause: error });
   }
+  const restartedMode = await worker.evaluate(() => chrome.storage.local.get("scanMode"));
+  if (restartedMode.scanMode !== "all") throw new Error(`Setup mode did not persist across restart: ${JSON.stringify(restartedMode)}`);
   await statusPage.screenshot({ path: path.join(artifactsPath, `popup-${expectedProvider}.png`), fullPage: true });
-  await worker.evaluate((origin) => chrome.storage.local.set({ disabledOrigins: [origin] }), pageOrigin);
+  popupUnsupportedVisualEvidence = await captureUiMatrix(statusPage, "popup-unsupported");
+  await worker.evaluate(() => chrome.storage.local.set({ disabledOrigins: [], scanMode: "all" }));
   const page = await context.newPage();
   await page.emulateMedia({ reducedMotion: "reduce" });
   stage("supported-page control fixture navigation");
@@ -363,288 +421,187 @@ try {
   }, controlsUrl), 10_000, "supported-page tab discovery");
   if (typeof tabId !== "number") throw new Error("Could not identify the supported test tab");
   stage("supported-page popup contract");
-  await worker.evaluate((id) => chrome.tabs.update(id, { active: true }), tabId);
-  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
-  await statusPage.locator("#site-context").filter({ hasText: "Automatic analysis on 127.0.0.1" }).waitFor();
-  const supportedSiteToggle = statusPage.getByLabel(/Analyze this site.*saved/u);
-  const supportedLabelToggle = statusPage.getByLabel(/Show labels on this page.*temporary/u);
-  const supportedRescan = statusPage.getByRole("button", { name: "Re-scan page" });
-  await supportedRescan.waitFor();
-  if (
-    await supportedSiteToggle.isDisabled()
-    || await supportedLabelToggle.isDisabled()
-    || await supportedRescan.isDisabled()
-  ) {
-    throw new Error("Popup controls were not available on the supported active page");
+  await statusPage.getByRole("button", { name: "This page can’t be scanned" }).waitFor();
+  if (!await statusPage.getByRole("button", { name: "This page can’t be scanned" }).isDisabled()) {
+    throw new Error("Unsupported page action was not disabled");
   }
-  if (await supportedSiteToggle.isChecked() || !await supportedLabelToggle.isChecked()) {
-    throw new Error("Popup controls did not reflect saved-site off / page-labels on defaults");
-  }
-
-  stage("popup content-delivery failure state");
-  await statusPage.evaluate(() => {
-    const original = chrome.tabs.sendMessage.bind(chrome.tabs);
-    Object.defineProperty(chrome.tabs, "sendMessage", {
-      configurable: true,
-      value: (...arguments_) => {
-        if (arguments_[1]?.type === "PL_LABEL_VISIBILITY") {
-          return new Promise((_, reject) => {
-            window.__prooflensRejectLabelDelivery = () => reject(
-              new Error("Receiving end does not exist (injected E2E fault)"),
-            );
-          });
-        }
-        return original(...arguments_);
-      },
-    });
-  });
-  await supportedLabelToggle.uncheck();
-  await waitForEvaluation(statusPage, () => {
-    const control = document.querySelector("#labels-visible");
-    return control?.disabled === true && control.getAttribute("aria-busy") === "true" &&
-      document.querySelector("#control-feedback")?.textContent === "Updating labels on this page…";
-  }, undefined, { label: "pending label-delivery state" });
-  await statusPage.evaluate(() => window.__prooflensRejectLabelDelivery?.());
-  await statusPage.locator("#control-feedback").filter({ hasText: "Couldn’t update labels because the page changed." }).waitFor();
-  if (!await supportedLabelToggle.isChecked() || await supportedLabelToggle.isDisabled() ||
-    await supportedLabelToggle.getAttribute("aria-busy") !== null) {
-    throw new Error("Failed label delivery left a dishonest or busy popup state");
-  }
-  await statusPage.screenshot({
-    path: path.join(artifactsPath, `popup-${expectedProvider}-failure.png`),
-    fullPage: true,
-  });
-  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
-  await statusPage.getByRole("button", { name: "Re-scan page" }).waitFor();
-
-  stage("popup saved-state failure state");
-  await statusPage.evaluate(() => {
-    const original = chrome.runtime.sendMessage.bind(chrome.runtime);
-    Object.defineProperty(chrome.runtime, "sendMessage", {
-      configurable: true,
-      value: (...arguments_) => {
-        if (arguments_[0]?.type === "PL_SET_SITE_STATE") {
-          return new Promise((_, reject) => {
-            window.__prooflensRejectSiteStorage = () => reject(
-              new Error("Storage write failed (injected E2E fault)"),
-            );
-          });
-        }
-        return original(...arguments_);
-      },
-    });
-  });
-  await supportedSiteToggle.check();
-  await waitForEvaluation(statusPage, () => {
-    const control = document.querySelector("#site-enabled");
-    return control?.disabled === true && control.getAttribute("aria-busy") === "true" &&
-      document.querySelector("#control-feedback")?.textContent === "Saving this site setting…";
-  }, undefined, { label: "pending saved-site state" });
-  await statusPage.evaluate(() => window.__prooflensRejectSiteStorage?.());
-  await statusPage.locator("#control-feedback").filter({ hasText: "Couldn’t save this site setting." }).waitFor();
-  if (await supportedSiteToggle.isChecked() || await supportedSiteToggle.isDisabled() ||
-    await supportedSiteToggle.getAttribute("aria-busy") !== null) {
-    throw new Error("Failed site-state persistence left a dishonest or busy popup state");
-  }
-  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
-  await statusPage.getByRole("button", { name: "Re-scan page" }).waitFor();
-
-  stage("popup initialization navigation race");
-  const disabledBeforeInitializationRace = await worker.evaluate(() => chrome.storage.local.get("disabledOrigins"));
-  const initializationRacePopup = await context.newPage();
-  await initializationRacePopup.addInitScript(() => {
-    const original = chrome.runtime.sendMessage.bind(chrome.runtime);
-    Object.defineProperty(chrome.runtime, "sendMessage", {
-      configurable: true,
-      value: (...arguments_) => {
-        if (arguments_[0]?.type === "PL_GET_SITE_STATE") {
-          return new Promise((resolve) => {
-            window.__prooflensResolveInitialSiteState = resolve;
-          });
-        }
-        return original(...arguments_);
-      },
-    });
-  });
-  await worker.evaluate((id) => chrome.tabs.update(id, { active: true }), tabId);
-  await initializationRacePopup.goto(`chrome-extension://${extensionId}/popup.html`, {
-    waitUntil: "load",
-    timeout: 30_000,
-  });
-  await waitForEvaluation(
-    initializationRacePopup,
-    () => typeof window.__prooflensResolveInitialSiteState === "function",
-    undefined,
-    { label: "delayed initial site-state hook" },
-  );
-  await page.goto(crossOriginControlsUrl, { waitUntil: "load", timeout: 30_000 });
-  await initializationRacePopup.locator("#page-summary").filter({
-    hasText: "Page changed · reopen SeroSlop",
-  }).waitFor();
-  await initializationRacePopup.evaluate(() =>
-    window.__prooflensResolveInitialSiteState?.({ enabled: false }));
-  await waitForEvaluation(initializationRacePopup, () => {
-    const ids = ["#site-enabled", "#labels-visible", "#rescan"];
-    return ids.every((selector) => document.querySelector(selector)?.disabled === true) &&
-      document.querySelector("#control-feedback")?.textContent ===
-        "The page changed. Reopen SeroSlop to use its controls.";
-  }, undefined, { label: "popup initialization navigation rejection" });
-  const disabledAfterInitializationRace = await worker.evaluate(() => chrome.storage.local.get("disabledOrigins"));
-  if (JSON.stringify([...(disabledBeforeInitializationRace.disabledOrigins ?? [])].sort()) !==
-    JSON.stringify([...(disabledAfterInitializationRace.disabledOrigins ?? [])].sort())) {
-    throw new Error("Popup initialization race mutated saved origin state");
-  }
-  await initializationRacePopup.screenshot({
-    path: path.join(artifactsPath, `popup-${expectedProvider}-initial-navigation.png`),
-    fullPage: true,
-  });
-  popupInitializationNavigationRejected = true;
-  await initializationRacePopup.close();
-  await page.goto(controlsUrl, { waitUntil: "load", timeout: 30_000 });
-  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
-  await statusPage.getByRole("button", { name: "Re-scan page" }).waitFor();
-
-  stage("popup cross-origin navigation guard");
-  const disabledBeforeCrossOrigin = await worker.evaluate(() => chrome.storage.local.get("disabledOrigins"));
-  await page.goto(crossOriginControlsUrl, { waitUntil: "load", timeout: 30_000 });
-  await statusPage.locator("#site-enabled").evaluate((control) => {
-    control.disabled = false;
-    control.checked = true;
-    control.dispatchEvent(new window.Event("change", { bubbles: true }));
-  });
-  await statusPage.locator("#control-feedback").filter({
-    hasText: "The page changed. Reopen SeroSlop to use its controls.",
-  }).waitFor();
-  const changedPageToggle = statusPage.locator("#site-enabled");
-  if (await changedPageToggle.isChecked() || !await changedPageToggle.isDisabled() ||
-    await changedPageToggle.getAttribute("aria-busy") !== null) {
-    throw new Error("Cross-origin navigation left the saved-site control actionable or dishonest");
-  }
-  const disabledAfterCrossOrigin = await worker.evaluate(() => chrome.storage.local.get("disabledOrigins"));
-  const beforeOrigins = [...(disabledBeforeCrossOrigin.disabledOrigins ?? [])].sort();
-  const afterOrigins = [...(disabledAfterCrossOrigin.disabledOrigins ?? [])].sort();
-  if (JSON.stringify(beforeOrigins) !== JSON.stringify(afterOrigins) ||
-    !afterOrigins.includes(pageOrigin) || afterOrigins.includes(crossOrigin)) {
-    throw new Error(`Cross-origin popup action mutated saved state: ${JSON.stringify({ beforeOrigins, afterOrigins })}`);
-  }
-  await statusPage.screenshot({
-    path: path.join(artifactsPath, `popup-${expectedProvider}-cross-origin.png`),
-    fullPage: true,
-  });
-  popupCrossOriginMutationRejected = true;
-  await page.goto(controlsUrl, { waitUntil: "load", timeout: 30_000 });
-  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
-  await statusPage.getByRole("button", { name: "Re-scan page" }).waitFor();
-
-  stage("popup saved-but-page-changed state");
-  await statusPage.evaluate(() => {
-    const original = chrome.tabs.sendMessage.bind(chrome.tabs);
-    Object.defineProperty(chrome.tabs, "sendMessage", {
-      configurable: true,
-      value: (...arguments_) => {
-        if (arguments_[1]?.type === "PL_SITE_STATE_CHANGED") {
-          return new Promise((_, reject) => {
-            window.__prooflensRejectSiteRelay = () => reject(
-              new Error("Receiving end does not exist (injected E2E fault)"),
-            );
-          });
-        }
-        return original(...arguments_);
-      },
-    });
-  });
-  await supportedSiteToggle.check();
-  await waitForEvaluation(statusPage, () => {
-    const control = document.querySelector("#site-enabled");
-    return control?.disabled === true && control.getAttribute("aria-busy") === "true" &&
-      document.querySelector("#control-feedback")?.textContent === "Saving this site setting…";
-  }, undefined, { label: "pending site-relay state" });
-  const storedDuringRelay = await worker.evaluate(() => chrome.storage.local.get("disabledOrigins"));
-  if ((storedDuringRelay.disabledOrigins ?? []).includes(pageOrigin)) {
-    throw new Error("Site relay began before the saved state was committed");
-  }
-  await statusPage.evaluate(() => window.__prooflensRejectSiteRelay?.());
-  await statusPage.locator("#control-feedback").filter({
-    hasText: "Saved. The current page changed; this setting will apply after reload.",
-  }).waitFor();
-  if (!await supportedSiteToggle.isChecked() || await supportedSiteToggle.isDisabled() ||
-    await supportedSiteToggle.getAttribute("aria-busy") !== null) {
-    throw new Error("Saved-but-unrelayed site state was not represented truthfully");
-  }
-  await statusPage.screenshot({
-    path: path.join(artifactsPath, `popup-${expectedProvider}-saved-page-changed.png`),
-    fullPage: true,
-  });
-  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
-  await statusPage.getByRole("button", { name: "Re-scan page" }).waitFor();
-  await supportedSiteToggle.uncheck();
-  await waitForEvaluation(statusPage, async ({ id, origin }) => {
-    try {
-      const [snapshot, stored] = await Promise.all([
-        chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" }),
-        chrome.storage.local.get("disabledOrigins"),
-      ]);
-      return snapshot.enabled === false && (stored.disabledOrigins ?? []).includes(origin);
-    } catch { return false; }
-  }, { id: tabId, origin: pageOrigin }, { label: "saved disabled-site state" });
-  popupFailureStateTruthful = true;
-
-  await supportedLabelToggle.uncheck();
-  await waitForEvaluation(statusPage, async (id) => {
-    try {
-      const snapshot = await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" });
-      return snapshot.labelsVisible === false;
-    } catch { return false; }
-  }, tabId, { label: "temporary hidden-label state" });
-  if (await supportedLabelToggle.isChecked()) throw new Error("Temporary label toggle did not expose its unchecked state");
-  await page.reload({ waitUntil: "load", timeout: 30_000 });
-  await waitForEvaluation(statusPage, async (id) => {
-    try {
-      const snapshot = await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" });
-      return snapshot.labelsVisible === true;
-    } catch { return false; }
-  }, tabId, { label: "page-reload visible-label reset" });
-  await waitForEvaluation(
-    statusPage,
-    () => document.querySelector("#labels-visible")?.checked === true,
-    undefined,
-    { label: "popup visible-label reset" },
-  );
-  popupTemporaryLabelsReset = true;
-
-  await supportedSiteToggle.check();
-  await waitForEvaluation(statusPage, async ({ id, origin }) => {
-    try {
-      const [snapshot, stored] = await Promise.all([
-        chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" }),
-        chrome.storage.local.get("disabledOrigins"),
-      ]);
-      return snapshot.enabled === true && !(stored.disabledOrigins ?? []).includes(origin);
-    } catch { return false; }
-  }, { id: tabId, origin: pageOrigin }, { label: "saved enabled-site state" });
-  await page.reload({ waitUntil: "load", timeout: 30_000 });
-  await waitForEvaluation(statusPage, async (id) => {
-    try { return (await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" })).enabled === true; }
-    catch { return false; }
-  }, tabId, { label: "enabled-site reload state" });
-  await supportedSiteToggle.uncheck();
-  await waitForEvaluation(statusPage, async ({ id, origin }) => {
-    try {
-      const [snapshot, stored] = await Promise.all([
-        chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" }),
-        chrome.storage.local.get("disabledOrigins"),
-      ]);
-      return snapshot.enabled === false && (stored.disabledOrigins ?? []).includes(origin);
-    } catch { return false; }
-  }, { id: tabId, origin: pageOrigin }, { label: "persisted disabled-site state" });
-  await page.reload({ waitUntil: "load", timeout: 30_000 });
-  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
-  await statusPage.getByLabel(/Analyze this site.*saved/u).waitFor();
-  if (await statusPage.getByLabel(/Analyze this site.*saved/u).isChecked()) {
-    throw new Error("Saved site-off state did not persist after reload");
-  }
-  popupSavedSiteStatePersisted = true;
   popupSupportedPageControls = true;
+  stage("three scan modes and explicit picker");
+  await page.goto(pageUrl, { waitUntil: "load", timeout: 30_000 });
+  await worker.evaluate((id) => chrome.tabs.update(id, { active: true }), tabId);
+  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
+  await page.locator("#normal").waitFor({ timeout: 30_000 });
+  await waitForEvaluation(page, () => [...document.images].every((image) => image.complete), undefined,
+    { timeout: 30_000, label: "mode fixture image loading" });
+  stage("same-origin popup document guard");
+  const modeBeforeNavigation = await worker.evaluate(() => chrome.storage.local.get("scanMode"));
+  const snapshotBeforeNavigation = await contentSnapshot(statusPage, tabId);
+  if (!snapshotBeforeNavigation.documentToken) throw new Error("Document token was unavailable before navigation");
+  const sameOriginNavigationUrl = new URL(pageUrl);
+  sameOriginNavigationUrl.searchParams.set("document", "changed");
+  await page.goto(sameOriginNavigationUrl.href, { waitUntil: "load", timeout: 30_000 });
+  await waitForEvaluation(statusPage, async ({ id, token }) => {
+    const snapshot = await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" });
+    return Boolean(snapshot.documentToken && snapshot.documentToken !== token);
+  }, { id: tabId, token: snapshotBeforeNavigation.documentToken }, { timeout: 30_000, label: "same-origin document replacement" });
+  const rejectedNavigationMutation = await worker.evaluate(({ id, origin, token }) => chrome.tabs.sendMessage(id, {
+    type: "PL_SCAN_MODE_CHANGED",
+    scanMode: "main",
+    expectedOrigin: origin,
+    expectedDocumentToken: token,
+  }), { id: tabId, origin: pageOrigin, token: snapshotBeforeNavigation.documentToken });
+  if (rejectedNavigationMutation?.pageChanged !== true || rejectedNavigationMutation?.scanMode) {
+    throw new Error(`Replaced same-origin document accepted stale popup authority: ${JSON.stringify(rejectedNavigationMutation)}`);
+  }
+  const modeAfterNavigation = await worker.evaluate(() => chrome.storage.local.get("scanMode"));
+  if (JSON.stringify(modeAfterNavigation) !== JSON.stringify(modeBeforeNavigation)) throw new Error("Same-origin navigation mutated the saved mode");
+  sameOriginNavigationRejected = true;
+  await page.goto(pageUrl, { waitUntil: "load", timeout: 30_000 });
+  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
+
+  stage("mode-save failure recovery");
+  await statusPage.getByRole("button", { name: "Change" }).click();
+  await statusPage.locator('input[name="popup-mode"][value="main"]').check();
+  await statusPage.evaluate(() => {
+    const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+    Object.defineProperty(chrome.runtime, "sendMessage", {
+      configurable: true,
+      value: (...arguments_) => arguments_[0]?.type === "PL_SET_SCAN_MODE"
+        ? Promise.reject(new Error("Injected mode storage failure"))
+        : original(...arguments_),
+    });
+  });
+  await statusPage.getByRole("button", { name: "Save mode" }).click();
+  await statusPage.locator("#mode-error").filter({ hasText: "Couldn’t save your mode" }).waitFor({ timeout: 10_000 });
+  const modeAfterFailedSave = await worker.evaluate(() => chrome.storage.local.get("scanMode"));
+  if (modeAfterFailedSave.scanMode !== "all") throw new Error("Failed mode save changed persisted state");
+  modeSaveFailureTruthful = true;
+  popupErrorVisualEvidence = await captureUiMatrix(statusPage, "popup-mode-error");
+  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
+  const setMode = async (mode) => {
+    const titles = { pick: "Choose an image", main: "Main images", all: "Every image" };
+    await statusPage.getByRole("button", { name: "Change" }).click();
+    await statusPage.locator(`input[name="popup-mode"][value="${mode}"]`).check();
+    await statusPage.getByRole("button", { name: "Save mode" }).click();
+    await statusPage.locator("#mode-summary").filter({ hasText: titles[mode] }).waitFor({ timeout: 10_000 });
+    await statusPage.locator("#mode-sheet").waitFor({ state: "hidden", timeout: 10_000 });
+  };
+  await setMode("pick");
+  await page.locator("#normal").focus();
+  await page.locator("#normal").evaluate((element, source) => {
+    element.style.backgroundImage = `url(${JSON.stringify(source)})`;
+  }, fixtureB);
+  const pickBefore = await contentSnapshot(statusPage, tabId);
+  if (pickBefore.badges.length !== 0) throw new Error("Pick mode performed automatic analysis");
+  pickModeNoAutomaticAnalysis = true;
+  const pickActionLabel = await statusPage.locator("#primary-action").textContent();
+  if (pickActionLabel !== "Choose image") {
+    throw new Error(`Pick action was not ready: ${JSON.stringify({ pickActionLabel, pickBefore, popup: await statusPage.locator("body").innerText() })}`);
+  }
+  popupPickVisualEvidence = await captureUiMatrix(statusPage, "popup-pick");
+  await statusPage.getByRole("button", { name: "Choose image", exact: true }).click();
+  await waitForEvaluation(statusPage, async (id) => {
+    const snapshot = await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" });
+    return snapshot.pickerActive === true && Boolean(snapshot.pickerTarget);
+  }, tabId, { label: "picker outline" });
+  const pickerGeometry = (await contentSnapshot(statusPage, tabId)).pickerTarget;
+  if (!pickerGeometry?.outline.includes("rgb(239, 51, 59)") || pickerGeometry.outlineOffset !== "2px" ||
+    pickerGeometry.pointerEvents !== "none" || pickerGeometry.controllerFocused !== true ||
+    !pickerGeometry.instruction.includes("normal fixture") || !pickerGeometry.instruction.includes(" of ") ||
+    !pickerGeometry.instruction.includes("Tab") || !pickerGeometry.instruction.includes("Enter") ||
+    !pickerGeometry.instruction.includes("Esc")) {
+    throw new Error(`Picker target was not unambiguously outlined: ${JSON.stringify(pickerGeometry)}`);
+  }
+  pickerTargetOutlined = true;
+  await page.keyboard.press("Escape");
+  await waitForEvaluation(statusPage, async (id) => {
+    const snapshot = await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" });
+    return snapshot.pickerActive === false && !snapshot.pickerTarget && snapshot.lastPickerFocusRestored === true;
+  }, tabId, { label: "picker escape cancellation" });
+  pickerEscapeCancelled = true;
+  await page.evaluate((source) => {
+    const image = document.createElement("img");
+    image.id = "picker-initially-below-fold";
+    image.alt = "initially below fold picker fixture";
+    image.src = source;
+    image.style.cssText = "display:block;width:320px;height:240px;margin-top:1600px";
+    document.body.append(image);
+    const hostileImages = document.createElement("div");
+    hostileImages.id = "picker-hostile-image-count";
+    hostileImages.hidden = true;
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < 5_200; index += 1) fragment.append(document.createElement("img"));
+    hostileImages.append(fragment);
+    document.body.append(hostileImages);
+  }, fixtureB);
+  await page.locator("#picker-initially-below-fold").waitFor();
+  if (await page.locator("img").count() < 5_200) throw new Error("Picker hostile-image fixture was not installed");
+  await statusPage.getByRole("button", { name: "Choose image", exact: true }).click();
+  await page.locator("#picker-initially-below-fold").scrollIntoViewIfNeeded();
+  await page.locator("#picker-initially-below-fold").click();
+  await waitForEvaluation(statusPage, async (id) => {
+    const badges = (await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" })).badges;
+    return badges.length === 1 && badges[0]?.elementId === "picker-initially-below-fold";
+  }, tabId, { timeout: 30_000, label: "single picker target" });
+  const pickResult = await badgeSnapshot(statusPage, tabId);
+  if (pickResult.length !== 1 || pickResult[0].elementId !== "picker-initially-below-fold") throw new Error("Pick mode selected more than one target");
+  await page.locator("#picker-initially-below-fold").evaluate((element) => { element.style.backgroundPosition = "1px 1px"; });
+  await waitForEvaluation(statusPage, async (id) => {
+    const snapshot = await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" });
+    return snapshot.recordCount === 1 && snapshot.badges[0]?.elementId === "picker-initially-below-fold";
+  }, tabId, { timeout: 30_000, label: "picker exact-one reconciliation" });
+  pickerExactOneTarget = true;
+  pickerHostileImageCountBounded = true;
+  await page.locator("#picker-initially-below-fold").evaluate((element) => element.remove());
+  await page.locator("#picker-hostile-image-count").evaluate((element) => element.remove());
+
+  await setMode("main");
+  await waitForEvaluation(statusPage, async (id) => {
+    const badges = (await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" })).badges;
+    return badges.length > 0 && badges.every((badge) => badge.elementId !== "static-after-5000");
+  }, tabId, { timeout: 60_000, label: "main-content mode scope" });
+  const mainResult = await badgeSnapshot(statusPage, tabId);
+  if (mainResult.some((badge) => badge.elementId === "static-after-5000")) throw new Error("Main mode fell back to all images");
+  await page.evaluate(() => {
+    const normal = document.querySelector("#normal");
+    const main = normal?.parentElement;
+    if (!normal || !main) throw new Error("Main fixture missing");
+    window.__seroslopMainHome = main;
+    const aside = document.createElement("aside");
+    aside.id = "mode-excluded-aside";
+    const article = document.createElement("article");
+    const nested = document.createElement("img");
+    nested.id = "mode-nested-excluded";
+    nested.alt = "nested excluded fixture";
+    nested.src = normal.tagName === "IMG" ? (normal.currentSrc || normal.getAttribute("src") || "") : "";
+    nested.style.cssText = "width:96px;height:72px";
+    article.append(nested);
+    aside.append(article);
+    document.body.append(aside);
+  });
+  await waitForEvaluation(page, () => document.querySelector("#mode-nested-excluded")?.complete === true, undefined,
+    { timeout: 30_000, label: "nested excluded image loading" });
+  await page.waitForTimeout(1_200);
+  if ((await badgeSnapshot(statusPage, tabId)).some((badge) => badge.elementId === "mode-nested-excluded")) {
+    throw new Error("Main mode admitted an article nested inside an aside");
+  }
+  await page.evaluate(() => document.querySelector("#mode-excluded-aside")?.append(document.querySelector("#normal")));
+  await waitForEvaluation(statusPage, async (id) => {
+    const badges = (await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" })).badges;
+    return badges.every((badge) => badge.elementId !== "normal");
+  }, tabId, { timeout: 30_000, label: "main target removal after excluded move" });
+  await page.evaluate(() => window.__seroslopMainHome?.prepend(document.querySelector("#normal")));
+  await waitForEvaluation(statusPage, async (id) => {
+    const badges = (await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" })).badges;
+    return badges.some((badge) => badge.elementId === "normal");
+  }, tabId, { timeout: 30_000, label: "main target readmission" });
+  await page.evaluate(() => document.querySelector("#mode-excluded-aside")?.remove());
+  mainModeScoped = true;
+
+  await setMode("all");
+  const persistedMode = await worker.evaluate(() => chrome.storage.local.get("scanMode"));
+  if (persistedMode.scanMode !== "all") throw new Error(`Mode did not persist: ${JSON.stringify(persistedMode)}`);
+  allModePersisted = true;
 
   stage("fixture navigation while analysis is disabled");
   await page.goto(pageUrl, { waitUntil: "load", timeout: 30_000 });
@@ -655,6 +612,8 @@ try {
     undefined,
     { timeout: 30_000, label: "fixture image loading" },
   );
+  await statusPage.reload({ waitUntil: "load", timeout: 30_000 });
+  await statusPage.getByRole("button", { name: "Re-scan every image" }).waitFor({ timeout: 30_000 });
   stage("fixture server shutdown");
   await closeServer();
   stage("fixture offline transition");
@@ -662,11 +621,12 @@ try {
   context.on("request", (request) => {
     if (/^https?:/u.test(request.url())) postCutoffNetworkRequests.push(request.url());
   });
-  stage("fixture analysis enable through popup");
-  const offlineSiteToggle = statusPage.getByLabel(/Analyze this site.*saved/u);
-  await offlineSiteToggle.check();
+  stage("fixture analysis enabled in all mode");
   await waitForEvaluation(statusPage, async (id) => {
-    try { return (await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" })).enabled === true; }
+    try {
+      const snapshot = await chrome.tabs.sendMessage(id, { type: "PL_GET_CONTENT_SNAPSHOT" });
+      return snapshot.enabled === true && snapshot.scanMode === "all";
+    }
     catch { return false; }
   }, tabId, { label: "offline enabled-site state" });
   stage("dynamic fixture admission");
@@ -747,7 +707,11 @@ try {
     path: path.join(artifactsPath, `popup-${expectedProvider}-supported.png`),
     fullPage: true,
   });
-  const offlineRescan = statusPage.getByRole("button", { name: "Re-scan page" });
+  popupSupportedVisualEvidence = await captureUiMatrix(statusPage, "popup-supported");
+  await statusPage.getByRole("button", { name: "Change" }).click();
+  popupModeSheetVisualEvidence = await captureUiMatrix(statusPage, "popup-mode-sheet");
+  await statusPage.getByRole("button", { name: "Back" }).click();
+  const offlineRescan = statusPage.getByRole("button", { name: "Re-scan every image" });
   const rescanAcceptedBefore = normalBadge.acceptedResultCount;
   await offlineRescan.click();
   const scanningAgain = statusPage.getByRole("button", { name: "Scanning again…" });
@@ -757,7 +721,7 @@ try {
     path: path.join(artifactsPath, `popup-${expectedProvider}-supported-scanning.png`),
     fullPage: true,
   });
-  await statusPage.getByRole("button", { name: "Re-scan page" }).waitFor({ timeout: 10_000 });
+  await statusPage.getByRole("button", { name: "Re-scan every image" }).waitFor({ timeout: 10_000 });
   let rescannedNormal;
   for (let attempt = 0; attempt < 480; attempt += 1) {
     const current = (await badgeSnapshot(statusPage, tabId)).find((badge) => badge.elementId === "normal");
@@ -1512,7 +1476,7 @@ try {
   };
   const archiveSha256 = createHash("sha256").update(await readFile("release/prooflens.zip")).digest("hex");
   const evidence = {
-    schemaVersion: 6,
+    schemaVersion: 7,
     generatedAt: new Date().toISOString(),
     testedGitHead,
     testedGitTree,
@@ -1531,16 +1495,29 @@ try {
     setupProgressAdvanced,
     setupPreparingState,
     setupInitialFailureRecovered,
+    setupExplicitModeSelected,
+    visualEvidence: {
+      setup: setupVisualEvidence,
+      popupUnsupported: popupUnsupportedVisualEvidence,
+      popupError: popupErrorVisualEvidence,
+      popupPick: popupPickVisualEvidence,
+      popupSupported: popupSupportedVisualEvidence,
+      popupModeSheet: popupModeSheetVisualEvidence,
+    },
     popupCaveatVisible,
     popupUnsupportedGuard,
     popupSupportedPageControls,
-    popupTemporaryLabelsReset,
-    popupSavedSiteStatePersisted,
     popupRescanFeedback,
     popupRescanWork,
-    popupFailureStateTruthful,
-    popupCrossOriginMutationRejected,
-    popupInitializationNavigationRejected,
+    modeSaveFailureTruthful,
+    sameOriginNavigationRejected,
+    pickModeNoAutomaticAnalysis,
+    pickerTargetOutlined,
+    pickerEscapeCancelled,
+    pickerExactOneTarget,
+    pickerHostileImageCountBounded,
+    mainModeScoped,
+    allModePersisted,
     targetSpecificAccessibleNames: true,
     reducedMotionSuppressed: raceStarted.animationName === "none",
     targets: { total: badges.length, complete: completed.length, unavailable: unavailable.length },

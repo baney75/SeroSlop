@@ -7,6 +7,7 @@ import {
   type SiteStateResponse,
 } from "./shared/contracts";
 import { extractCssImageUrls, formatAiScore, type TargetDescriptor } from "./shared/content-targets";
+import { isMainContentElement, isScanMode, type ScanMode } from "./shared/scan-mode";
 
 const MIN_DIMENSION = 64;
 const MAX_SNAPSHOT_EDGE = 1_024;
@@ -52,6 +53,7 @@ const pendingRecordSet = new Set<TargetRecord>();
 const pendingMutationRoots = new Set<HTMLElement>();
 const pendingDeferredReconciliationElements = new Set<HTMLElement>();
 let enabled = true;
+let scanMode: ScanMode | undefined;
 let labelsVisible = true;
 let activeAnalyses = 0;
 let positionFrame: number | undefined;
@@ -85,6 +87,7 @@ let documentLifecycleEpoch = 0;
 let staleDocumentResponsesRejected = 0;
 
 const overlayHost = document.createElement("div");
+const documentToken = crypto.randomUUID();
 const overlayStyles = {
   all: "initial",
   position: "fixed",
@@ -133,6 +136,22 @@ style.textContent = `
   [role="status"][data-state="complete"][data-classification="likely-ai"] { background: #7a2e24; }
   [role="status"][data-state="complete"][data-classification="not-flagged"] { background: #334155; }
   [role="status"][data-state="unavailable"] { background: #5e3440; }
+  .picker-outline {
+    all: initial; border: 0; box-sizing: border-box; outline: 2px solid #ef333b;
+    outline-offset: 2px; pointer-events: none; position: fixed; z-index: 2147483647;
+  }
+  .picker-bar {
+    all: initial; background: #171b25; border: 1px solid #ffffff33; border-radius: 10px;
+    bottom: max(12px, env(safe-area-inset-bottom)); box-shadow: 0 5px 20px #0007;
+    box-sizing: border-box; color: #fff; font: 650 14px/1.35 system-ui, sans-serif;
+    left: 50%; max-width: min(520px, calc(100vw - 24px)); min-height: 44px;
+    padding: 12px 16px; pointer-events: none; position: fixed; text-align: center;
+    transform: translateX(-50%); width: max-content; z-index: 2147483647;
+  }
+  .picker-controller {
+    all: initial; clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px;
+    overflow: hidden; position: fixed; white-space: nowrap; width: 1px;
+  }
   @media (prefers-reduced-motion: no-preference) {
     [role="status"][data-state="analyzing"] { animation: prooflens-pulse 1.2s ease-in-out infinite alternate; }
   }
@@ -140,6 +159,218 @@ style.textContent = `
 `;
 shadow.append(style);
 document.documentElement.append(overlayHost);
+
+let pickerCleanup: (() => void) | undefined;
+let pickedElement: HTMLElement | undefined;
+let pickedDescriptorSlot: string | undefined;
+let pickerTargetSnapshot: {
+  elementId?: string;
+  index: number;
+  count: number;
+  instruction: string;
+  outline: string;
+  outlineOffset: string;
+  pointerEvents: string;
+  controllerFocused: boolean;
+} | undefined;
+let lastPickerFocusRestored = false;
+
+function pickerTargetName(element: HTMLElement): string {
+  const raw = element instanceof HTMLImageElement
+    ? element.alt || element.getAttribute("aria-label") || "image"
+    : element.getAttribute("aria-label") || "background image";
+  return boundedAccessibleName(raw) || (element instanceof HTMLImageElement ? "image" : "background image");
+}
+
+function pickerEligible(element: HTMLElement): boolean {
+  if (element === overlayHost || overlayHost.contains(element) || !element.isConnected) return false;
+  const descriptors = descriptorsFor(element);
+  if (!descriptors.length || element.getClientRects().length === 0) return false;
+  const rect = element.getBoundingClientRect();
+  if (rect.width < MIN_DIMENSION || rect.height < MIN_DIMENSION || rect.bottom <= 0 || rect.right <= 0 || rect.top >= innerHeight || rect.left >= innerWidth) return false;
+  if (element instanceof HTMLImageElement) {
+    return element.complete && element.naturalWidth >= MIN_DIMENSION && element.naturalHeight >= MIN_DIMENSION;
+  }
+  return true;
+}
+
+function collectPickerCandidates(): HTMLElement[] {
+  const candidates: HTMLElement[] = [];
+  const seen = new Set<HTMLElement>();
+  const add = (element: HTMLElement): void => {
+    if (candidates.length >= MAX_ELEMENTS_PER_SCAN || seen.has(element) || !pickerEligible(element)) return;
+    seen.add(element);
+    candidates.push(element);
+  };
+  // Index the live image collection directly instead of materializing an
+  // unbounded selector result on a hostile page. Other image-like/CSS targets
+  // are still discovered by the bounded generic walk below.
+  const imageLimit = Math.min(document.images.length, MAX_ELEMENTS_PER_SCAN);
+  for (let index = 0; index < imageLimit; index += 1) {
+    const image = document.images.item(index);
+    if (image) add(image);
+  }
+  for (const element of recordsByElement.keys()) add(element);
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+  let visited = 0;
+  while (visited < MAX_ELEMENTS_PER_SCAN) {
+    const node = walker.nextNode();
+    if (!node) break;
+    visited += 1;
+    if (node instanceof HTMLElement) add(node);
+  }
+  return candidates;
+}
+
+function startPicker(): boolean {
+  pickerCleanup?.();
+  let candidates = collectPickerCandidates();
+  if (!candidates.length) return false;
+  let candidateSet = new Set(candidates);
+  const startingOrigin = location.origin;
+  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  let index = 0;
+  let finished = false;
+  let refreshFrame = 0;
+  const outline = document.createElement("div");
+  outline.className = "picker-outline";
+  outline.setAttribute("aria-hidden", "true");
+  const bar = document.createElement("div");
+  bar.className = "picker-bar";
+  bar.setAttribute("role", "status");
+  bar.setAttribute("aria-live", "polite");
+  bar.textContent = "Choose an image. Move with Tab. Press Enter to analyze. Esc to cancel.";
+  const controller = document.createElement("button");
+  controller.className = "picker-controller";
+  controller.type = "button";
+  controller.textContent = "Image picker active. Use Tab to choose an image, Enter to analyze it, or Escape to cancel.";
+  shadow.append(outline, bar, controller);
+  const render = (scroll = false) => {
+    const target = candidates[index];
+    if (!target || !pickerEligible(target)) return;
+    if (scroll) target.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const r = target.getBoundingClientRect();
+    outline.style.left = `${r.left}px`;
+    outline.style.top = `${r.top}px`;
+    outline.style.width = `${r.width}px`;
+    outline.style.height = `${r.height}px`;
+    outline.dataset.kind = target instanceof HTMLImageElement ? "image" : "background";
+    const instruction = `${pickerTargetName(target)}, ${index + 1} of ${candidates.length}. Tab moves. Press Enter to analyze; Esc cancels.`;
+    bar.textContent = instruction;
+    controller.textContent = instruction;
+    controller.setAttribute("aria-label", instruction);
+    pickerTargetSnapshot = {
+      elementId: target.id || undefined,
+      index: index + 1,
+      count: candidates.length,
+      instruction,
+      outline: getComputedStyle(outline).outline,
+      outlineOffset: getComputedStyle(outline).outlineOffset,
+      pointerEvents: getComputedStyle(outline).pointerEvents,
+      controllerFocused: shadow.activeElement === controller,
+    };
+  };
+  const targetAtPoint = (x: number, y: number): HTMLElement | undefined => {
+    for (const painted of document.elementsFromPoint(x, y)) {
+      let current: Element | null = painted;
+      while (current && current !== document.documentElement) {
+        if (current instanceof HTMLElement && pickerEligible(current)) {
+          if (!candidateSet.has(current)) {
+            if (candidates.length < MAX_ELEMENTS_PER_SCAN) candidates.push(current);
+            else {
+              const replaced = candidates[index];
+              if (replaced) candidateSet.delete(replaced);
+              candidates[index] = current;
+            }
+            candidateSet.add(current);
+          }
+          return current;
+        }
+        current = current.parentElement;
+      }
+    }
+    return undefined;
+  };
+  const finish = (commit: boolean) => {
+    if (finished) return;
+    finished = true;
+    document.removeEventListener("keydown", key, true);
+    document.removeEventListener("pointermove", move, true);
+    document.removeEventListener("click", click, true);
+    window.removeEventListener("scroll", reposition);
+    window.removeEventListener("resize", reposition);
+    if (refreshFrame) cancelAnimationFrame(refreshFrame);
+    outline.remove();
+    bar.remove();
+    controller.remove();
+    pickerTargetSnapshot = undefined;
+    pickerCleanup = undefined;
+    if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    lastPickerFocusRestored = previousFocus === undefined || !previousFocus.isConnected || document.activeElement === previousFocus;
+    const target = candidates[index];
+    if (!commit || !target || location.origin !== startingOrigin || !pickerEligible(target)) return;
+    pickedElement = target;
+    clearAllRecords();
+    const descriptors = descriptorsFor(target);
+    const descriptor = descriptors.find((value) => value.kind === "image") ?? descriptors[0];
+    if (!descriptor) return;
+    pickedDescriptorSlot = descriptor.slot;
+    syncElement(target, [descriptor]);
+    const record = recordsByElement.get(target)?.get(descriptor.slot);
+    if (record) queueAnalysis(record);
+  };
+  const move = (event: PointerEvent) => {
+    const found = targetAtPoint(event.clientX, event.clientY);
+    if (!found) return;
+    const next = candidates.indexOf(found);
+    if (next >= 0) { index = next; render(); }
+  };
+  const click = (event: MouseEvent) => {
+    const found = targetAtPoint(event.clientX, event.clientY);
+    if (!found) return;
+    const next = candidates.indexOf(found);
+    if (next < 0) return;
+    index = next;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    finish(true);
+  };
+  const key = (event: KeyboardEvent) => {
+    if (event.key === "Tab") {
+      event.preventDefault();
+      index = (index + (event.shiftKey ? candidates.length - 1 : 1)) % candidates.length;
+      render(true);
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault(); finish(true);
+    } else if (event.key === "Escape") {
+      event.preventDefault(); finish(false);
+    }
+  };
+  const refreshCandidates = () => {
+    refreshFrame = 0;
+    const current = candidates[index];
+    const refreshed = collectPickerCandidates();
+    if (!refreshed.length) return;
+    candidates = refreshed;
+    candidateSet = new Set(candidates);
+    index = current && candidateSet.has(current) ? candidates.indexOf(current) : 0;
+    render();
+  };
+  const reposition = () => {
+    if (refreshFrame) return;
+    refreshFrame = requestAnimationFrame(refreshCandidates);
+  };
+  document.addEventListener("pointermove", move, true);
+  document.addEventListener("click", click, true);
+  document.addEventListener("keydown", key, true);
+  window.addEventListener("scroll", reposition, { passive: true });
+  window.addEventListener("resize", reposition, { passive: true });
+  pickerCleanup = () => finish(false);
+  render();
+  controller.focus({ preventScroll: true });
+  if (pickerTargetSnapshot) pickerTargetSnapshot.controllerFocused = shadow.activeElement === controller;
+  return true;
+}
 
 function descriptorsFor(element: HTMLElement): TargetDescriptor[] {
   const descriptors: TargetDescriptor[] = [];
@@ -330,6 +561,13 @@ function removeIndexedRecord(record: TargetRecord): void {
   }
 }
 
+function clearAllRecords(): void {
+  pendingRecords.length = 0;
+  pendingRecordSet.clear();
+  for (const record of [...records]) removeIndexedRecord(record);
+  recordsByElement.clear();
+}
+
 function ensureAdmissionCapacity(element: HTMLElement, descriptor: TargetDescriptor): boolean {
   if (records.size < MAX_TARGETS_PER_DOCUMENT) return true;
   const ownsPass = admissionPassDepth === 0;
@@ -378,10 +616,26 @@ function invalidateAllRecordsForDeferredSync(): void {
   }
 }
 
-function syncElement(element: HTMLElement): void {
+function syncElement(element: HTMLElement, forcedDescriptors?: readonly TargetDescriptor[]): void {
   if (mutationCallbackActive) synchronousMutationReconciliations += 1;
   if (element === overlayHost || overlayHost.contains(element)) return;
-  const descriptors = descriptorsFor(element);
+  const allowedByMode = Boolean(forcedDescriptors) || scanMode === "all" ||
+    (scanMode === "main" && isMainContentElement(element)) ||
+    (scanMode === "pick" && element === pickedElement);
+  if (!allowedByMode) {
+    const existing = recordsByElement.get(element);
+    if (existing) {
+      for (const record of [...existing.values()]) removeRecord(record);
+      intersectionObserver.unobserve(element);
+      recordsByElement.delete(element);
+      schedulePositions();
+      reportStats();
+    }
+    return;
+  }
+  const descriptors = forcedDescriptors
+    ? [...forcedDescriptors]
+    : descriptorsFor(element).filter((descriptor) => scanMode !== "pick" || descriptor.slot === pickedDescriptorSlot);
   let slots = recordsByElement.get(element);
   if (!slots && descriptors.length) {
     slots = new Map();
@@ -1051,16 +1305,33 @@ const mutationObserver = new MutationObserver((mutations) => {
 });
 
 chrome.runtime.onMessage.addListener((
-  message: { type: string; enabled?: boolean; visible?: boolean; expectedOrigin?: string },
+  message: { type: string; enabled?: boolean; visible?: boolean; expectedOrigin?: string; expectedDocumentToken?: string; scanMode?: ScanMode },
   sender,
   sendResponse,
 ) => {
   if (sender.id !== chrome.runtime.id) return false;
   if (message.type === "PL_CONFIRM_DOCUMENT") {
-    if (message.expectedOrigin === location.origin) sendResponse({ origin: location.origin });
+    if (message.expectedOrigin === location.origin &&
+      (message.expectedDocumentToken === undefined || message.expectedDocumentToken === documentToken)) {
+      sendResponse({ origin: location.origin, documentToken });
+    }
     else sendResponse({ pageChanged: true });
     return false;
   }
+  if (message.type === "PL_START_PICKER") {
+    if (message.expectedOrigin !== location.origin || message.expectedDocumentToken !== documentToken || scanMode !== "pick" || !enabled) {
+      sendResponse({ started: false, pageChanged: message.expectedOrigin !== location.origin || message.expectedDocumentToken !== documentToken });
+      return false;
+    }
+    const started = startPicker();
+    sendResponse(started ? { started: true } : { started: false, noCandidates: true });
+    return false;
+  }
+  if (message.type === "PL_CANCEL_PICKER") {
+    if (message.expectedOrigin !== location.origin || message.expectedDocumentToken !== documentToken) { sendResponse({ cancelled: false, pageChanged: true }); return false; }
+    pickerCleanup?.(); sendResponse({ cancelled: true }); return false;
+  }
+  if (message.type === "PL_GET_PICKER_STATE") { sendResponse({ active: Boolean(pickerCleanup) }); return false; }
   if (message.type === "PL_GET_CONTENT_SNAPSHOT") {
     sendResponse({
       badges: [...records].map((record) => {
@@ -1134,12 +1405,30 @@ chrome.runtime.onMessage.addListener((
       overlayAttached: overlayHost.isConnected,
       labelsVisible,
       enabled,
+      pickerActive: Boolean(pickerCleanup),
+      pickerTarget: pickerTargetSnapshot,
+      lastPickerFocusRestored,
+      scanMode,
+      documentToken,
     });
     return false;
   }
-  if (["PL_SITE_STATE_CHANGED", "PL_LABEL_VISIBILITY", "PL_RESCAN"].includes(message.type) &&
-    message.expectedOrigin !== location.origin) {
+  if (["PL_SITE_STATE_CHANGED", "PL_LABEL_VISIBILITY", "PL_RESCAN", "PL_SCAN_MODE_CHANGED"].includes(message.type) &&
+    (message.expectedOrigin !== location.origin || (typeof message.expectedDocumentToken === "string" && message.expectedDocumentToken !== documentToken))) {
     sendResponse({ pageChanged: true });
+    return false;
+  }
+  if (message.type === "PL_SCAN_MODE_CHANGED" && isScanMode(message.scanMode)) {
+    pickerCleanup?.();
+    pickedElement = undefined;
+    pickedDescriptorSlot = undefined;
+    scanMode = message.scanMode;
+    clearAllRecords();
+    if (enabled && scanMode !== "pick") {
+      scan();
+      pumpAnalysisQueue();
+    }
+    sendResponse({ scanMode });
     return false;
   }
   if (message.type === "PL_SITE_STATE_CHANGED" && typeof message.enabled === "boolean") {
@@ -1171,6 +1460,7 @@ chrome.runtime.onMessage.addListener((
     return false;
   }
   if (message.type === "PL_RESCAN" || message.type === "PL_MODEL_READY") {
+    if (!scanMode || scanMode === "pick") { sendResponse({ rescanned: false, requiresMode: true }); return false; }
     for (const record of records) resetRecord(record, "Queued for a fresh scan");
     scan();
     pumpAnalysisQueue();
@@ -1192,6 +1482,7 @@ document.addEventListener(
 );
 
 window.addEventListener("pagehide", () => {
+  pickerCleanup?.();
   documentLifecycleEpoch += 1;
   pendingRecords.length = 0;
   pendingRecordSet.clear();
@@ -1214,7 +1505,9 @@ async function start(): Promise<void> {
     origin: location.origin,
   })) as SiteStateResponse;
   enabled = state.enabled;
-  if (enabled) scan();
+  const modeResponse = await chrome.runtime.sendMessage({ type: "PL_GET_SCAN_MODE" }) as { scanMode?: ScanMode };
+  scanMode = isScanMode(modeResponse?.scanMode) ? modeResponse.scanMode : undefined;
+  if (enabled && scanMode && scanMode !== "pick") scan();
   mutationObserver.observe(document.documentElement, {
     childList: true,
     subtree: true,

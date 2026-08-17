@@ -39,9 +39,25 @@ Then:
 1. Open `chrome://extensions`, then enable **Developer mode** using the toggle in its upper-right corner.
 2. Select **Load unpacked** and choose the generated `dist/` directory.
 3. Keep the setup tab open until it says **Offline ready**. The model is already in the package; setup verifies its SHA-256 and prepares local storage.
-4. Visit an ordinary webpage. SeroSlop automatically queues visible `<img>`, `picture`/`srcset`, dynamic images, and CSS `background-image` targets.
+4. Choose a scan mode. No mode is selected for you:
+   - **Choose an image** waits until you press the extension button, then outlines the exact image you select.
+   - **Main images** scans images inside the page’s main content and leaves navigation, sidebars, and footers alone.
+   - **Every image** scans every supported image target on the page.
+5. Open the extension to run the chosen action or change modes. In image-picking mode, use the pointer or move with Tab, press Enter to analyze, and press Esc to cancel.
 
 The reproducible archive is generated at `release/prooflens.zip`; its digest is recorded in `release/SHA256SUMS.txt`.
+
+## Update a developer build
+
+Developer-loaded extensions do not update themselves. From the repository directory:
+
+```bash
+git pull --ff-only
+npm ci
+npm run build
+```
+
+Then open `chrome://extensions` and press **Reload** on SeroSlop. A future Chrome Web Store release can use Chrome's signed automatic update path; this source beta does not imitate that mechanism.
 
 ## Verify the release
 
@@ -97,6 +113,7 @@ The complete machine-readable contract is [model-lock.json](model-lock.json). Tr
 - [PRIVACY.md](PRIVACY.md): data flow and permission rationale
 - [SECURITY.md](SECURITY.md): threat model and fail-closed controls
 - [DESIGN.md](DESIGN.md): visible states, controls, accessibility, and responsive contract
+- [contributor/README.md](contributor/README.md): separate developer-only false-positive/false-negative review tool
 - [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md): bounty criteria mapped to executable proof
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): bundled runtime/model notices and training-data provenance
 
