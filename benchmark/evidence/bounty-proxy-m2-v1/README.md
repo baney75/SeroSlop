@@ -21,3 +21,16 @@ The panel contains 600 reserved Met Open Access real images and 600 TASTE
 synthetic images, 150 from each declared model group. It is an original-view
 submission proxy. It does not reveal or reproduce the maintainer's private
 benchmark.
+
+The completed clean-profile Chrome run used WebGPU for all 1,200 images. At
+the inclusive 65.0/100 threshold it produced 85.83% balanced accuracy, 77.67%
+real-image recall, and 94.00% synthetic-image recall (TN 466, FP 134, TP 564,
+FN 36). Chrome was offline before inference, and the run recorded no HTTP or
+HTTPS request after that cutoff.
+
+`verified-inputs/` contains the exact input hashes. `results/` contains one
+prediction row per frozen input and the canonical result receipt. Run
+`npm run check:bounty-proxy-results` to recompute the metrics and receipt
+digests and to recheck the recorded public Quality run. These results clear the
+published 75% threshold on this proxy; they are not a claim about the private
+benchmark or bounty acceptance.

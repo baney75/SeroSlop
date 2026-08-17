@@ -20,12 +20,12 @@
 | Automatic ordinary-page analysis | image, responsive source, dynamic DOM, CSS composite, and bounded viewport-crop paths | Chrome target/race/reconciliation assertions |
 | Per-image score | one-decimal 0–100 model score; failure is `unavailable` | unit and browser-state assertions |
 | Fixed threshold | inclusive score `>= 65.0/100`; one validation-frozen intercept | boundary tests and final calibration lock |
-| Large realistic local model training | frozen 5.4M-example upstream backbone; replacement head trained on 103,600 unique public images / 114,400 views | corpus packet, trainer summary, grid, coverage, classifier-only ONNX proof |
-| Accuracy | Replacement-v2 passed every frozen accuracy gate, with balanced accuracy of 89.67%–97.67% across four views, but it cannot serve as release evidence because the paired false-positive gate failed. | public V3 receipt, frozen predictions, and recomputed bootstrap |
-| False-positive robustness | Failed. Original and JPEG-75 StockImages views exceeded the frozen 10% overall Wilson upper-bound limit. The full packet is consumed and `acceptanceEligible: false`. | frozen predictions, recomputed Wilson intervals, and failure receipt |
+| Large realistic local model training | frozen 5.4M-example upstream backbone; replacement head trained on 105,978 public images | corpus packet, trainer summary, grid, coverage, classifier-only ONNX proof |
+| Accuracy | The packaged extension scored 85.83% balanced accuracy on the fixed public submission proxy at the inclusive 65.0/100 threshold (TN 466, FP 134, TP 564, FN 36). This does not predict the private benchmark result. | frozen 1,200-row panel, verified input hashes, browser predictions, canonical result receipt, and recomputed result checker |
+| Real-image behavior | The public proxy's 600 Met Open Access images produced 77.67% real-image recall. An older 319-photo StockImages development slice failed a stricter 10% Wilson false-positive gate and remains consumed evidence. | public proxy predictions plus the separate historical failure receipt |
 | Reproducible delivery | lockfile, model lock, fixed UTC ZIP timestamps, stage-aware pre-score/final CI | with `benchmark/verify-requirements.txt` installed in the active verification venv: `npm ci && npm run verify:static`, cross-time-zone byte equality, checksum |
-| Predictions came from the shipped model | frozen local pixels and packaged ONNX | `npm run verify:release` performs byte-identical inference replay before pixel cleanup |
-| Easy and safe controls | saved site toggle, page-temporary labels, perceptible re-scan, no pointer interception, target-associated chips with honest collision hiding | interaction/geometry E2E and inspected screenshots |
+| Predictions came from the shipped model | frozen local pixels and the packaged ONNX scored through the extension's `PL_INFER` path | source-commit model/package hashes, exact-head public Chrome CI, browser result receipt, and `npm run check:bounty-proxy-results` |
+| Easy and safe controls | three explicit scan modes, exact-target picker outline, page-temporary labels, perceptible re-scan, no pointer interception, target-associated chips with honest collision hiding | interaction/geometry E2E and inspected screenshots |
 
 ## Revision conditions
 

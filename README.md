@@ -14,6 +14,14 @@ Independent ONNX comparison found exactly two changed initializers, `classifier.
 The 900-image development validation produced 94.08% balanced accuracy on originals, 95.83% on screenshots, 93.67% on JPEG-75, and 94.25% on heavy double-JPEG. StockImages non-AI recall was 96%, 100%, 94%, and 98% across those views. These are model-selection results, not an untouched generalization estimate or a bounty score. The pixel-free training receipt, 54 fresh-feature shard digests, candidate grid, calibration, and classifier-only comparison are under `benchmark/evidence/m2/`.
 <!-- PROOFLENS_CURRENT_M2_END -->
 
+## Submission proxy
+
+The packaged extension scored a fixed, score-blind panel of 600 reserved Met Open Access real images and 600 publisher-labeled TASTE synthetic images. TASTE contributed 150 images from each of four current generator groups. The run used a clean Chrome profile and put the browser offline before inference.
+
+At the inclusive 65.0/100 threshold, balanced accuracy was **85.83%**: real-image recall was 77.67% and synthetic-image recall was 94.00% (TN 466, FP 134, TP 564, FN 36). Chrome used WebGPU for all 1,200 rows, and the run recorded no HTTP or HTTPS request after the offline cutoff.
+
+This clears the bounty's 75% threshold on the public proxy. It does not predict or claim a score on the maintainer's private benchmark. The frozen panel, verified input hashes, predictions, result receipt, scored source commit, and public CI binding are under `benchmark/evidence/bounty-proxy-m2-v1/`.
+
 ## Historical evaluation evidence
 
 The original 600-image Kling v2.1/Library of Congress holdout was run once and is consumed. Its stored predictions failed the frozen numeric contract before bootstrap: 2,231 of 2,400 probabilities did not equal the verifier’s binary64 sigmoid of their recorded logits within `2e-12`. The failure packet is permanently marked `acceptanceEligible: false`; its point estimates are diagnostic only. The model, calibration, threshold, preprocessing, acceptance gates, and extension runtime did not change in response.
@@ -27,7 +35,7 @@ Public repository evidence does not establish the bounty maintainer’s private 
 Requirements: Node.js 20.9 or newer, Python 3.10 or newer, `npm`, `zip`, and Chrome 121 or newer.
 
 ```bash
-git clone https://github.com/baney75/prooflens.git && cd prooflens
+git clone https://github.com/baney75/SeroSlop.git && cd SeroSlop
 python3 -m venv .verify-venv
 source .verify-venv/bin/activate
 python -m pip install -r benchmark/verify-requirements.txt

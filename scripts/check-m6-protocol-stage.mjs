@@ -121,8 +121,11 @@ import {
   M6_SUBMISSION_PROXY_R_COMMIT, M6_SUBMISSION_PROXY_R_TREE, M6_SUBMISSION_PROXY_R_EXPECTED,
   M6_SUBMISSION_PROXY_R2_STATUS, M6_SUBMISSION_PROXY_R2_COMMIT, M6_SUBMISSION_PROXY_R2_TREE,
   M6_SUBMISSION_PROXY_R2_EXPECTED, M6_SUBMISSION_PROXY_R2_ARTIFACT_SHA256,
-  M6_SUBMISSION_PROXY_R3_STATUS, M6_SUBMISSION_PROXY_R3_ARTIFACT_SHA256,
+  M6_SUBMISSION_PROXY_R3_STATUS, M6_SUBMISSION_PROXY_R3_COMMIT, M6_SUBMISSION_PROXY_R3_TREE,
+  M6_SUBMISSION_PROXY_R3_EXPECTED, M6_SUBMISSION_PROXY_R3_ARTIFACT_SHA256, M6_SUBMISSION_PROXY_RESULT_STATUS,
+  M6_SUBMISSION_PROXY_RESULT_EXPECTED, M6_SUBMISSION_PROXY_RESULT_ARTIFACT_SHA256,
   matchesM6SubmissionProxyRHead, matchesM6SubmissionProxyR2Head, matchesM6SubmissionProxyR3Head,
+  matchesM6SubmissionProxyResultHead,
 } from "./m6-stage-policy.mjs";
 
 const git = (args) => m5Git(args);
@@ -152,23 +155,34 @@ const isSubmissionProxyR3 = currentParents.length === 1 && matchesM6SubmissionPr
   parent: currentParents[0],
   rows: currentRows,
 });
-if (process.argv[2] === undefined && (isSubmissionProxyR || isSubmissionProxyR2 || isSubmissionProxyR3)) {
-  if ((isSubmissionProxyR2 || isSubmissionProxyR3) && (
+const isSubmissionProxyResult = currentParents.length === 1 && matchesM6SubmissionProxyResultHead({
+  head: currentHead,
+  parent: currentParents[0],
+  rows: currentRows,
+});
+if (process.argv[2] === undefined && (isSubmissionProxyR || isSubmissionProxyR2 || isSubmissionProxyR3 || isSubmissionProxyResult)) {
+  if ((isSubmissionProxyR2 || isSubmissionProxyR3 || isSubmissionProxyResult) && (
       git(["rev-parse", `${M6_SUBMISSION_PROXY_R_COMMIT}^{tree}`]) !== M6_SUBMISSION_PROXY_R_TREE ||
       parentsOf(M6_SUBMISSION_PROXY_R_COMMIT).length !== 1 ||
       parentsOf(M6_SUBMISSION_PROXY_R_COMMIT)[0] !== M6_SUBMISSION_PROXY_S_COMMIT ||
       canonicalM6Json(rowsOf(M6_SUBMISSION_PROXY_R_COMMIT).map(({ path, status }) => [path, status])) !== canonicalM6Json(M6_SUBMISSION_PROXY_R_EXPECTED))) {
     throw new Error("submission proxy verifier lineage changed");
   }
-  if (isSubmissionProxyR3 && (currentParents[0] !== M6_SUBMISSION_PROXY_R2_COMMIT ||
+  const renderRecoveryCommit = isSubmissionProxyResult ? M6_SUBMISSION_PROXY_R3_COMMIT : currentHead;
+  if ((isSubmissionProxyR3 || isSubmissionProxyResult) && (
+      (isSubmissionProxyResult ? currentParents[0] !== M6_SUBMISSION_PROXY_R3_COMMIT : currentParents[0] !== M6_SUBMISSION_PROXY_R2_COMMIT) ||
+      (isSubmissionProxyResult && git(["rev-parse", `${M6_SUBMISSION_PROXY_R3_COMMIT}^{tree}`]) !== M6_SUBMISSION_PROXY_R3_TREE) ||
+      parentsOf(renderRecoveryCommit).length !== 1 ||
+      parentsOf(renderRecoveryCommit)[0] !== M6_SUBMISSION_PROXY_R2_COMMIT ||
+      canonicalM6Json(rowsOf(renderRecoveryCommit).map(({ path, status }) => [path, status])) !== canonicalM6Json(M6_SUBMISSION_PROXY_R3_EXPECTED) ||
       git(["rev-parse", `${M6_SUBMISSION_PROXY_R2_COMMIT}^{tree}`]) !== M6_SUBMISSION_PROXY_R2_TREE ||
       parentsOf(M6_SUBMISSION_PROXY_R2_COMMIT).length !== 1 ||
       parentsOf(M6_SUBMISSION_PROXY_R2_COMMIT)[0] !== M6_SUBMISSION_PROXY_R_COMMIT ||
       canonicalM6Json(rowsOf(M6_SUBMISSION_PROXY_R2_COMMIT).map(({ path, status }) => [path, status])) !== canonicalM6Json(M6_SUBMISSION_PROXY_R2_EXPECTED))) {
     throw new Error("submission proxy CI recovery lineage changed");
   }
-  if (isSubmissionProxyR2 || isSubmissionProxyR3) {
-    const recoveryCommit = isSubmissionProxyR3 ? M6_SUBMISSION_PROXY_R2_COMMIT : currentHead;
+  if (isSubmissionProxyR2 || isSubmissionProxyR3 || isSubmissionProxyResult) {
+    const recoveryCommit = (isSubmissionProxyR3 || isSubmissionProxyResult) ? M6_SUBMISSION_PROXY_R2_COMMIT : currentHead;
     const recoveryPathMap = Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_R2_ARTIFACT_SHA256).map((path) => [
       path,
       digest(m5GitBytes(["show", `${recoveryCommit}:${path}`])),
@@ -177,13 +191,23 @@ if (process.argv[2] === undefined && (isSubmissionProxyR || isSubmissionProxyR2 
       throw new Error("submission proxy CI recovery artifact changed");
     }
   }
-  if (isSubmissionProxyR3) {
+  if (isSubmissionProxyR3 || isSubmissionProxyResult) {
     const renderRecoveryPathMap = Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_R3_ARTIFACT_SHA256).map((path) => [
       path,
-      digest(m5GitBytes(["show", `${currentHead}:${path}`])),
+      digest(m5GitBytes(["show", `${renderRecoveryCommit}:${path}`])),
     ]));
     if (canonicalM6Json(renderRecoveryPathMap) !== canonicalM6Json(M6_SUBMISSION_PROXY_R3_ARTIFACT_SHA256)) {
       throw new Error("submission proxy render-path recovery artifact changed");
+    }
+  }
+  if (isSubmissionProxyResult) {
+    const resultPathMap = Object.fromEntries(Object.keys(M6_SUBMISSION_PROXY_RESULT_ARTIFACT_SHA256).map((path) => [
+      path,
+      digest(m5GitBytes(["show", `${currentHead}:${path}`])),
+    ]));
+    if (canonicalM6Json(resultPathMap) !== canonicalM6Json(M6_SUBMISSION_PROXY_RESULT_ARTIFACT_SHA256) ||
+        canonicalM6Json(currentRows) !== canonicalM6Json(M6_SUBMISSION_PROXY_RESULT_EXPECTED)) {
+      throw new Error("submission proxy result publication artifact changed");
     }
   }
   if ((isSubmissionProxyR && currentParents[0] !== M6_SUBMISSION_PROXY_S_COMMIT) ||
@@ -268,7 +292,8 @@ if (process.argv[2] === undefined && (isSubmissionProxyR || isSubmissionProxyR2 
     throw new Error("submission proxy manifest is not score-blind and balanced");
   }
   console.log(JSON.stringify({
-    status: isSubmissionProxyR3 ? M6_SUBMISSION_PROXY_R3_STATUS :
+    status: isSubmissionProxyResult ? M6_SUBMISSION_PROXY_RESULT_STATUS :
+      isSubmissionProxyR3 ? M6_SUBMISSION_PROXY_R3_STATUS :
       isSubmissionProxyR2 ? M6_SUBMISSION_PROXY_R2_STATUS : M6_SUBMISSION_PROXY_R_STATUS,
     head: currentHead,
     sourceCommit: M6_SUBMISSION_PROXY_S_COMMIT,

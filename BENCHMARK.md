@@ -116,11 +116,19 @@ Git history and public CI establish the recorded boundary. They cannot prove tha
 
 M2 head training, finalization, and development validation are complete. Balanced accuracy is 94.08% on originals, 95.83% on screenshots, 93.67% on JPEG-75, and 94.25% on heavy double-JPEG. The weakest class recall is 91.00%; the weakest named synthetic-family recall is 84.00%. These are selection results.
 
-There is no current acceptance result. V1 is consumed and acceptance-ineligible. Replacement-v2 passed its accuracy gates but failed the paired false-positive gate, so it is also consumed and acceptance-ineligible. Public repository evidence does not establish the bounty maintainer’s private score, acceptance decision, or payment.
+There is no private-benchmark acceptance result. V1 is consumed and acceptance-ineligible. Replacement-v2 passed its accuracy gates but failed the paired false-positive gate, so it is also consumed and acceptance-ineligible. Public repository evidence does not establish the bounty maintainer’s private score, acceptance decision, or payment.
 
 ## Browser evidence
 
 `benchmark/manifests/parity-ids-v2.json` fixes a prediction-blind 30-real/30-Infinity subset before replacement scoring. After the canonical completion and bootstrap exist, `prepare_parity.py` materializes those exact local pixels and reference scores. The packaged extension must run them in a clean offline profile with at least 95% decision agreement, at least 75% diagnostic balanced accuracy, and the frozen probability-difference limits.
+
+## Submission proxy
+
+The fixed public submission proxy contains 600 reserved Met Open Access real images and 600 publisher-labeled TASTE synthetic images. TASTE contributes 150 images from each of four generator groups. The manifest was frozen before any selected image was opened or scored.
+
+The packaged extension scored all 1,200 images through its browser inference path in a clean Chrome profile. Chrome was offline before inference, WebGPU handled every row, and the run recorded no HTTP or HTTPS request after the cutoff. At the inclusive 65.0/100 threshold, balanced accuracy was 85.83%: real-image recall was 77.67% and synthetic-image recall was 94.00% (TN 466, FP 134, TP 564, FN 36).
+
+The proxy clears the bounty's published 75% threshold. It does not reveal the maintainer's private panel or claim a private score, acceptance decision, or payment. The frozen inputs, verified image hashes, predictions, result receipt, scored Git commit and tree, and public Quality run are recorded under `benchmark/evidence/bounty-proxy-m2-v1/`. `npm run check:bounty-proxy-results` independently recomputes the packet.
 
 The full Chrome E2E separately proves setup progress, model persistence after restart, zero post-cutoff HTTP(S) requests, WebGPU and forced-WASM inference, actual high/low validation fixtures, honest saved/temporary control failures, completed re-scan work, unavailable output, responsive/CSS targets, stale-result rejection, hostile-page bounds, and target-associated geometry at a narrow 1.5× scale. GitHub Actions gates forced WASM. WebGPU is a fixed-head local gate because hosted-runner GPU availability is not stable. Automation opens the production popup document in an extension-page tab; it does not claim Chrome toolbar-window lifecycle coverage.
 

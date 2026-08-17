@@ -6,7 +6,7 @@ import { classifyM4Stage, M4_FAILURE_PATH, M4_PUBLICATION_LOCK_PATH } from "./m4
 import { classifyM3Stage, M3_FAILURE_PATH, M3_PUBLICATION_LOCK_PATH } from "./m3-stage-policy.mjs";
 import { classifyM5Stage, M5_FAILURE_PATH, M5_FINAL_RECEIPT_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_A5_AUTHORIZATION_PATH, M5_A5_COMMIT, M5_A6_AUTHORIZATION_PATH, M5_A6_COMMIT, M5_A7_AUTHORIZATION_PATH, M5_NUMERIC_AUDIT_RECOVERY_EXPECTED, M5_R5_EXPECTED, M5_R6_EXPECTED, M5_R7_EXPECTED, M5_A4_COMMIT, M5_RUNPOD_ENV_AUTHORIZATION_COMMIT, M5_SELECTION_LOCK_PATH, matchesExpectedRows } from "./m5-stage-policy.mjs";
 import { m5Git } from "./m5-safe-git.mjs";
-import { isM6ProtocolLineageHead, matchesM6SubmissionProxyRHead, matchesM6SubmissionProxyR2Head, matchesM6SubmissionProxyR3Head } from "./m6-stage-policy.mjs";
+import { isM6ProtocolLineageHead, matchesM6SubmissionProxyRHead, matchesM6SubmissionProxyR2Head, matchesM6SubmissionProxyR3Head, matchesM6SubmissionProxyResultHead } from "./m6-stage-policy.mjs";
 // M6 P5/P7/P8 prospective direct-child routing is handled by isM6ProtocolLineageHead.
 // P8 R/A remain receipt-bound and never imply source-lock or training authority.
 
@@ -37,7 +37,8 @@ const submissionProxyExists = (() => {
         const [status, path] = line.split("\t");
         return [path, status];
       });
-    return parents.length === 1 && (matchesM6SubmissionProxyR3Head({ head, parent: parents[0], rows }) ||
+    return parents.length === 1 && (matchesM6SubmissionProxyResultHead({ head, parent: parents[0], rows }) ||
+      matchesM6SubmissionProxyR3Head({ head, parent: parents[0], rows }) ||
       matchesM6SubmissionProxyR2Head({ head, parent: parents[0], rows }) ||
       matchesM6SubmissionProxyRHead({ head, parent: parents[0], rows }));
   } catch { return false; }
