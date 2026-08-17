@@ -349,7 +349,10 @@ try {
     observedProgress.renderCount < 3) {
     throw new Error(`Setup progress history was not determinate: ${JSON.stringify(observedProgress)}`);
   }
-  await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}.png`), fullPage: true });
+  // GitHub's Xvfb/Chromium runner can take more than Playwright's 30-second
+  // default to encode this first post-model full-page frame. Keep the visual
+  // assertion and artifact; only give the screenshot operation enough time.
+  await setup.screenshot({ path: path.join(artifactsPath, `setup-${expectedProvider}.png`), fullPage: true, timeout: 120_000 });
   setupVisualEvidence = await captureUiMatrix(setup, "setup");
   stage("setup initial-status failure recovery");
   const failureSetup = await context.newPage();

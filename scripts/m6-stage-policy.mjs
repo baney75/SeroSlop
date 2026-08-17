@@ -208,6 +208,18 @@ export const M6_BETA1_ARTIFACT_SHA256 = Object.freeze({
 });
 export const M6_BETA1_AUTHORIZATION_PATH = "benchmark/evidence/m6/beta1-authorization.json";
 export const M6_BETA1_AUTHORIZATION_STATUS = "m6-beta1-source-authorized";
+export const M6_BETA1_COMMIT = "296631aaaf6c4afd26982488c79f17163e14513f";
+export const M6_BETA1_TREE = "68ee80e624a57f8bab21ab0dde96f5c13a789b2c";
+export const M6_BETA1_RECOVERY_EXPECTED = Object.freeze([
+  ["scripts/check-m6-protocol-stage.mjs", "M"],
+  ["scripts/chrome-smoke.mjs", "M"],
+  ["scripts/m6-stage-policy.mjs", "M"],
+  ["scripts/test-m6-stage-policy.mjs", "M"],
+]);
+export const M6_BETA1_RECOVERY_ARTIFACT_SHA256 = Object.freeze({
+  ...M6_BETA1_ARTIFACT_SHA256,
+  "scripts/chrome-smoke.mjs": "ba70e516ab43cf6370c369833870d9176ee7a0635ce8f47c44c197d2d7590f7b",
+});
 export function validateM6P5Artifacts(artifactBytes = {}, expectedDigests = M6_P5_ARTIFACT_SHA256) {
   const expectedPaths = Object.keys(expectedDigests).sort();
   if (JSON.stringify(Object.keys(artifactBytes).sort()) !== JSON.stringify(expectedPaths)) throw new Error("M6 P5 artifact inventory changed");
@@ -253,6 +265,12 @@ export function matchesM6Beta1Head({ head, parent, rows = [] } = {}) {
 export function matchesM6Beta1AuthorizationHead({ head, parent, rows = [] } = {}) {
   return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && typeof parent === "string" && /^[0-9a-f]{40}$/.test(parent) &&
     head !== parent && JSON.stringify(normalizedRows(rows)) === JSON.stringify([[M6_BETA1_AUTHORIZATION_PATH, "A"]]);
+}
+
+export function matchesM6Beta1RecoveryHead({ head, parent, rows = [] } = {}) {
+  return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) && head !== parent &&
+    parent === M6_BETA1_COMMIT &&
+    JSON.stringify(normalizedRows(rows)) === JSON.stringify(normalizedRows(M6_BETA1_RECOVERY_EXPECTED));
 }
 
 function canonicalM6Value(value) {
@@ -392,6 +410,7 @@ export function isM6ProtocolLineageHead({ head, parent, treePaths = [], rows = [
     matchesM6SubmissionUiHead({ head, parent, rows }) ||
     matchesM6NoSlopUiHead({ head, parent, rows }) ||
     matchesM6Beta1Head({ head, parent, rows }) ||
+    matchesM6Beta1RecoveryHead({ head, parent, rows }) ||
     matchesM6Beta1AuthorizationHead({ head, parent, rows }) ||
     matchesM6ProtocolRecovery({ head, parent, rows }) ||
     matchesM6MaterializerRecovery({ head, parent, rows }) ||

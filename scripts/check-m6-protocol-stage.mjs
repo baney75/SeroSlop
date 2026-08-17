@@ -39,6 +39,9 @@ import {
   M6_NO_SLOP_UI_COMMIT,
   M6_NO_SLOP_UI_TREE,
   M6_BETA1_ARTIFACT_SHA256,
+  M6_BETA1_COMMIT,
+  M6_BETA1_TREE,
+  M6_BETA1_RECOVERY_ARTIFACT_SHA256,
   M6_BETA1_AUTHORIZATION_PATH,
   M6_BETA1_EXPECTED,
   matchesM6P5Head,
@@ -46,6 +49,7 @@ import {
   matchesM6SubmissionUiHead,
   matchesM6NoSlopUiHead,
   matchesM6Beta1Head,
+  matchesM6Beta1RecoveryHead,
   matchesM6Beta1AuthorizationHead,
   validateM6Beta1Authorization,
   validateM6P5Artifacts,
@@ -146,6 +150,12 @@ const noSlopUiRows = rowsOf(M6_NO_SLOP_UI_COMMIT).map(({ path, status }) => [pat
 if (noSlopUiParents.length !== 1 || !matchesM6NoSlopUiHead({ head: M6_NO_SLOP_UI_COMMIT, parent: noSlopUiParents[0], rows: noSlopUiRows })) throw new Error("M6 immutable no-slop UI lineage/path map changed");
 validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_NO_SLOP_UI_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_NO_SLOP_UI_COMMIT}:${path}`])])), M6_NO_SLOP_UI_ARTIFACT_SHA256);
 
+if (git(["rev-parse", `${M6_BETA1_COMMIT}^{tree}`]) !== M6_BETA1_TREE) throw new Error("M6 immutable Beta1 tree changed");
+const beta1Parents = parentsOf(M6_BETA1_COMMIT);
+const beta1Rows = rowsOf(M6_BETA1_COMMIT).map(({ path, status }) => [path, status]);
+if (beta1Parents.length !== 1 || !matchesM6Beta1Head({ head: M6_BETA1_COMMIT, parent: beta1Parents[0], rows: beta1Rows })) throw new Error("M6 immutable Beta1 lineage/path map changed");
+validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${M6_BETA1_COMMIT}:${path}`])])), M6_BETA1_ARTIFACT_SHA256);
+
 const head = git(["rev-parse", "HEAD"]);
 const headParents = parentsOf(head);
 const headRows = rowsOf(head).map(({ path, status }) => [path, status]);
@@ -154,12 +164,12 @@ if (headParents.length === 1 && matchesM6Beta1AuthorizationHead({ head, parent: 
   const sourceCommit = headParents[0];
   const sourceParents = parentsOf(sourceCommit);
   const sourceRows = rowsOf(sourceCommit).map(({ path, status }) => [path, status]);
-  if (sourceParents.length !== 1 || !matchesM6Beta1Head({ head: sourceCommit, parent: sourceParents[0], rows: sourceRows })) {
+  if (sourceParents.length !== 1 || !matchesM6Beta1RecoveryHead({ head: sourceCommit, parent: sourceParents[0], rows: sourceRows })) {
     throw new Error("M6 Beta1 authorization source lineage changed");
   }
   const sourceTree = git(["rev-parse", `${sourceCommit}^{tree}`]);
   const sourcePathMap = Object.fromEntries(M6_BETA1_EXPECTED.map(([path]) => [path, digest(m5GitBytes(["show", `${sourceCommit}:${path}`]))]));
-  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${sourceCommit}:${path}`])])), M6_BETA1_ARTIFACT_SHA256);
+  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_RECOVERY_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${sourceCommit}:${path}`])])), M6_BETA1_RECOVERY_ARTIFACT_SHA256);
   validateM6Beta1Authorization(m5GitBytes(["show", `${head}:${M6_BETA1_AUTHORIZATION_PATH}`]), { sourceCommit, sourceTree, sourcePathMap });
   console.log(JSON.stringify({ status: "m6-beta1-authorized-pass", head, sourceCommit, sourceTree, rows: headRows }));
   process.exit(0);
@@ -187,6 +197,11 @@ if (headParents.length === 1 && matchesM6NoSlopUiHead({ head, parent: headParent
 if (headParents.length === 1 && matchesM6Beta1Head({ head, parent: headParents[0], rows: headRows })) {
   validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])), M6_BETA1_ARTIFACT_SHA256);
   console.log(JSON.stringify({ status: "m6-beta1-pass", head, parent: headParents[0], rows: headRows }));
+  process.exit(0);
+}
+if (headParents.length === 1 && matchesM6Beta1RecoveryHead({ head, parent: headParents[0], rows: headRows })) {
+  validateM6P5Artifacts(Object.fromEntries(Object.keys(M6_BETA1_RECOVERY_ARTIFACT_SHA256).map((path) => [path, m5GitBytes(["show", `${head}:${path}`])])), M6_BETA1_RECOVERY_ARTIFACT_SHA256);
+  console.log(JSON.stringify({ status: "m6-beta1-ci-recovery-pass", head, parent: headParents[0], rows: headRows }));
   process.exit(0);
 }
 if (head === M6_P_COMMIT) {
