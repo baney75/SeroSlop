@@ -20,7 +20,7 @@ from typing import Any, Iterable
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from benchmark.m6.contracts import GENERATORS, canonical_json, load_recipe, parse_json_bytes
+from benchmark.m6.contracts import GENERATORS, canonical_json, load_recipe
 
 
 SET_DATASET = "JamalLee/Omni-Fake-SET"
@@ -113,7 +113,9 @@ def canonical_history_row(row: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("historical encoded SHA-256 invalid")
     if out["decodedRgbSha256"] is not None:
         raise ValueError("historical decoded RGB SHA must be explicitly unavailable")
-    if not isinstance(out["dhash64"], str) or not HEX16.fullmatch(out["dhash64"]):
+    if out["dhash64"] is not None and (
+        not isinstance(out["dhash64"], str) or not HEX16.fullmatch(out["dhash64"])
+    ):
         raise ValueError("historical dHash64 invalid")
     return out
 
@@ -162,7 +164,7 @@ def validate_history_bundle(bundle: dict[str, Any], *, production: bool) -> tupl
     if not isinstance(receipt["manifests"], list) or (production and not receipt["manifests"]):
         raise ValueError("historical manifest inventory missing")
     manifest_keys = {"cohort", "path", "bytes", "sha256", "rows"}
-    seen_paths: set[str] = set()
+    seen_paths: set[tuple[str, str]] = set()
     manifest_rows = {cohort: 0 for cohort in receipt["cohortRowCounts"]}
     for manifest in receipt["manifests"]:
         if not isinstance(manifest, dict) or set(manifest) != manifest_keys:
@@ -170,9 +172,10 @@ def validate_history_bundle(bundle: dict[str, Any], *, production: bool) -> tupl
         if manifest["cohort"] not in receipt["cohortRowCounts"]:
             raise ValueError("historical manifest cohort changed")
         _validate_text(manifest["path"], field="historical manifest path", path=True)
-        if manifest["path"] in seen_paths:
-            raise ValueError("duplicate historical manifest path")
-        seen_paths.add(manifest["path"])
+        manifest_identity = (manifest["cohort"], manifest["path"])
+        if manifest_identity in seen_paths:
+            raise ValueError("duplicate historical cohort/manifest path")
+        seen_paths.add(manifest_identity)
         if type(manifest["bytes"]) is not int or manifest["bytes"] < 0 or type(manifest["rows"]) is not int or manifest["rows"] < 0:
             raise ValueError("historical manifest size/count invalid")
         if manifest["rows"] > 0 and manifest["bytes"] == 0:
@@ -271,12 +274,16 @@ class DHashIndex:
             {} for _ in self.BLOCKS
         ]
         self._values: list[int] = []
+        self._owners: set[int] = set()
 
-    def add(self, value: int) -> int:
+    def add(self, value: int, owner: int | None = None) -> int:
         if not isinstance(value, int) or value < 0 or value >= 1 << 64:
             raise ValueError("dHash index value invalid")
-        owner = len(self._values)
+        owner = len(self._values) if owner is None else owner
+        if type(owner) is not int or owner < 0 or owner in self._owners:
+            raise ValueError("dHash index owner invalid or duplicate")
         self._values.append(value)
+        self._owners.add(owner)
         for block, (shift, bits) in enumerate(self.BLOCKS):
             key = (value >> shift) & ((1 << bits) - 1)
             self._buckets[block].setdefault(key, []).append((owner, value))
@@ -341,8 +348,9 @@ def clean_source_rows(
             comparator = decoded_owners.get(str(decoded))
             layer = "decoded-rgb-sha256" if comparator is not None else None
         distance: int | None = None
-        if comparator is None:
-            matches = perceptual.matches(int(str(row["dhash64"]), 16), 8)
+        dhash = row.get("dhash64")
+        if comparator is None and dhash is not None:
+            matches = perceptual.matches(int(str(dhash), 16), 8)
             if matches:
                 comparator, distance = min(
                     matches,
@@ -377,9 +385,8 @@ def clean_source_rows(
         encoded_owners[str(row["encodedBytesSha256"])] = owner_index
         if decoded is not None:
             decoded_owners[str(decoded)] = owner_index
-        index_owner = perceptual.add(int(str(row["dhash64"]), 16))
-        if index_owner != owner_index:
-            raise AssertionError("dHash owner index changed")
+        if dhash is not None:
+            perceptual.add(int(str(dhash), 16), owner_index)
         return True
 
     normalized_history = [canonical_history_row(row) for row in (historical or [])]
@@ -460,10 +467,14 @@ def source_lock(
     *,
     history_bundle: dict[str, Any],
     protocol_commit: str,
+    materialization_summary_sha256: str,
+    source_shards_sha256: str,
 ) -> dict[str, Any]:
     """Build the production metadata source lock with frozen quotas only."""
     if protocol_commit != M6_PROTOCOL_COMMIT:
         raise ValueError("M6 protocol commit changed")
+    if not HEX64.fullmatch(materialization_summary_sha256) or not HEX64.fullmatch(source_shards_sha256):
+        raise ValueError("M6 materialization/source-shard binding invalid")
     recipe = load_recipe()
     expected = {
         "set_train": recipe["sources"]["omniFakeSet"]["imageSplits"]["train"],
@@ -475,6 +486,8 @@ def source_lock(
     return _build_source_lock(
         parts, output, historical=history_rows, history_receipt=history_receipt,
         history_expanded=history_expanded, protocol_commit=protocol_commit,
+        materialization_summary_sha256=materialization_summary_sha256,
+        source_shards_sha256=source_shards_sha256,
         minimum_train=40_000,
         selector_each=2_000, set_per_batch=70, ood_per_batch=30,
         batch_count=1_000, production=True,
@@ -500,6 +513,7 @@ def _source_lock_fixture(
     return _build_source_lock(
         parts, output, historical=history_rows, history_receipt=history_receipt,
         history_expanded=history_expanded, protocol_commit=M6_PROTOCOL_COMMIT,
+        materialization_summary_sha256=None, source_shards_sha256=None,
         minimum_train=minimum_train,
         selector_each=selector_each, set_per_batch=set_per_batch,
         ood_per_batch=ood_per_batch, batch_count=batch_count,
@@ -516,6 +530,8 @@ def _build_source_lock(
     history_receipt: dict[str, Any],
     history_expanded: bytes,
     protocol_commit: str,
+    materialization_summary_sha256: str | None,
+    source_shards_sha256: str | None,
     minimum_train: int,
     selector_each: int,
     set_per_batch: int,
@@ -677,6 +693,7 @@ def _build_source_lock(
             },
             "h3PixelsRead": False,
             "historyReceiptSha256": sha256(canonical_json(history_receipt)).hexdigest(),
+            "materializationSummarySha256": materialization_summary_sha256,
             "production": production,
             "protocolCommit": protocol_commit,
             "quotas": {
@@ -697,6 +714,7 @@ def _build_source_lock(
                 "train": len(train_rows),
             },
             "schemaVersion": 1,
+            "sourceShardsSha256": source_shards_sha256,
             "status": "m6-source-lock-prepared" if production else "m6-source-lock-fixture",
         }
         _write_fsynced(temporary / "source-lock-summary.json", canonical_json(summary))
@@ -740,7 +758,8 @@ def _build_source_lock(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--phase", choices=("census", "source-lock"), required=True)
-    parser.add_argument("--rows", type=Path)
+    parser.add_argument("--cache-root", type=Path)
+    parser.add_argument("--materialized-root", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.phase == "census":
@@ -752,15 +771,18 @@ def main() -> None:
             "status": "metadata-contract-valid",
         }, sort_keys=True))
         return
-    if args.rows is None or args.output is None:
-        raise SystemExit("source-lock requires metadata JSON and output directory")
-    payload = parse_json_bytes(args.rows.read_bytes(), label="source-lock input")
-    if set(payload) != {"historyBundle", "parts", "protocolCommit"}:
-        raise SystemExit("source-lock input must contain exact historyBundle, parts, and protocolCommit keys")
+    if args.cache_root is None or args.materialized_root is None or args.output is None:
+        raise SystemExit("source-lock requires the verified shard cache, materialization root, and output directory")
+    from benchmark.m6.historical import build_history_bundle
+    from benchmark.m6.materialize import SOURCE_SHARDS_SHA256, load_materialized_parts
+    summary_path = args.materialized_root / "materialization-summary.json"
+    summary_sha256 = sha256(summary_path.read_bytes()).hexdigest()
     print(json.dumps(source_lock(
-        payload["parts"], args.output,
-        history_bundle=payload["historyBundle"],
-        protocol_commit=payload["protocolCommit"],
+        load_materialized_parts(args.materialized_root, cache_root=args.cache_root), args.output,
+        history_bundle=build_history_bundle(),
+        protocol_commit=M6_PROTOCOL_COMMIT,
+        materialization_summary_sha256=summary_sha256,
+        source_shards_sha256=SOURCE_SHARDS_SHA256,
     ), sort_keys=True))
 
 

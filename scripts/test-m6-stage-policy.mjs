@@ -5,8 +5,11 @@ import {
   isM6ProtocolLineageHead,
   M6_BASE_COMMIT,
   M6_P_COMMIT,
+  M6_P2_COMMIT,
+  M6_MATERIALIZER_RECOVERY_EXPECTED,
   M6_PROTOCOL_PATHS,
   M6_PROTOCOL_RECOVERY_EXPECTED,
+  matchesM6MaterializerRecovery,
   matchesM6ProtocolRecovery,
   matchesProspectiveP,
   parseM6Recipe,
@@ -33,4 +36,10 @@ assert.equal(matchesM6ProtocolRecovery({ head: "c".repeat(40), parent: M6_P_COMM
 assert.equal(matchesM6ProtocolRecovery({ head: "c".repeat(40), parent: M6_P_COMMIT, rows: recoveryRows.map(([path, status], index) => [path, index === 0 ? "A" : status]) }), false);
 assert.equal(isM6ProtocolLineageHead({ head: "a".repeat(40), parent: M6_BASE_COMMIT, treePaths: paths, rows: [] }), true);
 assert.equal(isM6ProtocolLineageHead({ head: "c".repeat(40), parent: M6_P_COMMIT, treePaths: paths, rows: recoveryRows }), true);
+const materializerRows = M6_MATERIALIZER_RECOVERY_EXPECTED.map(([path, status]) => [path, status]);
+assert.equal(matchesM6MaterializerRecovery({ head: "d".repeat(40), parent: M6_P2_COMMIT, rows: materializerRows }), true);
+assert.equal(matchesM6MaterializerRecovery({ head: "d".repeat(40), parent: M6_P_COMMIT, rows: materializerRows }), false);
+assert.equal(matchesM6MaterializerRecovery({ head: "d".repeat(40), parent: M6_P2_COMMIT, rows: materializerRows.slice(1) }), false);
+assert.equal(matchesM6MaterializerRecovery({ head: "d".repeat(40), parent: M6_P2_COMMIT, rows: [...materializerRows, ["extra", "A"]] }), false);
+assert.equal(isM6ProtocolLineageHead({ head: "d".repeat(40), parent: M6_P2_COMMIT, treePaths: paths, rows: materializerRows }), true);
 console.log("M6 stage policy PASS");

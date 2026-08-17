@@ -111,14 +111,15 @@ def validate_recipe(recipe: Mapping[str, Any]) -> None:
             "canonical dataset row ID/filename/source group",
             "encoded image bytes SHA256",
             "decoded EXIF-oriented RGB SHA256 for fresh rows only",
-            "EXIF-oriented RGB dHash64 Hamming<=8",
+            "EXIF-oriented RGB dHash64 Hamming<=8 where source metadata contains it",
         ],
         "against": [
             "fresh cross-partition for all four layers",
-            "all M2-M5 metadata for canonical identity, encoded bytes SHA256, and dHash only",
-            "H3 metadata only for canonical identity, encoded bytes SHA256, and dHash only",
+            "all M2-M5 metadata for canonical identity and encoded bytes SHA256, plus dHash where recorded",
+            "H3 metadata only for canonical identity and encoded bytes SHA256, plus dHash where recorded",
         ],
         "historicalDecodedRgbSha256": "unavailable; no historical pixels are read",
+        "historicalDhash64": "may be unavailable; unavailable rows remain compared by canonical identity and encoded bytes SHA256",
         "h3PixelsRead": False,
     }:
         raise ValueError("overlap boundary changed")

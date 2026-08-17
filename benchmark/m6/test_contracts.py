@@ -1,15 +1,19 @@
 import copy
+import base64
 import gzip
 from hashlib import sha256
 import json
-from pathlib import Path
+import os
+from pathlib import Path, PurePosixPath
 import random
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 from benchmark.m6.contracts import (
     CENSUS_PATH,
+    canonical_json,
     load_recipe,
     parse_json_bytes,
     validate_census_evidence,
@@ -32,6 +36,22 @@ from benchmark.m6.prepare import (
     validate_history_bundle,
 )
 from benchmark.m6.preflight import project
+from benchmark.m6.historical import build_history_bundle, write_history_bundle
+from benchmark.m6.materialize import (
+    SOURCE_SHARDS_SHA256,
+    _derive_shard_materialization,
+    _download_shard_fixture,
+    _local_shard_path,
+    _materialize_shard_fixture,
+    _open_local_shard,
+    _publish_summary,
+    download_shard,
+    image_facts,
+    load_source_shards,
+    materialize_shard,
+    source_group,
+    validate_source_shards,
+)
 
 
 def _far_hashes(count: int) -> list[str]:
@@ -43,6 +63,47 @@ def _far_hashes(count: int) -> list[str]:
         if all((candidate ^ prior).bit_count() > 8 for prior in output):
             output.append(candidate)
     return [f"{value:016x}" for value in output]
+
+
+_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAAFElEQVR4nGP4z8DAAMaMXCJyEAAAMTMD7ybEdyAAAAAASUVORK5CYII="
+)
+
+
+def _write_parquet(path: Path, *, filename: str = "train/real/COCO/shared.png") -> None:
+    import pyarrow as pa
+    from pyarrow import parquet as pq
+
+    table = pa.Table.from_pylist([{
+        "filename": filename,
+        "generator": "COCO",
+        "image": {"bytes": _PNG, "path": filename},
+        "label": "real",
+        "split": "train",
+    }])
+    pq.write_table(table, path)
+
+
+def _fixture_download(
+    root: Path, *, shard_name: str = "train-00000-of-00019.parquet",
+    filename: str = "train/real/COCO/shared.png",
+) -> tuple[Path, dict, dict]:
+    source_file = root / (shard_name + ".source")
+    _write_parquet(source_file, filename=filename)
+    raw = source_file.read_bytes()
+    source = {"dataset": SET_DATASET, "revision": SET_REVISION}
+    shard = {
+        "lfsSha256": sha256(raw).hexdigest(),
+        "partition": "train",
+        "path": f"data/Image/{shard_name}",
+        "size": len(raw),
+    }
+    cache_root = root / "cache"
+    _download_shard_fixture(
+        cache_root=cache_root, source_key="omniFakeSet", source=source,
+        shard=shard, downloader=lambda **_: str(source_file),
+    )
+    return cache_root, source, shard
 
 
 def _fresh_row(
@@ -176,6 +237,9 @@ class M6ContractTests(unittest.TestCase):
         distance9 = distance8 ^ (1 << 62)
         self.assertEqual(index.matches(distance8), [(0, 8)])
         self.assertEqual(index.matches(distance9), [])
+        sparse = DHashIndex()
+        sparse.add(base, owner=7)
+        self.assertEqual(sparse.matches(base), [(7, 0)])
 
     def test_overlap_layers_are_audited_and_distance_nine_is_clean(self):
         hashes = iter(_far_hashes(20))
@@ -229,6 +293,7 @@ class M6ContractTests(unittest.TestCase):
         parts = _fixture_parts()
         candidate = parts["set_validation"][2]
         history = [_history_from(candidate)]
+        history[0]["dhash64"] = None
         clean, rejects = clean_source_rows(parts, history)
         self.assertNotIn(stable_identity(candidate), {stable_identity(row) for row in clean["set_validation"]})
         self.assertEqual(rejects[0]["comparatorCohort"], "m4")
@@ -240,9 +305,46 @@ class M6ContractTests(unittest.TestCase):
         fixture_rows, _, _ = validate_history_bundle(fixture, production=False)
         self.assertEqual(fixture_rows, history)
 
+    def test_authoritative_history_reopens_all_fixed_metadata(self):
+        bundle = build_history_bundle()
+        self.assertEqual(bundle["receipt"]["cohortRowCounts"], {
+            "h3": 600, "m2": 106878, "m3": 108978, "m4": 113162, "m5": 113162,
+        })
+        self.assertEqual(bundle["receipt"]["normalizedRows"], 442780)
+        self.assertEqual(
+            bundle["receipt"]["normalizedExpandedSha256"],
+            "ea324b93c072332a19c9fc8256084fb2c7c2d82d74f31b10c5243b8c912661b7",
+        )
+        self.assertEqual(sum(row["dhash64"] is None for row in bundle["rows"]), 600)
+
+    def test_source_shards_and_decoded_rgb_definition_are_frozen(self):
+        inventory = load_source_shards()
+        self.assertEqual(inventory["totalShards"], 85)
+        self.assertEqual(inventory["totalBytes"], 64614604097)
+        self.assertEqual(
+            sha256(Path("benchmark/m6/source-shards.json").read_bytes()).hexdigest(),
+            SOURCE_SHARDS_SHA256,
+        )
+        broken = copy.deepcopy(inventory)
+        broken["sources"]["omniFakeSet"]["shards"][0]["size"] += 1
+        with self.assertRaises(ValueError):
+            validate_source_shards(broken)
+
+        png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAAFElEQVR4nGP4z8DAAMaMXCJyEAAAMTMD7ybEdyAAAAAASUVORK5CYII="
+        )
+        self.assertEqual(image_facts(png), (
+            "9c7330b7d83259d466401e33223b6d33fd7a769410da36a4070d5e59a863df46",
+            "99bdbccd9aef19d940ae1186b76477d6916b6e24a34543a51509e3abd65712f3",
+            "9e9e8e0e06004060", 3, 2,
+        ))
+        self.assertEqual(source_group(SET_DATASET, "train", "real", None, "train/real/COCO/a.jpg"), "COCO")
+        self.assertEqual(source_group(OOD_DATASET, "test", "real", None, "real/a.jpg"), "OOD-real")
+        self.assertEqual(source_group(SET_DATASET, "train", "full_synthetic", "flux", "train/full_synthetic/flux/a.png"), "flux")
+
     def test_source_lock_bundle_is_exact_atomic_and_order_independent(self):
         parts = _fixture_parts()
-        root = Path(tempfile.mkdtemp())
+        root = Path(tempfile.mkdtemp()).resolve()
         self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
         first = root / "first"
         result = _source_lock_fixture(
@@ -310,7 +412,7 @@ class M6ContractTests(unittest.TestCase):
 
     def test_source_lock_stale_partial_and_injected_failure_leave_no_output(self):
         parts = _fixture_parts()
-        root = Path(tempfile.mkdtemp())
+        root = Path(tempfile.mkdtemp()).resolve()
         self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
         output = root / "packet"
         partial = root / "packet.partial"
@@ -405,7 +507,10 @@ class M6ContractTests(unittest.TestCase):
 
     def test_production_source_lock_rejects_unreviewed_protocol_commit(self):
         with self.assertRaisesRegex(ValueError, "protocol commit changed"):
-            source_lock({}, Path("unused"), history_bundle={}, protocol_commit="0" * 40)
+            source_lock(
+                {}, Path("unused"), history_bundle={}, protocol_commit="0" * 40,
+                materialization_summary_sha256="0" * 64, source_shards_sha256="1" * 64,
+            )
 
     def test_canonical_gzip_golden_vector(self):
         payload = b'{"m6":"source-lock"}\n'
@@ -477,6 +582,329 @@ class M6ContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_manifest_row({**row, "imageSha256": row["encodedBytesSha256"]})
 
+    def test_pinned_downloader_mock_verifies_and_reuses(self):
+        root = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
+        source_file = root / "source.parquet"
+        source_file.write_bytes(b"parquet-placeholder")
+        payload = source_file.read_bytes()
+        shard = {
+            "path": "data/Image/train-00000-of-00019.parquet",
+            "size": len(payload),
+            "lfsSha256": sha256(payload).hexdigest(),
+            "partition": "train",
+        }
+        source = {"dataset": SET_DATASET, "revision": SET_REVISION}
+        calls = []
+
+        def downloader(**kwargs):
+            calls.append(kwargs)
+            return str(source_file)
+
+        receipt = _download_shard_fixture(
+            cache_root=root / "cache", source_key="omniFakeSet", source=source,
+            shard=shard, downloader=downloader,
+        )
+        self.assertEqual(receipt["sha256"], shard["lfsSha256"])
+        self.assertEqual(calls, [{
+            "filename": shard["path"],
+            "local_dir": str(root / "cache/.hf-downloads/omniFakeSet"),
+            "repo_id": SET_DATASET,
+            "repo_type": "dataset",
+            "revision": SET_REVISION,
+            "token": False,
+        }])
+        destination = root / "cache/omni-fake-set" / shard["path"]
+        self.assertEqual(destination.read_bytes(), payload)
+        _download_shard_fixture(
+            cache_root=root / "cache", source_key="omniFakeSet", source=source,
+            shard=shard, downloader=lambda **_: self.fail("verified cache redownloaded"),
+        )
+        with self.assertRaisesRegex(ValueError, "source pin"):
+            _download_shard_fixture(
+                cache_root=root / "other", source_key="omniFakeSet",
+                source={**source, "revision": "0" * 40}, shard=shard,
+                downloader=downloader,
+            )
+        with self.assertRaisesRegex(ValueError, "shard pin"):
+            _download_shard_fixture(
+                cache_root=root / "other", source_key="omniFakeSet", source=source,
+                shard={**shard, "path": "unexpected.parquet"}, downloader=downloader,
+            )
+
+    def test_downloader_rejects_wrong_bytes_and_symlink_cache(self):
+        root = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
+        source_file = root / "bad.parquet"
+        source_file.write_bytes(b"bad")
+        source = {"dataset": SET_DATASET, "revision": SET_REVISION}
+        shard = {
+            "path": "data/Image/train-00000-of-00019.parquet", "partition": "train",
+            "size": 4, "lfsSha256": sha256(b"good").hexdigest(),
+        }
+        with self.assertRaises(ValueError):
+            _download_shard_fixture(
+                cache_root=root / "cache", source_key="omniFakeSet", source=source,
+                shard=shard, downloader=lambda **_: str(source_file),
+            )
+        destination = root / "symlink/omni-fake-set" / shard["path"]
+        destination.parent.mkdir(parents=True)
+        destination.symlink_to(source_file)
+        with self.assertRaisesRegex(ValueError, "symlink"):
+            _download_shard_fixture(
+                cache_root=root / "symlink", source_key="omniFakeSet", source=source,
+                shard=shard, downloader=lambda **_: str(source_file),
+            )
+
+    def test_production_downloader_rejects_plausible_noninventory_shard(self):
+        source = {"dataset": SET_DATASET, "revision": SET_REVISION}
+        shard = {
+            "path": "data/Image/train-99999-of-99999.parquet", "partition": "train",
+            "size": 123, "lfsSha256": "a" * 64,
+        }
+        with self.assertRaisesRegex(ValueError, "pinned inventory"):
+            download_shard(
+                cache_root=Path("unused"), source_key="omniFakeSet", source=source,
+                shard=shard, downloader=lambda **_: self.fail("download should not run"),
+            )
+        with self.assertRaisesRegex(ValueError, "pinned inventory"):
+            materialize_shard(
+                cache_root=Path("unused"), output_root=Path("unused-output"),
+                source_key="omniFakeSet", source=source, shard=shard, workers=1,
+            )
+
+    def test_shard_materialization_is_source_bound_atomic_and_resumable(self):
+        root = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
+        cache_root, source, shard = _fixture_download(root)
+        output = root / "materialized"
+        output.mkdir()
+        receipt = _materialize_shard_fixture(
+            cache_root=cache_root, output_root=output, source_key="omniFakeSet",
+            source=source, shard=shard, workers=1,
+        )
+        final = output / "fragments/omniFakeSet" / PurePosixPath(shard["path"]).name
+        self.assertEqual(set(os.listdir(final)), {"fragment.jsonl.gz", "receipt.json"})
+        resumed = _materialize_shard_fixture(
+            cache_root=cache_root, output_root=output, source_key="omniFakeSet",
+            source=source, shard=shard, workers=1,
+        )
+        self.assertEqual(resumed, receipt)
+
+        (final / "fragment.jsonl.gz").write_bytes(b"not-gzip")
+        with self.assertRaises(ValueError):
+            _materialize_shard_fixture(
+                cache_root=cache_root, output_root=output, source_key="omniFakeSet",
+                source=source, shard=shard, workers=1,
+            )
+        shutil.rmtree(final)
+        _materialize_shard_fixture(
+            cache_root=cache_root, output_root=output, source_key="omniFakeSet",
+            source=source, shard=shard, workers=1,
+        )
+        expanded = gzip.decompress((final / "fragment.jsonl.gz").read_bytes())
+        forged_row = json.loads(expanded)
+        forged_row["sourceGroup"] = "forged-but-schema-valid"
+        forged_expanded = canonical_json(forged_row)
+        forged_fragment = canonical_gzip(forged_expanded)
+        forged_receipt = parse_json_bytes(
+            (final / "receipt.json").read_bytes(), label="fixture receipt",
+        )
+        forged_receipt.update({
+            "expandedSha256": sha256(forged_expanded).hexdigest(),
+            "fragmentBytes": len(forged_fragment),
+            "fragmentSha256": sha256(forged_fragment).hexdigest(),
+        })
+        (final / "fragment.jsonl.gz").write_bytes(forged_fragment)
+        (final / "receipt.json").write_bytes(canonical_json(forged_receipt))
+        with self.assertRaisesRegex(ValueError, "source-derived"):
+            _materialize_shard_fixture(
+                cache_root=cache_root, output_root=output, source_key="omniFakeSet",
+                source=source, shard=shard, workers=1,
+            )
+
+    def test_materializer_row_identity_uses_shard_and_ordinal(self):
+        root = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
+        cache_a, source, shard_a = _fixture_download(
+            root, shard_name="train-00000-of-00019.parquet",
+        )
+        _, _, shard_b = _fixture_download(
+            root, shard_name="train-00001-of-00019.parquet",
+        )
+        _, compressed_a, _ = _derive_shard_materialization(
+            cache_root=cache_a, source_key="omniFakeSet", source=source,
+            shard=shard_a, workers=1,
+        )
+        _, compressed_b, _ = _derive_shard_materialization(
+            cache_root=cache_a, source_key="omniFakeSet", source=source,
+            shard=shard_b, workers=1,
+        )
+        row_a = json.loads(gzip.decompress(compressed_a))
+        row_b = json.loads(gzip.decompress(compressed_b))
+        self.assertEqual(row_a["filename"], row_b["filename"])
+        self.assertNotEqual(row_a["rowId"], row_b["rowId"])
+        self.assertTrue(row_a["rowId"].endswith(":" + shard_a["path"] + ":0"))
+
+    def test_materializer_publication_failures_are_retryable(self):
+        root = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
+        cache_root, source, shard = _fixture_download(root)
+        stages = (
+            "fragment-written", "receipt-written", "temporary-directory-fsynced",
+            "before-rename", "after-rename", "parent-directory-fsynced",
+        )
+        for stage in stages:
+            with self.subTest(stage=stage):
+                output = root / ("out-" + stage)
+                output.mkdir()
+
+                def hook(current, wanted=stage):
+                    if current == wanted:
+                        raise OSError("injected " + wanted)
+
+                with self.assertRaises(OSError):
+                    _materialize_shard_fixture(
+                        cache_root=cache_root, output_root=output,
+                        source_key="omniFakeSet", source=source, shard=shard,
+                        workers=1, failure_hook=hook,
+                    )
+                parent = output / "fragments/omniFakeSet"
+                name = PurePosixPath(shard["path"]).name
+                self.assertFalse((parent / name).exists())
+                self.assertFalse((parent / (name + ".partial")).exists())
+                _materialize_shard_fixture(
+                    cache_root=cache_root, output_root=output,
+                    source_key="omniFakeSet", source=source, shard=shard, workers=1,
+                )
+
+        output = root / "out-rollback"
+        output.mkdir()
+
+        def rollback_hook(current):
+            if current in {"after-rename", "rollback-fsync"}:
+                raise OSError("injected rollback")
+
+        with self.assertRaisesRegex(RuntimeError, "state unknown"):
+            _materialize_shard_fixture(
+                cache_root=cache_root, output_root=output, source_key="omniFakeSet",
+                source=source, shard=shard, workers=1, failure_hook=rollback_hook,
+            )
+
+    def test_verified_descriptor_survives_path_replacement(self):
+        root = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
+        cache_root, source, shard = _fixture_download(root)
+        original_open = _open_local_shard
+        local = _local_shard_path(cache_root, "omniFakeSet", shard)
+        replacement = local.with_name(local.name + ".replacement")
+        replacement.write_bytes(b"not parquet")
+
+        def open_then_replace(*args, **kwargs):
+            handle = original_open(*args, **kwargs)
+            os.replace(replacement, local)
+            return handle
+
+        with mock.patch("benchmark.m6.materialize._open_local_shard", side_effect=open_then_replace):
+            expanded, _, receipt = _derive_shard_materialization(
+                cache_root=cache_root, source_key="omniFakeSet", source=source,
+                shard=shard, workers=1,
+            )
+        self.assertTrue(expanded.endswith(b"\n"))
+        self.assertEqual(receipt["rows"], 1)
+
+    def test_historical_publication_rolls_back_after_rename(self):
+        root = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
+        fixture = {"rows": [], "receipt": {"schemaVersion": 1}}
+
+        def renamed(current):
+            if current == "renamed":
+                raise OSError("post-rename")
+
+        output = root / "history"
+        with mock.patch("benchmark.m6.historical.build_history_bundle", return_value=fixture):
+            with self.assertRaises(OSError):
+                write_history_bundle(output, failure_hook=renamed)
+        self.assertFalse(output.exists())
+
+        def parent_fsynced(current):
+            if current == "parent-fsynced":
+                raise OSError("post-parent-fsync")
+
+        with mock.patch("benchmark.m6.historical.build_history_bundle", return_value=fixture):
+            with self.assertRaises(OSError):
+                write_history_bundle(output, failure_hook=parent_fsynced)
+        self.assertFalse(output.exists())
+
+        def unknown(current):
+            if current in {"renamed", "rollback-fsync"}:
+                raise OSError("rollback")
+
+        with mock.patch("benchmark.m6.historical.build_history_bundle", return_value=fixture):
+            with self.assertRaisesRegex(RuntimeError, "state unknown"):
+                write_history_bundle(output, failure_hook=unknown)
+
+    def test_summary_publication_is_atomic_idempotent_and_symlink_safe(self):
+        root = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(lambda: shutil.rmtree(root, ignore_errors=True))
+        expected = {"schemaVersion": 1, "status": "fixture-pass"}
+        fields = set(expected)
+        stages = (
+            "summary-written", "before-summary-rename", "after-summary-rename",
+            "summary-parent-fsynced",
+        )
+        for stage in stages:
+            with self.subTest(stage=stage):
+                parent = root / stage
+                parent.mkdir()
+                path = parent / "summary.json"
+
+                def hook(current, wanted=stage):
+                    if current == wanted:
+                        raise OSError("injected " + wanted)
+
+                with self.assertRaises(OSError):
+                    _publish_summary(
+                        path, expected, fields=fields, label="fixture summary",
+                        failure_hook=hook,
+                    )
+                self.assertFalse(path.exists())
+                self.assertFalse(path.with_suffix(".json.partial").exists())
+                _publish_summary(path, expected, fields=fields, label="fixture summary")
+                _publish_summary(path, expected, fields=fields, label="fixture summary")
+
+        stale_parent = root / "stale"
+        stale_parent.mkdir()
+        stale = stale_parent / "summary.json"
+        stale.with_suffix(".json.partial").write_bytes(b"interrupted")
+        _publish_summary(stale, expected, fields=fields, label="fixture summary")
+        self.assertFalse(stale.with_suffix(".json.partial").exists())
+        stale.write_bytes(canonical_json({"schemaVersion": 1, "status": "changed"}))
+        with self.assertRaises(ValueError):
+            _publish_summary(stale, expected, fields=fields, label="fixture summary")
+
+        symlink_parent = root / "symlink"
+        symlink_parent.mkdir()
+        target = symlink_parent / "target.json"
+        target.write_bytes(canonical_json(expected))
+        linked = symlink_parent / "summary.json"
+        linked.symlink_to(target)
+        with self.assertRaisesRegex(ValueError, "unsafe"):
+            _publish_summary(linked, expected, fields=fields, label="fixture summary")
+
+        rollback_parent = root / "rollback"
+        rollback_parent.mkdir()
+
+        def rollback_hook(current):
+            if current in {"after-summary-rename", "summary-rollback-fsync"}:
+                raise OSError("injected rollback")
+
+        with self.assertRaisesRegex(RuntimeError, "state unknown"):
+            _publish_summary(
+                rollback_parent / "summary.json", expected, fields=fields,
+                label="fixture summary", failure_hook=rollback_hook,
+            )
 
 if __name__ == "__main__":
     unittest.main()

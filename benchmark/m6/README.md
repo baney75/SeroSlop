@@ -20,13 +20,60 @@ assignments, and writes a non-overwriting atomic candidate packet. A later
 public S checker must independently re-open the source and historical evidence
 before that packet is authoritative.
 
-The corrected overlap boundary is explicit: canonical identity, encoded image
-bytes SHA-256, and EXIF-oriented RGB dHash distance at most eight apply to both
-fresh and historical metadata. Decoded EXIF-oriented RGB SHA-256 is available
-and compared only for fresh rows. Historical decoded hashes are unavailable;
-H3 pixels remain unread. The original P phrase `decoded image SHA256` did not
-truthfully describe historical metadata and is superseded only by this direct
-recovery lineage.
+The corrected overlap boundary is explicit: canonical identity and encoded
+image bytes SHA-256 apply to every fresh and historical row. Decoded
+EXIF-oriented RGB SHA-256 is available and compared only for fresh rows.
+EXIF-oriented RGB dHash distance at most eight is applied wherever the source
+metadata recorded a dHash; 600 M2 validation rows legitimately have no recorded
+dHash and remain protected by identity and encoded-byte comparisons. Historical
+decoded hashes are unavailable, and neither missing historical field is
+reconstructed from pixels. H3 pixels remain unread. The original P phrase
+`decoded image SHA256`, and P2's overbroad historical dHash wording, are
+superseded only by the direct append-only recovery lineage.
+
+The pinned fresh-source inventory is `source-shards.json` (85 image Parquet
+shards, 64,614,604,097 bytes; SHA-256
+`a86c7209e76248edddd61537f397379194a7aaa908405e0cede7c8f5a3d7fbfe`).
+`materialize.py` verifies every shard's LFS SHA-256 before decoding, records
+encoded bytes SHA-256, and defines decoded RGB SHA-256 as SHA-256 over the
+namespace `seroslop-m6-decoded-rgb-v1\0`, big-endian 32-bit width and height,
+and the EXIF-transposed RGB bytes. Its dHash matches the M4 algorithm exactly.
+The controlled download phase requests only the 85 pinned dataset paths at the
+exact revisions with `token=False`, then re-verifies a regular non-symlink file,
+its byte count, and LFS SHA-256 before publishing canonical download receipts.
+Materialization decodes from the same verified file descriptor, derives row IDs
+from dataset, revision, shard path, and shard-local ordinal, and publishes each
+fragment plus receipt as one fsync-bound atomic directory. Resume re-derives the
+complete fragment from the pinned Parquet bytes; a matching sidecar alone is not
+trusted. It reads fresh Omni-Fake pixels only; H3 and M2-M5 pixels are never
+opened.
+
+`historical.py` independently re-opens the fixed committed metadata artifacts
+and normalizes 442,780 comparator rows: H3 600, M2 106,878, M3 108,978, M4
+113,162, and M5 113,162. M5's rows deliberately bind the M4 manifests reused
+by M5 plus the terminal M5 selector-failure receipt. The authoritative
+source-lock CLI no longer accepts a caller-authored history bundle; it derives
+history from those fixed repository artifacts and fresh facts from the verified
+materialization cache.
+
+P3 remains protocol recovery until its exact public commit is green. Only then,
+from the physical repository root and the isolated benchmark environment, run:
+
+```bash
+PYTHONNOUSERSITE=1 benchmark/.venv/bin/python -m benchmark.m6.materialize \
+  --phase download --cache-root benchmark/data/m6-shards
+PYTHONNOUSERSITE=1 benchmark/.venv/bin/python -m benchmark.m6.materialize \
+  --phase materialize --cache-root benchmark/data/m6-shards \
+  --output-root benchmark/data/m6-materialized --workers 8
+PYTHONNOUSERSITE=1 benchmark/.venv/bin/python -m benchmark.m6.prepare \
+  --phase source-lock --cache-root benchmark/data/m6-shards \
+  --materialized-root benchmark/data/m6-materialized \
+  --output benchmark/evidence/m6/source-lock-candidate
+```
+
+The download phase reads no image pixels. The materialize and source-lock
+commands are forbidden before public-green P3, and S is not authoritative until
+its later exact-path public checker and authorization both pass.
 
 Training uses only clean Omni-Fake-SET train rows (real/full_synthetic), two
 predeclared last-six branches, and four snapshots. Omni-Fake-OOD is
