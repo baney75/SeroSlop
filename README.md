@@ -164,3 +164,9 @@ The complete machine-readable contract is [model-lock.json](model-lock.json). Tr
 The contributor directory is retained as an internal development artifact. This submission does not upload images or admit contributor data into training.
 
 SeroSlop is MIT licensed. Dataset pixels are not included in this repository.
+
+## Sponsors
+
+<!-- sponsors:start -->
+No sponsors yet. [Sponsor on GitHub](https://github.com/sponsors/baney75) and your name appears here automatically.
+<!-- sponsors:end -->
