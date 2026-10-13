@@ -493,7 +493,7 @@ requireCondition(browserEvidence.wasm.testedGitHead === browserEvidence.webgpu.t
   browserEvidence.wasm.testedGitTree === browserEvidence.webgpu.testedGitTree &&
   browserEvidence.wasm.archiveSha256 === browserEvidence.webgpu.archiveSha256,
 "WASM and WebGPU Chrome evidence do not bind the same source and archive");
-requireCondition(digest(await readFile("release/seroslop.zip")) === browserEvidence.wasm.archiveSha256,
+requireCondition(digest(await readFile("release/prooflens.zip")) === browserEvidence.wasm.archiveSha256,
   "Chrome E2E receipts do not bind the current release archive");
 const currentHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 if (currentHead !== browserEvidence.wasm.testedGitHead) {
