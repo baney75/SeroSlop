@@ -6,6 +6,7 @@ import { classifyM4Stage, M4_FAILURE_PATH, M4_PUBLICATION_LOCK_PATH } from "./m4
 import { classifyM3Stage, M3_FAILURE_PATH, M3_PUBLICATION_LOCK_PATH } from "./m3-stage-policy.mjs";
 import { classifyM5Stage, M5_FAILURE_PATH, M5_FINAL_RECEIPT_PATH, M5_LARGE_SOURCE_LOCK_PATH, M5_A5_AUTHORIZATION_PATH, M5_A5_COMMIT, M5_A6_AUTHORIZATION_PATH, M5_A6_COMMIT, M5_A7_AUTHORIZATION_PATH, M5_NUMERIC_AUDIT_RECOVERY_EXPECTED, M5_R5_EXPECTED, M5_R6_EXPECTED, M5_R7_EXPECTED, M5_A4_COMMIT, M5_RUNPOD_ENV_AUTHORIZATION_COMMIT, M5_SELECTION_LOCK_PATH, matchesExpectedRows } from "./m5-stage-policy.mjs";
 import { m5Git } from "./m5-safe-git.mjs";
+import { isProductHead } from "./product-stage-policy.mjs";
 import { isM6ProtocolLineageHead, matchesM6SubmissionProxyRHead, matchesM6SubmissionProxyR2Head, matchesM6SubmissionProxyR3Head, matchesM6SubmissionProxyResultHead, matchesM6SubmissionProxyResultRecoveryHead, matchesM6SubmissionReleaseHead } from "./m6-stage-policy.mjs";
 // M6 P5/P7/P8 prospective direct-child routing is handled by isM6ProtocolLineageHead.
 // P8 R/A remain receipt-bound and never imply source-lock or training authority.
@@ -137,6 +138,13 @@ const scripts = new Map([
   ["final", "verify:final"],
   ["pre-score", "verify:pre-score"],
 ]);
+if (isProductHead(head)) {
+  // Commits after the submission release are product work; check-product-stage keeps the research frozen.
+  const result = spawnSync("npm", ["run", "verify:product"], { stdio: "inherit" });
+  if (result.error) throw result.error;
+  if (result.status !== 0) process.exit(result.status ?? 1);
+  process.exit(0);
+}
 if (submissionReleaseExists) {
   const result = spawnSync("npm", ["run", "verify:submission-release"], { stdio: "inherit" });
   if (result.error) throw result.error;

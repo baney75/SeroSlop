@@ -61,7 +61,9 @@ jobs:
           archive=$(node -p 'JSON.parse(require("fs").readFileSync("release/publish/release-metadata.json","utf8")).archive')
           checksum=$(node -p 'JSON.parse(require("fs").readFileSync("release/publish/release-metadata.json","utf8")).checksum')
           tag="nightly-$(date -u +%Y%m%d)-${GITHUB_SHA::12}"
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exit 0; fi
+          if gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --json tagName --jq '.[].tagName' | grep -q -- "-${GITHUB_SHA::12}$"; then
+            echo "Nightly for ${GITHUB_SHA::12} already published"; exit 0
+          fi
           gh release create "$tag" "release/publish/$archive" "release/publish/$checksum" \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
             --title "SeroSlop nightly ${GITHUB_SHA::12}" \

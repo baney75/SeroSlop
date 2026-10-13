@@ -121,7 +121,7 @@ try {
     testedGitTree,
     trackedSourceWorktreeDirty,
     modelSha256,
-    archiveSha256: createHash("sha256").update(await readFile("release/prooflens.zip")).digest("hex"),
+    archiveSha256: createHash("sha256").update(await readFile("release/seroslop.zip")).digest("hex"),
     browserVersion: await context.browser()?.version(),
     cleanProfile: true,
     offline: true,

@@ -63,19 +63,19 @@ jobs:
       - run: xvfb-run --auto-servernum npm run test:contributor:chrome
       - uses: actions/upload-artifact@v4
         with:
-          name: prooflens-unpacked
+          name: seroslop-unpacked
           path: dist/
           retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
-          name: prooflens-release
+          name: seroslop-release
           path: |
-            release/prooflens.zip
+            release/seroslop.zip
             release/SHA256SUMS.txt
           retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
-          name: prooflens-browser-evidence
+          name: seroslop-browser-evidence
           path: |
             artifacts/chrome-e2e-wasm.json
             artifacts/chrome-e2e-wasm.png

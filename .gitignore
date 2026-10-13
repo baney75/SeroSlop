@@ -8,4 +8,4 @@ benchmark/candidates/
 benchmark/**/__pycache__/
 *.partial
 .DS_Store
-artifacts/*.tmp
+artifacts/

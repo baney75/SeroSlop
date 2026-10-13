@@ -1662,7 +1662,7 @@ try {
     screenshot: await screenshotRecord(smallTargetScreenshotPath),
     badges: [browserGeometryBadgeRecord(smallTargetBadge)],
   };
-  const archiveSha256 = createHash("sha256").update(await readFile("release/prooflens.zip")).digest("hex");
+  const archiveSha256 = createHash("sha256").update(await readFile("release/seroslop.zip")).digest("hex");
   const evidence = {
     schemaVersion: 7,
     generatedAt: new Date().toISOString(),

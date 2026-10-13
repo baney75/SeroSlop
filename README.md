@@ -84,7 +84,7 @@ Then load the generated build:
 4. Choose a scan mode. No mode is selected for you.
 5. Open the extension to run the chosen action or choose **Change mode**. In image-picking mode, use the pointer or move with Tab, press Enter to analyze, and press Esc to cancel.
 
-The reproducible archive is generated at `release/prooflens.zip`; its digest is recorded in `release/SHA256SUMS.txt`.
+The reproducible archive is generated at `release/seroslop.zip`; its digest is recorded in `release/SHA256SUMS.txt`.
 
 ## Update a source build
 
