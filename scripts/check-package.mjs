@@ -106,7 +106,7 @@ if (guardedLocalRead < 0 || loadImageMethod < 0 || guardedLoadImage < loadImageM
   localFetch - guardedLoadImage > 256) {
   throw new Error("Local image fetch is not immediately preceded by the data-image policy guard");
 }
-const archiveEntries = execFileSync("unzip", ["-Z1", "release/prooflens.zip"], { encoding: "utf8" }).trim().split("\n");
+const archiveEntries = execFileSync("unzip", ["-Z1", "release/seroslop.zip"], { encoding: "utf8" }).trim().split("\n");
 for (const notice of requiredNotices.keys()) {
   const relative = notice.replace(/^dist\//u, "");
   if (!archiveEntries.includes(relative)) throw new Error(`Release archive omits ${relative}`);

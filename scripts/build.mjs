@@ -81,7 +81,7 @@ async function filesUnder(directory, prefix = "") {
 
 const releaseFiles = await filesUnder(outdir);
 await Promise.all(releaseFiles.map((name) => utimes(path.join(outdir, name), reproducibleTime, reproducibleTime)));
-const archive = path.join(releaseDir, "prooflens.zip");
+const archive = path.join(releaseDir, "seroslop.zip");
 // Info-ZIP writes DOS timestamps in the process timezone. Pin it so the
 // byte-level release is identical on developer machines and CI.
 execFileSync("zip", ["-X", "-q", archive, ...releaseFiles], {
@@ -90,5 +90,5 @@ execFileSync("zip", ["-X", "-q", archive, ...releaseFiles], {
 });
 const archiveBytes = await readFile(archive);
 const archiveHash = digest(archiveBytes);
-await writeFile(path.join(releaseDir, "SHA256SUMS.txt"), `${archiveHash}  prooflens.zip\n`);
-console.log(JSON.stringify({ archive: "release/prooflens.zip", bytes: archiveBytes.byteLength, sha256: archiveHash }));
+await writeFile(path.join(releaseDir, "SHA256SUMS.txt"), `${archiveHash}  seroslop.zip\n`);
+console.log(JSON.stringify({ archive: "release/seroslop.zip", bytes: archiveBytes.byteLength, sha256: archiveHash }));

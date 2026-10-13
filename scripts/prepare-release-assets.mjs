@@ -13,7 +13,7 @@ export async function prepareReleaseAssets({ root, channel, commit, refName }) {
   if (channel === "stable" && refName !== `v${manifest.version}`) {
     throw new Error(`stable release tag must be v${manifest.version}`);
   }
-  const source = path.join(root, "release/prooflens.zip");
+  const source = path.join(root, "release/seroslop.zip");
   const archiveBytes = await readFile(source);
   const digest = sha256(archiveBytes);
   const suffix = channel === "stable" ? manifest.version : `${commit.slice(0, 12)}`;

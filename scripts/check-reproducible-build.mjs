@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 
-const archivePath = "release/prooflens.zip";
+const archivePath = "release/seroslop.zip";
 const sha256 = async () => createHash("sha256").update(await readFile(archivePath)).digest("hex");
 const buildUnder = (timezone) => {
   execFileSync(process.execPath, ["scripts/build.mjs"], {

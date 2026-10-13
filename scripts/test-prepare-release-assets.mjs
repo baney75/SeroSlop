@@ -11,7 +11,7 @@ try {
   await mkdir(path.join(root, "release"), { recursive: true });
   await writeFile(path.join(root, "src/static/manifest.json"), '{"version":"1.2.3"}\n');
   const archiveBytes = Buffer.from("fixed release bytes");
-  await writeFile(path.join(root, "release/prooflens.zip"), archiveBytes);
+  await writeFile(path.join(root, "release/seroslop.zip"), archiveBytes);
   const commit = "a".repeat(40);
   const expectedDigest = createHash("sha256").update(archiveBytes).digest("hex");
 

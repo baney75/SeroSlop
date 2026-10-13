@@ -392,7 +392,7 @@ async function score(evidenceRoot = DEFAULT_EVIDENCE_ROOT) {
     "status", "--porcelain", "--untracked-files=no", "--", ".", ":(exclude)contributor/**",
   ], { encoding: "utf8" }).trim();
   if (dirty) throw new Error(`tracked product worktree is dirty:\n${dirty}`);
-  const archive = await readFile(path.join(REPOSITORY_ROOT, "release/prooflens.zip"));
+  const archive = await readFile(path.join(REPOSITORY_ROOT, "release/seroslop.zip"));
 
   const profile = await mkdtemp(path.join(os.tmpdir(), "seroslop-bounty-proxy-"));
   let context;

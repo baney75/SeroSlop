@@ -324,7 +324,7 @@ export async function verifyPacket(root = DEFAULT_ROOT, { fetchRun = defaultFetc
     ["benchmark/evidence/m2/calibration.json", CALIBRATION_SHA256],
     ["model-lock.json", MODEL_LOCK_SHA256],
   ];
-  if (requireCurrentArchive) localArtifacts.push(["release/prooflens.zip", summary.value.archiveSha256]);
+  if (requireCurrentArchive) localArtifacts.push(["release/seroslop.zip", summary.value.archiveSha256]);
   for (const [file, expected] of localArtifacts) {
     if (sha256(await physicalFile(path.resolve(file))) !== expected) throw new Error(`fixed artifact changed: ${file}`);
   }
