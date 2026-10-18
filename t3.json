@@ -1,0 +1,17 @@
+{
+  "$schema": "https://t3.codes/schema/t3.json",
+  "scripts": [
+    {
+      "name": "Setup worktree",
+      "command": "npm ci && python3.12 -m venv benchmark/.venv && benchmark/.venv/bin/python -m pip install -r benchmark/verify-requirements.txt",
+      "icon": "configure",
+      "runOnWorktreeCreate": true,
+      "async": false
+    },
+    {
+      "name": "Check",
+      "command": "test -x benchmark/.venv/bin/python || { echo 'benchmark/.venv missing: run Setup worktree'; exit 1; }; PATH=\"$PWD/benchmark/.venv/bin:$PATH\" npm run check",
+      "icon": "test"
+    }
+  ]
+}
