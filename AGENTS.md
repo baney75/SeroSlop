@@ -4,8 +4,8 @@ SeroSlop is a Manifest V3 Chrome extension that shows a local AI-image score bes
 
 ## Run and check
 
-- Install: `npm ci`, plus a Python 3.12 venv at `benchmark/.venv` from `benchmark/verify-requirements.txt` (the pinned `onnxruntime` has no wheel for newer Python).
-- Check: `npm run check` (runs `npm run verify:static`: lint, typecheck, vitest, contributor, benchmark-evidence and stage-policy checks, ONNX inspection, reproducible build, package, site and store-asset checks). Run it with the venv's `bin/` first on `PATH`. CI runs `npm run verify:static` the same way.
+- Install: `npm ci`, plus a Python 3.12 venv at `benchmark/.venv` from `benchmark/verify-requirements.txt` (matches CI; the pinned `onnxruntime==1.22.0` has no wheel for Python 3.14). Use exactly `benchmark/.venv`: eslint ignores only that path, so a venv elsewhere in the repo (README's `.verify-venv`) fails lint.
+- Check: `npm run check` (runs `npm run verify:static`: lint, typecheck, vitest, contributor, benchmark-evidence and stage-policy checks, ONNX inspection, reproducible build, package and site checks, then `scripts/prepare-store-assets.mjs`, which regenerates files under `store/assets/`). Run it with the venv's `bin/` first on `PATH`. CI runs `npm run verify:static` the same way.
 - Live proof: for a change to scoring badges, the popup or setup tab, run `npm run build`, load `dist/` unpacked in Chrome, finish setup (**Offline ready**), pick a mode and confirm a score appears on a test page. `npm run test:chrome` automates this smoke test. If you can't run them, report "untested live" and give these steps.
 - Deploy: merging a `site/**` change to `main` runs `.github/workflows/pages.yml`; a `main` build also publishes a nightly prerelease via `.github/workflows/release.yml`. Don't run either by hand.
 

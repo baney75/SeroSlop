@@ -10,7 +10,7 @@
     },
     {
       "name": "Check",
-      "command": "PATH=\"$PWD/benchmark/.venv/bin:$PATH\" npm run check",
+      "command": "test -x benchmark/.venv/bin/python || { echo 'benchmark/.venv missing: run Setup worktree'; exit 1; }; PATH=\"$PWD/benchmark/.venv/bin:$PATH\" npm run check",
       "icon": "test"
     }
   ]
